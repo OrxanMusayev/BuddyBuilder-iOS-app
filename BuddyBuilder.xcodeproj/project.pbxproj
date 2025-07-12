@@ -10,9 +10,33 @@
 		B488E7072E1A9952009B6DD4 /* BuddyBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuddyBuilder.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B40989812E2294720033EFCB /* Exceptions for "BuddyBuilder" folder in "BuddyBuilder" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/Components/LoadingView.swift,
+			);
+			target = B488E7062E1A9952009B6DD4 /* BuddyBuilder */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		B40989822E2294720033EFCB /* Exceptions for "BuddyBuilder" folder in "Copy Bundle Resources" phase from "BuddyBuilder" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = B488E7052E1A9952009B6DD4 /* Resources */;
+			membershipExceptions = (
+				Shared/Components/LoadingView.swift,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B488E7092E1A9952009B6DD4 /* BuddyBuilder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B40989812E2294720033EFCB /* Exceptions for "BuddyBuilder" folder in "BuddyBuilder" target */,
+				B40989822E2294720033EFCB /* Exceptions for "BuddyBuilder" folder in "Copy Bundle Resources" phase from "BuddyBuilder" target */,
+			);
 			path = BuddyBuilder;
 			sourceTree = "<group>";
 		};

@@ -1,21 +1,21 @@
 import SwiftUI
 
-struct NotificationsView: View {
+struct MessagesView: View {
     @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
             
-            Image(systemName: "bell.circle.fill")
+            Image(systemName: "message.circle.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.primaryOrange)
             
-            Text("nav.notifications".localized(using: localizationManager))
+            Text("nav.messages".localized(using: localizationManager))
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(.textPrimary)
             
-            Text("notifications.coming.soon".localized(using: localizationManager))
+            Text("messages.coming.soon".localized(using: localizationManager))
                 .font(.system(size: 16))
                 .foregroundColor(.textSecondary)
             
@@ -27,6 +27,6 @@ struct NotificationsView: View {
 }
 
 #Preview {
-    NotificationsView()
+    MessagesView()
         .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
 }

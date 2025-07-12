@@ -1,41 +1,24 @@
-// Dosya Yolu: BuddyBuilder/App/ContentView.swift
-
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
+    @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {
         Group {
             if authViewModel.isAuthenticated {
                 MainTabView()
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
-                    .onAppear {
-                        print("🏠 MainTabView appeared - User is authenticated")
-                    }
+                    .environmentObject(authViewModel)
+                    .environmentObject(localizationManager)
             } else {
                 LoginView()
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .leading).combined(with: .opacity),
-                        removal: .move(edge: .trailing).combined(with: .opacity)
-                    ))
-                    .onAppear {
-                        print("🔐 LoginView appeared - User is NOT authenticated")
-                    }
+                    .environmentObject(authViewModel)
+                    .environmentObject(localizationManager)
             }
         }
-        .animation(.easeInOut(duration: 0.5), value: authViewModel.isAuthenticated)
         .onAppear {
             print("📱 ContentView appeared")
-            print("🔍 Initial isAuthenticated: \(authViewModel.isAuthenticated)")
-            // Uygulama açıldığında önceki login'i kontrol et
-            authViewModel.checkExistingLogin()
-        }
-        .onChange(of: authViewModel.isAuthenticated) { oldValue, newValue in
-            print("🔄 isAuthenticated changed from \(oldValue) to \(newValue)")
+            print("🔍 Auth status: \(authViewModel.isAuthenticated)")
         }
     }
 }
@@ -43,4 +26,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .environmentObject(AuthenticationViewModel())
+        .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
 }

@@ -33,6 +33,7 @@ struct MainTabView: View {
                 .environmentObject(localizationManager)
         }
         .ignoresSafeArea(.keyboard)
+        .ignoresSafeArea(.container, edges: .bottom) // Alt safe area'yı tamamen ignore et
         .background(Color.white)
     }
 }

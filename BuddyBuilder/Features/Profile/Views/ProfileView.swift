@@ -131,17 +131,6 @@ struct ProfileView: View {
             ProfileMenuDivider()
             
             ProfileMenuRow(
-                icon: "calendar.circle",
-                title: "profile.menu.my_events".localized(using: localizationManager),
-                color: .primaryOrange,
-                action: {
-                    // TODO: Navigate to my events
-                }
-            )
-            
-            ProfileMenuDivider()
-            
-            ProfileMenuRow(
                 icon: "trophy.circle",
                 title: "profile.menu.achievements".localized(using: localizationManager),
                 color: .primaryOrange,

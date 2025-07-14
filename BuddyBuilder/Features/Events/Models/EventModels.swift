@@ -11,6 +11,7 @@ struct Event: Codable, Identifiable {
     let eventTypeName: String
     let sport: Sport
     let owner: EventOwner
+    let participants: [ParticipantDto]
     let eventDate: String
     let registrationDeadline: String
     let maxParticipants: Int
@@ -66,6 +67,13 @@ struct Sport: Codable {
     let defaultEventImageUrl: String?
 }
 
+struct ParticipantDto: Codable {
+    let id: Int
+    let username: String
+    let firstName: String?
+    let lastName: String?
+    let imageUrl: String?
+}
 // MARK: - Event Owner Model
 struct EventOwner: Codable {
     let id: Int

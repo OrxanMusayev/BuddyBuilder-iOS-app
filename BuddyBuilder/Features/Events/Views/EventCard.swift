@@ -12,7 +12,9 @@ struct EventCard: View {
         VStack(spacing: 0) {
             // Event Image and Type Badge
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: event.imageUrl ?? "")) { image in
+                let imageUrlString = event.imageUrl ?? defaultImageUrl(for: event.sport.name)
+                
+                AsyncImage(url: URL(string: imageUrlString)) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -35,22 +37,22 @@ struct EventCard: View {
                 .clipped()
                 
                 // Event Type Badge
-//                HStack(spacing: 4) {
-//                    Image(systemName: event.eventType.icon)
-//                        .font(.system(size: 10, weight: .medium))
-//                    
-//                    Text(event.type.rawValue.localized(using: localizationManager) ?? event.type.rawValue)
-//                        .font(.system(size: 10, weight: .medium))
-//                }
-//                .foregroundColor(.white)
-//                .padding(.horizontal, 8)
-//                .padding(.vertical, 4)
-//                .background(
-//                    Capsule()
-//                        .fill(Color.black.opacity(0.6))
-//                )
-//                .padding(.top, 12)
-//                .padding(.trailing, 12)
+                HStack(spacing: 4) {
+                    //                    Image(systemName: event.eventType.icon)
+                    //                        .font(.system(size: 10, weight: .medium))
+                    
+                    //                    Text(event.eventType.localized(using: localizationManager) ?? event.eventType)
+                    //                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.black.opacity(0.6))
+                )
+                .padding(.top, 12)
+                .padding(.trailing, 12)
             }
             
             // Event Details
@@ -79,9 +81,9 @@ struct EventCard: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                         
-                        Text(event.eventDate ?? "")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                        Text(event.eventDate)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.textPrimary)
                     }
                     
                     // Location
@@ -104,7 +106,7 @@ struct EventCard: View {
                     // Participant Avatars
                     HStack(spacing: -8) {
                         ForEach(event.participants.prefix(3), id: \.id) { participant in
-                            AsyncImage(url: URL(string: participant.avatarUrl ?? "")) { image in
+                            AsyncImage(url: URL(string: participant.imageUrl ?? "")) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -141,14 +143,16 @@ struct EventCard: View {
                         }
                     }
                     
-                    Text((event.formattedParticipantCount ?? "0") + " " + ("events.participants".localized(using: localizationManager) ?? "participants"))
+                    let participantCount = event.participants.count
+                    let participantsText = "events.participants".localized(using: localizationManager) ?? "participants"
+                    Text("\(participantCount) \(participantsText)")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.textSecondary)
                     
                     Spacer()
                     
                     // Join/Leave Button
-                    if event.availableSpots > 0 || event.isParticipating {
+                    if event.availableSpots > 0 || event.isParticipant {
                         Button(action: {
                             Task {
                                 isJoining = true
@@ -164,21 +168,21 @@ struct EventCard: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(0.6)
                                 } else {
-                                    Image(systemName: event.isParticipating ? "minus.circle" : "plus.circle")
+                                    Image(systemName: event.isParticipant ? "minus.circle" : "plus.circle")
                                         .font(.system(size: 12, weight: .medium))
                                 }
                                 
-                                Text(event.isParticipating ?
-                                    ("events.leave".localized(using: localizationManager) ?? "Leave") :
-                                    ("events.join".localized(using: localizationManager) ?? "Join"))
-                                    .font(.system(size: 12, weight: .medium))
+                                Text(event.isParticipant ?
+                                     ("events.leave".localized(using: localizationManager) ?? "Leave") :
+                                        ("events.join".localized(using: localizationManager) ?? "Join"))
+                                .font(.system(size: 12, weight: .medium))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(event.isParticipating ? Color.red : Color.primaryOrange)
+                                    .fill(event.isParticipant ? Color.red : Color.primaryOrange)
                             )
                         }
                         .disabled(isJoining)
@@ -186,7 +190,7 @@ struct EventCard: View {
                     }
                     
                     // Sport Tag
-                    Text(event.sport.rawValue.localized(using: localizationManager) ?? event.sport.rawValue)
+                    Text(event.sport.name.localized(using: localizationManager) ?? event.sport.name)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.primaryOrange)
                         .padding(.horizontal, 8)
@@ -196,16 +200,48 @@ struct EventCard: View {
                                 .fill(Color.primaryOrange.opacity(0.1))
                         )
                 }
+                
+                
+                
+                
+                
+                
+                
             }
             .padding(16)
         }
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
-        .onTapGesture {
-            onTap()
+        //        .onTapGesture {
+        //            onTap()
+        //        }
+    }
+    
+    func defaultImageUrl(for sportType: String) -> String {
+        switch sportType.lowercased() {
+        case "soccer":
+            return "https://images.unsplash.com/photo-1574629810360-7efbbe195018"
+        case "volleyball":
+            return "https://media.istockphoto.com/id/1582215564/photo/women-hands-blocking-volleyball-ball.jpg?s=1024x1024&w=is&k=20&c=v-cDKThS4z6t2JePrunvhod6yxioAlE0_mjiA3aodBE="
+        case "tennis":
+            return "https://example.com/images/tennis.jpg"
+        default:
+            return "https://example.com/images/default.jpg"
         }
     }
+    
+    private var formattedEventDate: String {
+        guard let date = event.eventDateTime else {
+            return "TBD"
+        }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    
 }
 
 // MARK: - Event Card Skeleton

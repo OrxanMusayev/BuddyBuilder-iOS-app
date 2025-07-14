@@ -1,360 +1,464 @@
+// BuddyBuilder/Features/Events/Services/CompleteEventsService.swift
+
 import Foundation
+import Combine
 
-// MARK: - Events Service Protocol
 protocol EventsServiceProtocol {
-    func fetchEvents() async throws -> [Event]
-    func fetchMyEvents() async throws -> [Event]
-    func joinEvent(_ eventId: String) async throws -> Bool
-    func leaveEvent(_ eventId: String) async throws -> Bool
-    func createEvent(_ event: CreateEventRequest) async throws -> Event
-    func updateEvent(_ eventId: String, _ event: UpdateEventRequest) async throws -> Event
-    func deleteEvent(_ eventId: String) async throws -> Bool
+    func fetchEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
+    func fetchMyEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
+    func joinEvent(eventId: Int) -> AnyPublisher<Bool, Error>
+    func leaveEvent(eventId: Int) -> AnyPublisher<Bool, Error>
+    func fetchEventDetails(eventId: Int) -> AnyPublisher<Event, Error>
+    func fetchEventParticipants(eventId: Int) -> AnyPublisher<[EventParticipant], Error>
+    func fetchAvailableSports() -> AnyPublisher<[Sport], Error>
 }
 
-// MARK: - Events Service
-class EventsService: EventsServiceProtocol {
-    
-    // MARK: - API Endpoints (will be used when implementing real API)
-    private let baseURL = "https://api.buddybuilder.com/v1"
-    private let eventsEndpoint = "/events"
-    private let myEventsEndpoint = "/events/my"
-    
-    // MARK: - Public Methods
-    
-    func fetchEvents() async throws -> [Event] {
-        // TODO: Replace with actual API call
-        // let url = URL(string: "\(baseURL)\(eventsEndpoint)")!
-        // let (data, _) = try await URLSession.shared.data(from: url)
-        // return try JSONDecoder().decode([Event].self, from: data)
-        
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        return MockEventData.shared.getAllEvents()
-    }
-    
-    func fetchMyEvents() async throws -> [Event] {
-        // TODO: Replace with actual API call
-        // let url = URL(string: "\(baseURL)\(myEventsEndpoint)")!
-        // let (data, _) = try await URLSession.shared.data(from: url)
-        // return try JSONDecoder().decode([Event].self, from: data)
-        
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: 800_000_000)
-        return MockEventData.shared.getMyEvents()
-    }
-    
-    func joinEvent(_ eventId: String) async throws -> Bool {
-        // TODO: Replace with actual API call
-        // let url = URL(string: "\(baseURL)\(eventsEndpoint)/\(eventId)/join")!
-        // var request = URLRequest(url: url)
-        // request.httpMethod = "POST"
-        // let (_, response) = try await URLSession.shared.data(for: request)
-        // return (response as? HTTPURLResponse)?.statusCode == 200
-        
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: 500_000_000)
-        MockEventData.shared.joinEvent(eventId)
-        return true
-    }
-    
-    func leaveEvent(_ eventId: String) async throws -> Bool {
-        // TODO: Replace with actual API call
-        // let url = URL(string: "\(baseURL)\(eventsEndpoint)/\(eventId)/leave")!
-        // var request = URLRequest(url: url)
-        // request.httpMethod = "DELETE"
-        // let (_, response) = try await URLSession.shared.data(for: request)
-        // return (response as? HTTPURLResponse)?.statusCode == 200
-        
-        // Simulate network delay
-        try await Task.sleep(nanoseconds: 500_000_000)
-        MockEventData.shared.leaveEvent(eventId)
-        return true
-    }
-    
-    func createEvent(_ event: CreateEventRequest) async throws -> Event {
-        // TODO: Implement create event
-        try await Task.sleep(nanoseconds: 1_000_000_000)
-        return MockEventData.shared.createEvent(from: event)
-    }
-    
-    func updateEvent(_ eventId: String, _ event: UpdateEventRequest) async throws -> Event {
-        // TODO: Implement update event
-        try await Task.sleep(nanoseconds: 800_000_000)
-        return MockEventData.shared.updateEvent(eventId, with: event)
-    }
-    
-    func deleteEvent(_ eventId: String) async throws -> Bool {
-        // TODO: Implement delete event
-        try await Task.sleep(nanoseconds: 500_000_000)
-        return MockEventData.shared.deleteEvent(eventId)
-    }
+// MARK: - Extended Events Service Protocol
+protocol CompleteEventsServiceProtocol: EventsServiceProtocol {
+    // Additional methods for complete functionality
+    func fetchEventComments(eventId: Int) -> AnyPublisher<[EventComment], Error>
+    func addEventComment(eventId: Int, comment: String) -> AnyPublisher<EventComment, Error>
+    func deleteEventComment(commentId: Int) -> AnyPublisher<Bool, Error>
+    func rateEvent(eventId: Int, rating: Int, review: String?) -> AnyPublisher<EventRating, Error>
+    func fetchEventRatings(eventId: Int) -> AnyPublisher<[EventRating], Error>
+    func inviteToEvent(eventId: Int, username: String) -> AnyPublisher<Bool, Error>
+    func respondToInvitation(invitationId: Int, accepted: Bool) -> AnyPublisher<Bool, Error>
+    func fetchUserInvitations() -> AnyPublisher<[EventInvitation], Error>
+    func fetchEventStatistics() -> AnyPublisher<EventStatistics, Error>
+    func fetchUserEventPreferences() -> AnyPublisher<UserEventPreferences, Error>
+    func updateUserEventPreferences(_ preferences: UserEventPreferences) -> AnyPublisher<Bool, Error>
+    func fetchEventNotifications() -> AnyPublisher<[EventNotification], Error>
+    func markNotificationAsRead(notificationId: Int) -> AnyPublisher<Bool, Error>
+    func searchEvents(query: String, filters: EventFilter?) -> AnyPublisher<EventSearchResult, Error>
+    func fetchNearbyEvents(latitude: Double, longitude: Double, radius: Double) -> AnyPublisher<[Event], Error>
+    func fetchEventCategories() -> AnyPublisher<[EventCategory], Error>
+    func fetchEventLocations() -> AnyPublisher<[EventLocation], Error>
 }
 
-// MARK: - Request Models
-struct CreateEventRequest: Codable {
-    let title: String
-    let description: String
-    let imageUrl: String?
-    let date: Date
-    let location: String
-    let type: EventType
-    let sport: Sport
-    let maxParticipants: Int
-}
-
-struct UpdateEventRequest: Codable {
-    let title: String?
-    let description: String?
-    let imageUrl: String?
-    let date: Date?
-    let location: String?
-    let type: EventType?
-    let sport: Sport?
-    let maxParticipants: Int?
-}
-
-// MARK: - Mock Data Manager
-class MockEventData {
-    static let shared = MockEventData()
-    private init() {}
+// MARK: - Complete Events Service Implementation
+class CompleteEventsService: CompleteEventsServiceProtocol {
+    private let networkManager = NetworkManager.shared
+    private let baseURL = "http://localhost:5206/api/Events"
+    private let commentsURL = "http://localhost:5206/api/EventComments"
+    private let ratingsURL = "http://localhost:5206/api/EventRatings"
+    private let invitationsURL = "http://localhost:5206/api/EventInvitations"
+    private let notificationsURL = "http://localhost:5206/api/Notifications"
+    private let preferencesURL = "http://localhost:5206/api/UserPreferences"
     
-    private var events: [Event] = []
-    private var userParticipations: Set<String> = ["1", "3", "5"] // User is participating in these events
-    
-    func getAllEvents() -> [Event] {
-        if events.isEmpty {
-            events = generateMockEvents()
-        }
-        return events.map { event in
-            var updatedEvent = event
-            return Event(
-                id: event.id,
-                title: event.title,
-                description: event.description,
-                imageUrl: event.imageUrl,
-                date: event.date,
-                location: event.location,
-                type: event.type,
-                sport: event.sport,
-                participants: event.participants,
-                maxParticipants: event.maxParticipants,
-                isParticipating: userParticipations.contains(event.id),
-                createdBy: event.createdBy,
-                createdAt: event.createdAt
-            )
-        }
-    }
-    
-    func getMyEvents() -> [Event] {
-        return getAllEvents().filter { userParticipations.contains($0.id) }
-    }
-    
-    func joinEvent(_ eventId: String) {
-        userParticipations.insert(eventId)
-    }
-    
-    func leaveEvent(_ eventId: String) {
-        userParticipations.remove(eventId)
-    }
-    
-    func createEvent(from request: CreateEventRequest) -> Event {
-        let newEvent = Event(
-            id: UUID().uuidString,
-            title: request.title,
-            description: request.description,
-            imageUrl: request.imageUrl ?? "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-            date: request.date,
-            location: request.location,
-            type: request.type,
-            sport: request.sport,
-            participants: [mockParticipants[0]], // Creator as first participant
-            maxParticipants: request.maxParticipants,
-            isParticipating: true,
-            createdBy: "current_user",
-            createdAt: Date()
+    // MARK: - Basic Event Operations (inherited from EventsService)
+    func fetchEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error> {
+        let queryParams = filter.toQueryParameters()
+        let queryString = buildQueryString(from: queryParams)
+        let endpoint = queryString.isEmpty ? baseURL : "\(baseURL)?\(queryString)"
+        
+        print("🌐 Fetching events from: \(endpoint)")
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: EventsResponse.self
         )
-        events.append(newEvent)
-        userParticipations.insert(newEvent.id)
-        return newEvent
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Successfully fetched \(response.events.count) events")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Failed to fetch events: \(error)")
+                }
+            }
+        )
+        .eraseToAnyPublisher()
     }
     
-    func updateEvent(_ eventId: String, with request: UpdateEventRequest) -> Event {
-        guard let index = events.firstIndex(where: { $0.id == eventId }) else {
-            return events.first! // Should handle error properly
+    func fetchMyEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error> {
+        let queryParams = filter.toQueryParameters()
+        let queryString = buildQueryString(from: queryParams)
+        let endpoint = queryString.isEmpty ? "\(baseURL)/my" : "\(baseURL)/my-events?\(queryString)"
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: EventsResponse.self
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    func joinEvent(eventId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)/join",
+            method: .POST,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success && (response.data ?? false)
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func leaveEvent(eventId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)/leave",
+            method: .POST,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success && (response.data ?? false)
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchEventDetails(eventId: Int) -> AnyPublisher<Event, Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)",
+            method: .GET,
+            type: APIResponse<Event>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func createEvent(_ eventData: CreateEventRequest) -> AnyPublisher<Event, Error> {
+        guard let requestBody = try? JSONEncoder().encode(eventData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
         }
         
-        let existingEvent = events[index]
-        let updatedEvent = Event(
-            id: existingEvent.id,
-            title: request.title ?? existingEvent.title,
-            description: request.description ?? existingEvent.description,
-            imageUrl: request.imageUrl ?? existingEvent.imageUrl,
-            date: request.date ?? existingEvent.date,
-            location: request.location ?? existingEvent.location,
-            type: request.type ?? existingEvent.type,
-            sport: request.sport ?? existingEvent.sport,
-            participants: existingEvent.participants,
-            maxParticipants: request.maxParticipants ?? existingEvent.maxParticipants,
-            isParticipating: existingEvent.isParticipating,
-            createdBy: existingEvent.createdBy,
-            createdAt: existingEvent.createdAt
+        return networkManager.request(
+            endpoint: baseURL,
+            method: .POST,
+            body: requestBody,
+            type: APIResponse<Event>.self
         )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func updateEvent(eventId: Int, eventData: UpdateEventRequest) -> AnyPublisher<Event, Error> {
+        guard let requestBody = try? JSONEncoder().encode(eventData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
         
-        events[index] = updatedEvent
-        return updatedEvent
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)",
+            method: .PUT,
+            body: requestBody,
+            type: APIResponse<Event>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
     }
     
-    func deleteEvent(_ eventId: String) -> Bool {
-        events.removeAll { $0.id == eventId }
-        userParticipations.remove(eventId)
-        return true
+    func deleteEvent(eventId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)",
+            method: .DELETE,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
     }
     
-    private func generateMockEvents() -> [Event] {
-        let calendar = Calendar.current
-        let now = Date()
+    func fetchEventParticipants(eventId: Int) -> AnyPublisher<[EventParticipant], Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/\(eventId)/participants",
+            method: .GET,
+            type: APIResponse<[EventParticipant]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchAvailableSports() -> AnyPublisher<[Sport], Error> {
+        return networkManager.request(
+            endpoint: "http://localhost:5206/api/Sports",
+            method: .GET,
+            type: APIResponse<[Sport]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Comments
+    func fetchEventComments(eventId: Int) -> AnyPublisher<[EventComment], Error> {
+        return networkManager.request(
+            endpoint: "\(commentsURL)/event/\(eventId)",
+            method: .GET,
+            type: APIResponse<[EventComment]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func addEventComment(eventId: Int, comment: String) -> AnyPublisher<EventComment, Error> {
+        let requestData = ["eventId": eventId, "comment": comment] as [String: Any]
+        guard let requestBody = try? JSONSerialization.data(withJSONObject: requestData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
         
-        return [
-            Event(
-                id: "1",
-                title: "Weekend Football Tournament",
-                description: "Join us for an exciting football tournament this weekend! All skill levels welcome.",
-                imageUrl: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 2, to: now)!,
-                location: "Central Park Stadium",
-                type: .tournament,
-                sport: .football,
-                participants: Array(mockParticipants.prefix(8)),
-                maxParticipants: 16,
-                isParticipating: false,
-                createdBy: "user123",
-                createdAt: calendar.date(byAdding: .day, value: -5, to: now)!
-            ),
-            Event(
-                id: "2",
-                title: "Morning Running Session",
-                description: "Start your day with an energizing morning run along the riverside trail.",
-                imageUrl: "https://images.unsplash.com/photo-1544717297-fa95b6ee9643?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 1, to: now)!,
-                location: "Riverside Trail",
-                type: .training,
-                sport: .running,
-                participants: Array(mockParticipants.prefix(5)),
-                maxParticipants: 12,
-                isParticipating: false,
-                createdBy: "user456",
-                createdAt: calendar.date(byAdding: .day, value: -3, to: now)!
-            ),
-            Event(
-                id: "3",
-                title: "Basketball Skills Workshop",
-                description: "Improve your basketball skills with professional coaches and advanced drills.",
-                imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 5, to: now)!,
-                location: "Downtown Sports Complex",
-                type: .workshop,
-                sport: .basketball,
-                participants: Array(mockParticipants.prefix(12)),
-                maxParticipants: 20,
-                isParticipating: false,
-                createdBy: "user789",
-                createdAt: calendar.date(byAdding: .day, value: -7, to: now)!
-            ),
-            Event(
-                id: "4",
-                title: "Evening Tennis Match",
-                description: "Friendly tennis matches for all skill levels. Come and play!",
-                imageUrl: "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 3, to: now)!,
-                location: "City Tennis Club",
-                type: .match,
-                sport: .tennis,
-                participants: Array(mockParticipants.prefix(4)),
-                maxParticipants: 8,
-                isParticipating: false,
-                createdBy: "user101",
-                createdAt: calendar.date(byAdding: .day, value: -2, to: now)!
-            ),
-            Event(
-                id: "5",
-                title: "Swimming Training Session",
-                description: "Professional swimming training for beginners and intermediate swimmers.",
-                imageUrl: "https://images.unsplash.com/photo-1530549387789-4c1017266635?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 4, to: now)!,
-                location: "Olympic Aquatic Center",
-                type: .training,
-                sport: .swimming,
-                participants: Array(mockParticipants.prefix(6)),
-                maxParticipants: 15,
-                isParticipating: false,
-                createdBy: "user202",
-                createdAt: calendar.date(byAdding: .day, value: -4, to: now)!
-            ),
-            Event(
-                id: "6",
-                title: "Social Cycling Ride",
-                description: "Casual cycling ride through the city parks. Perfect for weekend activity!",
-                imageUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 6, to: now)!,
-                location: "City Park Loop",
-                type: .social,
-                sport: .cycling,
-                participants: Array(mockParticipants.prefix(10)),
-                maxParticipants: 25,
-                isParticipating: false,
-                createdBy: "user303",
-                createdAt: calendar.date(byAdding: .day, value: -6, to: now)!
-            ),
-            Event(
-                id: "7",
-                title: "Yoga & Meditation Workshop",
-                description: "Relax and rejuvenate with our morning yoga and meditation session.",
-                imageUrl: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .hour, value: 26, to: now)!,
-                location: "Zen Garden Studio",
-                type: .workshop,
-                sport: .yoga,
-                participants: Array(mockParticipants.prefix(8)),
-                maxParticipants: 15,
-                isParticipating: false,
-                createdBy: "user404",
-                createdAt: calendar.date(byAdding: .day, value: -1, to: now)!
-            ),
-            Event(
-                id: "8",
-                title: "Hiking Adventure",
-                description: "Mountain hiking adventure for nature lovers and fitness enthusiasts.",
-                imageUrl: "https://images.unsplash.com/photo-1551632811-561732d1e306?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-                date: calendar.date(byAdding: .day, value: 7, to: now)!,
-                location: "Mountain Trail Head",
-                type: .social,
-                sport: .hiking,
-                participants: Array(mockParticipants.prefix(6)),
-                maxParticipants: 12,
-                isParticipating: false,
-                createdBy: "user505",
-                createdAt: calendar.date(byAdding: .day, value: -8, to: now)!
-            )
-        ]
+        return networkManager.request(
+            endpoint: commentsURL,
+            method: .POST,
+            body: requestBody,
+            type: APIResponse<EventComment>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
     }
     
-    private var mockParticipants: [Participant] {
-        return [
-            Participant(id: "p1", name: "Alex Johnson", avatarUrl: "https://i.pravatar.cc/150?img=1", isOrganizer: true),
-            Participant(id: "p2", name: "Sarah Chen", avatarUrl: "https://i.pravatar.cc/150?img=2", isOrganizer: false),
-            Participant(id: "p3", name: "Mike Rodriguez", avatarUrl: "https://i.pravatar.cc/150?img=3", isOrganizer: false),
-            Participant(id: "p4", name: "Emma Thompson", avatarUrl: "https://i.pravatar.cc/150?img=4", isOrganizer: false),
-            Participant(id: "p5", name: "David Kim", avatarUrl: "https://i.pravatar.cc/150?img=5", isOrganizer: false),
-            Participant(id: "p6", name: "Lisa Wang", avatarUrl: "https://i.pravatar.cc/150?img=6", isOrganizer: false),
-            Participant(id: "p7", name: "James Wilson", avatarUrl: "https://i.pravatar.cc/150?img=7", isOrganizer: false),
-            Participant(id: "p8", name: "Maria Garcia", avatarUrl: "https://i.pravatar.cc/150?img=8", isOrganizer: false),
-            Participant(id: "p9", name: "Chris Brown", avatarUrl: "https://i.pravatar.cc/150?img=9", isOrganizer: false),
-            Participant(id: "p10", name: "Anna Lee", avatarUrl: "https://i.pravatar.cc/150?img=10", isOrganizer: false),
-            Participant(id: "p11", name: "Tom Davis", avatarUrl: "https://i.pravatar.cc/150?img=11", isOrganizer: false),
-            Participant(id: "p12", name: "Sophie Miller", avatarUrl: "https://i.pravatar.cc/150?img=12", isOrganizer: false),
-            Participant(id: "p13", name: "Ryan Taylor", avatarUrl: "https://i.pravatar.cc/150?img=13", isOrganizer: false),
-            Participant(id: "p14", name: "Rachel Green", avatarUrl: "https://i.pravatar.cc/150?img=14", isOrganizer: false),
-            Participant(id: "p15", name: "Kevin White", avatarUrl: "https://i.pravatar.cc/150?img=15", isOrganizer: false)
+    func deleteEventComment(commentId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.request(
+            endpoint: "\(commentsURL)/\(commentId)",
+            method: .DELETE,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Ratings
+    func rateEvent(eventId: Int, rating: Int, review: String?) -> AnyPublisher<EventRating, Error> {
+        var requestData: [String: Any] = ["eventId": eventId, "rating": rating]
+        if let review = review {
+            requestData["review"] = review
+        }
+        
+        guard let requestBody = try? JSONSerialization.data(withJSONObject: requestData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
+        
+        return networkManager.request(
+            endpoint: ratingsURL,
+            method: .POST,
+            body: requestBody,
+            type: APIResponse<EventRating>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchEventRatings(eventId: Int) -> AnyPublisher<[EventRating], Error> {
+        return networkManager.request(
+            endpoint: "\(ratingsURL)/event/\(eventId)",
+            method: .GET,
+            type: APIResponse<[EventRating]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Invitations
+    func inviteToEvent(eventId: Int, username: String) -> AnyPublisher<Bool, Error> {
+        let requestData = ["eventId": eventId, "username": username] as [String: Any]
+        guard let requestBody = try? JSONSerialization.data(withJSONObject: requestData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
+        
+        return networkManager.request(
+            endpoint: invitationsURL,
+            method: .POST,
+            body: requestBody,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func respondToInvitation(invitationId: Int, accepted: Bool) -> AnyPublisher<Bool, Error> {
+        let requestData = ["accepted": accepted]
+        guard let requestBody = try? JSONSerialization.data(withJSONObject: requestData) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
+        
+        return networkManager.request(
+            endpoint: "\(invitationsURL)/\(invitationId)/respond",
+            method: .POST,
+            body: requestBody,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchUserInvitations() -> AnyPublisher<[EventInvitation], Error> {
+        return networkManager.request(
+            endpoint: "\(invitationsURL)/my",
+            method: .GET,
+            type: APIResponse<[EventInvitation]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Statistics & Analytics
+    func fetchEventStatistics() -> AnyPublisher<EventStatistics, Error> {
+        return networkManager.request(
+            endpoint: "\(baseURL)/statistics",
+            method: .GET,
+            type: APIResponse<EventStatistics>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - User Preferences
+    func fetchUserEventPreferences() -> AnyPublisher<UserEventPreferences, Error> {
+        return networkManager.request(
+            endpoint: "\(preferencesURL)/events",
+            method: .GET,
+            type: APIResponse<UserEventPreferences>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func updateUserEventPreferences(_ preferences: UserEventPreferences) -> AnyPublisher<Bool, Error> {
+        guard let requestBody = try? JSONEncoder().encode(preferences) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
+        
+        return networkManager.request(
+            endpoint: "\(preferencesURL)/events",
+            method: .PUT,
+            body: requestBody,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Notifications
+    func fetchEventNotifications() -> AnyPublisher<[EventNotification], Error> {
+        return networkManager.request(
+            endpoint: "\(notificationsURL)/events",
+            method: .GET,
+            type: APIResponse<[EventNotification]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func markNotificationAsRead(notificationId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.request(
+            endpoint: "\(notificationsURL)/\(notificationId)/read",
+            method: .POST,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Search & Discovery
+    func searchEvents(query: String, filters: EventFilter?) -> AnyPublisher<EventSearchResult, Error> {
+        var params = ["q": query]
+        if let filters = filters {
+            let filterParams = filters.toQueryParameters()
+            params.merge(filterParams) { (_, new) in new }
+        }
+        
+        let queryString = buildQueryString(from: params)
+        let endpoint = "\(baseURL)/search?\(queryString)"
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: APIResponse<EventSearchResult>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : nil
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchNearbyEvents(latitude: Double, longitude: Double, radius: Double) -> AnyPublisher<[Event], Error> {
+        let params = [
+            "latitude": String(latitude),
+            "longitude": String(longitude),
+            "radius": String(radius)
         ]
+        let queryString = buildQueryString(from: params)
+        let endpoint = "\(baseURL)/nearby?\(queryString)"
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: APIResponse<[Event]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Categories & Locations
+    func fetchEventCategories() -> AnyPublisher<[EventCategory], Error> {
+        return networkManager.request(
+            endpoint: "http://localhost:5206/api/EventCategories",
+            method: .GET,
+            type: APIResponse<[EventCategory]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchEventLocations() -> AnyPublisher<[EventLocation], Error> {
+        return networkManager.request(
+            endpoint: "http://localhost:5206/api/EventLocations",
+            method: .GET,
+            type: APIResponse<[EventLocation]>.self
+        )
+        .compactMap { response in
+            response.success ? response.data : []
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Private Helper Methods
+    private func buildQueryString(from params: [String: String]) -> String {
+        return params.compactMap { key, value in
+            guard !value.isEmpty else { return nil }
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            return "\(key)=\(encodedValue)"
+        }
+        .joined(separator: "&")
     }
 }

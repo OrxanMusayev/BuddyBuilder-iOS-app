@@ -1,8 +1,23 @@
+// BuddyBuilder/Features/Events/Views/EventsView.swift
+
 import SwiftUI
+
+// MARK: - Events Tab Enum
+enum EventsTab: String, CaseIterable {
+    case all = "all"
+    case my = "my"
+    
+    var title: String {
+        switch self {
+        case .all: return "events.all_events"
+        case .my: return "events.my_events"
+        }
+    }
+}
 
 // MARK: - Events View - Modern & Multilingual
 struct EventsView: View {
-    @StateObject private var eventsViewModel = EventsViewModel()
+    @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService()) // Change to EventsService() in production
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var selectedTab: EventsTab = .all
     @State private var showingFilters = false
@@ -30,16 +45,8 @@ struct EventsView: View {
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingFilters) {
-            EventsFilterView(
-                selectedType: $eventsViewModel.selectedEventType,
-                selectedSport: $eventsViewModel.selectedSport,
-                selectedDate: $eventsViewModel.selectedDate,
-                onApply: {
-                    eventsViewModel.applyFilters()
-                    showingFilters = false
-                }
-            )
-            .environmentObject(localizationManager)
+            EventsFilterView(viewModel: eventsViewModel)
+                .environmentObject(localizationManager)
         }
         .onAppear {
             if eventsViewModel.events.isEmpty {
@@ -47,7 +54,8 @@ struct EventsView: View {
             }
         }
         .onChange(of: selectedTab) { newTab in
-            eventsViewModel.changeTab(to: newTab)
+            // Convert EventsTab to EventTab for the ViewModel
+            eventsViewModel.selectedTab = newTab == .all ? .all : .my
         }
     }
     
@@ -75,7 +83,7 @@ struct EventsView: View {
                             .foregroundColor(.primaryOrange)
                         
                         // Filter count badge
-                        if eventsViewModel.hasActiveFilters {
+                        if hasActiveFilters {
                             Circle()
                                 .fill(Color.red)
                                 .frame(width: 8, height: 8)
@@ -138,7 +146,7 @@ struct EventsView: View {
     private var eventsListContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                if eventsViewModel.isLoading {
+                if eventsViewModel.isLoading && eventsViewModel.events.isEmpty {
                     ForEach(0..<5, id: \.self) { _ in
                         EventCardSkeleton()
                     }
@@ -146,12 +154,25 @@ struct EventsView: View {
                     emptyStateView
                 } else {
                     ForEach(eventsViewModel.filteredEvents) { event in
-                        EventCard(event: event) {
-                            // Handle event tap - navigate to event details
-                            // TODO: Navigate to event details
-                            print("Tapped event: \(event.title)")
-                        }
+                        EventCard(
+                            event: event,
+                            onJoin: {
+                                eventsViewModel.joinEvent(event)
+                            },
+                            onLeave: {
+                                eventsViewModel.leaveEvent(event)
+                            }
+                        )
                         .environmentObject(localizationManager)
+                        .onTapGesture {
+                            // Handle event tap - navigate to event details
+                            print("Tapped event: \(event.name)")
+                        }
+                    }
+                    
+                    // Load more button
+                    if eventsViewModel.canLoadMore {
+                        loadMoreView
                     }
                 }
             }
@@ -159,9 +180,31 @@ struct EventsView: View {
             .padding(.bottom, 100) // Account for tab bar
         }
         .refreshable {
-            await eventsViewModel.refreshEvents()
+            eventsViewModel.refreshEvents()
         }
         .background(Color.formBackground)
+    }
+    
+    // MARK: - Load More View
+    private var loadMoreView: some View {
+        VStack(spacing: 12) {
+            if eventsViewModel.isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+                
+                Text("events.loading.more".localized(using: localizationManager))
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+            } else {
+                Button("events.load.more".localized(using: localizationManager)) {
+                    eventsViewModel.loadMoreEvents()
+                }
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.primaryOrange)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
     }
     
     // MARK: - Empty State View
@@ -171,18 +214,18 @@ struct EventsView: View {
                 .font(.system(size: 60, weight: .light))
                 .foregroundColor(.textSecondary.opacity(0.5))
             
-            Text(eventsViewModel.emptyStateTitle)
+            Text(emptyStateTitle)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.textPrimary)
                 .multilineTextAlignment(.center)
             
-            Text(eventsViewModel.emptyStateDescription)
+            Text(emptyStateDescription)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(nil)
             
-            if eventsViewModel.hasActiveFilters {
+            if hasActiveFilters {
                 Button(action: {
                     eventsViewModel.clearFilters()
                 }) {
@@ -202,7 +245,59 @@ struct EventsView: View {
         .padding(.horizontal, 40)
         .padding(.top, 60)
     }
+    
+    // MARK: - Computed Properties
+    private var hasActiveFilters: Bool {
+        eventsViewModel.selectedEventType != nil ||
+        eventsViewModel.selectedSportId != nil ||
+        !eventsViewModel.selectedLocation.isEmpty ||
+        !eventsViewModel.maxEntryFee.isEmpty ||
+        eventsViewModel.showUpcomingOnly ||
+        eventsViewModel.showAvailableOnly ||
+        eventsViewModel.showOpenRegistrationOnly
+    }
+    
+    private var emptyStateTitle: String {
+        if selectedTab == .all {
+            return "events.empty.all".localized(using: localizationManager)
+        } else {
+            return "events.empty.my".localized(using: localizationManager)
+        }
+    }
+    
+    private var emptyStateDescription: String {
+        if selectedTab == .all {
+            return "events.empty.all.subtitle".localized(using: localizationManager)
+        } else {
+            return "events.empty.my.subtitle".localized(using: localizationManager)
+        }
+    }
 }
+//
+//// MARK: - Simple Events Filter View
+//struct EventsFilterView: View {
+//    @ObservedObject var viewModel: EventsViewModel
+//    @EnvironmentObject var localizationManager: LocalizationManager
+//    @Environment(\.presentationMode) var presentationMode
+//    
+//    var body: some View {
+//        NavigationView {
+//            EventFiltersSheet(viewModel: viewModel)
+//                .environmentObject(localizationManager)
+//                .navigationTitle("Filters")
+//                .navigationBarTitleDisplayMode(.inline)
+//                .navigationBarItems(
+//                    leading: Button("Clear All") {
+//                        viewModel.clearFilters()
+//                        presentationMode.wrappedValue.dismiss()
+//                    },
+//                    trailing: Button("Done") {
+//                        presentationMode.wrappedValue.dismiss()
+//                    }
+//                )
+//        }
+//    }
+//}
 
 // MARK: - Preview
 #Preview {

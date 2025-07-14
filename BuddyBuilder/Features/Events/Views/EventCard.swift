@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - Event Card
 struct EventCard: View {
     let event: Event
-    let onTap: () -> Void
+    let onJoin: () -> Void
+    let onLeave: () -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var isJoining = false
     
@@ -11,7 +12,7 @@ struct EventCard: View {
         VStack(spacing: 0) {
             // Event Image and Type Badge
             ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: event.imageUrl)) { image in
+                AsyncImage(url: URL(string: event.imageUrl ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -34,36 +35,36 @@ struct EventCard: View {
                 .clipped()
                 
                 // Event Type Badge
-                HStack(spacing: 4) {
-                    Image(systemName: event.type.icon)
-                        .font(.system(size: 10, weight: .medium))
-                    
-                    Text(event.type.rawValue.localized(using: localizationManager))
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color.black.opacity(0.6))
-                )
-                .padding(.top, 12)
-                .padding(.trailing, 12)
+//                HStack(spacing: 4) {
+//                    Image(systemName: event.eventType.icon)
+//                        .font(.system(size: 10, weight: .medium))
+//                    
+//                    Text(event.type.rawValue.localized(using: localizationManager) ?? event.type.rawValue)
+//                        .font(.system(size: 10, weight: .medium))
+//                }
+//                .foregroundColor(.white)
+//                .padding(.horizontal, 8)
+//                .padding(.vertical, 4)
+//                .background(
+//                    Capsule()
+//                        .fill(Color.black.opacity(0.6))
+//                )
+//                .padding(.top, 12)
+//                .padding(.trailing, 12)
             }
             
             // Event Details
             VStack(alignment: .leading, spacing: 12) {
                 // Title and Participation Status
                 HStack {
-                    Text(event.title)
+                    Text(event.name ?? "")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
                     
                     Spacer()
                     
-                    if event.isParticipating {
+                    if event.isParticipant {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.green)
@@ -78,7 +79,7 @@ struct EventCard: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                         
-                        Text(event.formattedDate)
+                        Text(event.eventDate ?? "")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                     }
@@ -89,7 +90,7 @@ struct EventCard: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                         
-                        Text(event.location)
+                        Text(event.location ?? "")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                             .lineLimit(1)
@@ -103,7 +104,7 @@ struct EventCard: View {
                     // Participant Avatars
                     HStack(spacing: -8) {
                         ForEach(event.participants.prefix(3), id: \.id) { participant in
-                            AsyncImage(url: URL(string: participant.avatarUrl)) { image in
+                            AsyncImage(url: URL(string: participant.avatarUrl ?? "")) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -140,7 +141,7 @@ struct EventCard: View {
                         }
                     }
                     
-                    Text(event.formattedParticipantCount + " " + "events.participants".localized(using: localizationManager))
+                    Text((event.formattedParticipantCount ?? "0") + " " + ("events.participants".localized(using: localizationManager) ?? "participants"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.textSecondary)
                     
@@ -167,7 +168,9 @@ struct EventCard: View {
                                         .font(.system(size: 12, weight: .medium))
                                 }
                                 
-                                Text(event.isParticipating ? "events.leave".localized(using: localizationManager) : "events.join".localized(using: localizationManager))
+                                Text(event.isParticipating ?
+                                    ("events.leave".localized(using: localizationManager) ?? "Leave") :
+                                    ("events.join".localized(using: localizationManager) ?? "Join"))
                                     .font(.system(size: 12, weight: .medium))
                             }
                             .foregroundColor(.white)
@@ -183,7 +186,7 @@ struct EventCard: View {
                     }
                     
                     // Sport Tag
-                    Text(event.sport.rawValue.localized(using: localizationManager))
+                    Text(event.sport.rawValue.localized(using: localizationManager) ?? event.sport.rawValue)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.primaryOrange)
                         .padding(.horizontal, 8)
@@ -311,35 +314,5 @@ extension View {
                     )
             )
             .clipped()
-    }
-}
-
-// MARK: - Preview
-#Preview {
-    ScrollView {
-        VStack(spacing: 16) {
-            EventCard(
-                event: Event(
-                    id: "1",
-                    title: "Weekend Football Tournament",
-                    description: "Join us for an exciting football tournament!",
-                    imageUrl: "https://images.unsplash.com/photo-1574629810360-7efbbe195018",
-                    date: Date(),
-                    location: "Central Park",
-                    type: .tournament,
-                    sport: .football,
-                    participants: [],
-                    maxParticipants: 16,
-                    isParticipating: false,
-                    createdBy: "user123",
-                    createdAt: Date()
-                ),
-                onTap: {}
-            )
-            .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
-            
-            EventCardSkeleton()
-        }
-        .padding()
     }
 }

@@ -13,6 +13,7 @@ class NetworkManager: ObservableObject {
         endpoint: String,
         method: HTTPMethod = .GET,
         body: Data? = nil,
+        headers: [String: String]? = nil,
         type: T.Type
     ) -> AnyPublisher<T, Error> {
         guard let url = URL(string: endpoint) else {
@@ -24,6 +25,14 @@ class NetworkManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Custom headers'ı ekle (varsa)
+        if let headers = headers {
+            for (key, value) in headers {
+                request.addValue(value, forHTTPHeaderField: key)
+            }
+        }
+        
         request.timeoutInterval = 30
         
         if let body = body {
@@ -31,6 +40,9 @@ class NetworkManager: ObservableObject {
         }
         
         print("🌐 Making request to: \(endpoint)")
+        if let headers = headers {
+            print("📋 Headers: \(headers)")
+        }
         
         return session.dataTaskPublisher(for: request)
             .map { result in

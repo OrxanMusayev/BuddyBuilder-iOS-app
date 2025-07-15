@@ -19,8 +19,8 @@ struct CustomTabBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 2)
+        .padding(.top, 8)
+        .padding(.bottom, 34) // Safe area + extra padding
         .background(
             Rectangle()
                 .fill(Color.white)
@@ -39,20 +39,20 @@ struct TabBarButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Icon - never changes, no hover effect
+                // Icon with hover effect
                 Image(systemName: tab.icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .font(.system(size: 20, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? .black : .gray)
                     .frame(width: 44, height: 44)
                 
-                // Modern dot indicator - only this changes
+                // Modern dot indicator
                 Circle()
                     .fill(isSelected ? Color.primaryOrange : Color.clear)
                     .frame(width: 4, height: 4)
                     .padding(.top, 4)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
         }
         .buttonStyle(PlainButtonStyle())
         .animation(.easeInOut(duration: 0.2), value: isSelected)

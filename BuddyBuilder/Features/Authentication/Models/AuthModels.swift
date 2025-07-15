@@ -51,3 +51,14 @@ struct User: Codable {
         self.isProfileComplete = loginData.isProfileComplete
     }
 }
+
+
+// Logout Request Model
+struct LogoutRequest: Codable {
+    let refreshToken: String
+}
+
+// Empty Response Model (logout genellikle void döner)
+struct EmptyResponse: Codable {
+    // Boş struct - sadece decode işlemi için
+}

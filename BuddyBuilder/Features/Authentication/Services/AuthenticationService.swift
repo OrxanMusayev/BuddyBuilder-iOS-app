@@ -32,4 +32,39 @@ class AuthenticationService {
             type: LoginResponse.self
         )
     }
+    
+    func logout(refreshToken: String, accessToken: String) -> AnyPublisher<Void, Error> {
+        let logoutURL = "\(baseURL)/logout?refreshToken=\(refreshToken)"
+                
+                // Access token'ı header olarak ekle
+                let headers = [
+                    "Authorization": "Bearer \(accessToken)"
+                ]
+                
+                // Debug: Request'i yazdır
+                print("🚀 LOGOUT REQUEST:")
+                print("URL: \(logoutURL)")
+                print("Headers: \(headers)")
+                
+                return networkManager.request(
+                    endpoint: logoutURL,
+                    method: .POST,
+                    body: nil,
+                    headers: headers,
+                    type: EmptyResponse.self
+                )
+                .catch { error -> AnyPublisher<EmptyResponse, Error> in
+                    // Eğer JSON decode hatası ise ve HTTP status code başarılıysa, ignore et
+                    if let decodingError = error as? DecodingError {
+                        print("⚠️ Logout response boş - bu normal (EmptyResponse expected)")
+                        return Just(EmptyResponse())
+                            .setFailureType(to: Error.self)
+                            .eraseToAnyPublisher()
+                    }
+                    return Fail(error: error)
+                        .eraseToAnyPublisher()
+                }
+                .map { _ in () }
+                .eraseToAnyPublisher()
+    }
 }

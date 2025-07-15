@@ -2,9 +2,11 @@ import SwiftUI
 
 // MARK: - Profile View - Modern & Multilingual
 struct ProfileView: View {
-    @StateObject private var authViewModel = AuthenticationViewModel()
+    @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.presentationMode) var presentationMode
+    @State private var showLogoutConfirmation = false
+    @State private var showLogoutLoading = false
     
     var body: some View {
         NavigationView {
@@ -28,7 +30,144 @@ struct ProfileView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                 }
+                
+                // Custom Modern Alert Overlay
+                if showLogoutConfirmation {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                showLogoutConfirmation = false
+                            }
+                        }
+                    
+                    VStack(spacing: 0) {
+                        // Header
+                        VStack(spacing: 16) {
+                            // Icon
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red.opacity(0.1))
+                                    .frame(width: 60, height: 60)
+                                
+                                Image(systemName: "arrow.right.square")
+                                    .font(.system(size: 24, weight: .medium))
+                                    .foregroundColor(.red)
+                            }
+                            
+                            // Title
+                            Text("auth.logout.confirmation.title".localized(using: localizationManager))
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.primary)
+                            
+                            // Message
+                            Text("auth.logout.confirmation.message".localized(using: localizationManager))
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(nil)
+                        }
+                        .padding(.top, 32)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 32)
+                        
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                        
+                        // Buttons
+                        HStack(spacing: 0) {
+                            // Cancel Button
+                            Button(action: {
+                                    showLogoutConfirmation = false
+                            }) {
+                                Text("auth.logout.confirmation.cancel".localized(using: localizationManager))
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.blue)
+                                    .frame(maxWidth: .infinity, minHeight: 56)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            Divider()
+                                .background(Color.gray.opacity(0.3))
+                                .frame(height: 56)
+                            
+                            // Confirm Button
+                            Button(action: {
+                                showLogoutConfirmation = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        showLogoutLoading = true
+                                    }
+                                    
+                                    // 1.5 saniye loading göster, sonra logout yap
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                        authViewModel.logout()
+                                        // Loading'i hemen kapat çünkü ViewModel logout işlemini hallediyor
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            showLogoutLoading = false
+                                        }
+                                    }
+                                }
+                            }) {
+                                Text("auth.logout.confirmation.confirm".localized(using: localizationManager))
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.red)
+                                    .frame(maxWidth: .infinity, minHeight: 56)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.regularMaterial)
+                            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
+                    )
+                    .frame(maxWidth: 320)
+                    .padding(.horizontal, 40)
+                    .scaleEffect(showLogoutConfirmation ? 1.0 : 0.8)
+                    .opacity(showLogoutConfirmation ? 1.0 : 0.0)
+                    .transition(.asymmetric(
+                        insertion: .scale.combined(with: .opacity),
+                        removal: .scale.combined(with: .opacity)
+                    ))
+                }
+                
+                // Logout Loading Overlay
+                if showLogoutLoading {
+                    ZStack {
+                        // Beyaz arka plan
+                        Color.gray
+                            .ignoresSafeArea()
+                        
+                        // Loading Spinner
+                        ZStack {
+                            Circle()
+                                .stroke(Color.primaryOrange.opacity(0.2), lineWidth: 4)
+                                .frame(width: 60, height: 60)
+                            
+                            Circle()
+                                .trim(from: 0, to: 0.7)
+                                .stroke(
+                                    AngularGradient(
+                                        colors: [.primaryOrange, .primaryOrange.opacity(0.1)],
+                                        center: .center
+                                    ),
+                                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                                )
+                                .frame(width: 60, height: 60)
+                                .rotationEffect(.degrees(showLogoutLoading ? 360 : 0))
+                                .animation(
+                                    .linear(duration: 1.0)
+                                        .repeatForever(autoreverses: false),
+                                    value: showLogoutLoading
+                                )
+                        }
+                    }
+                }
+
             }
+            .animation(.easeInOut(duration: 0.3), value: showLogoutConfirmation)
         }
     }
     
@@ -151,11 +290,11 @@ struct ProfileView: View {
             )
             
             ProfileMenuDivider()
-            
+        
+            // Logout butonu
             Button(action: {
-                Task {
-                    await authViewModel.logout()
-                }
+                print("isAuthenticated: ", authViewModel.isAuthenticated)
+                showLogoutConfirmation = true
             }) {
                 HStack(spacing: 16) {
                     if authViewModel.isLoading {

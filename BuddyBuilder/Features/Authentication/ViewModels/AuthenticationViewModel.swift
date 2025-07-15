@@ -169,23 +169,34 @@ class AuthenticationViewModel: ObservableObject {
     
     func logout() {
         print("👋 Logging out user...")
+        print("Current isAuthenticated: \(isAuthenticated)")
+         
+        let refreshToken = UserDefaults.standard.string(forKey: "refresh_token") ?? ""
+        let accessToken = UserDefaults.standard.string(forKey: "auth_token") ?? ""
+        
+        authService.logout(refreshToken: refreshToken, accessToken: accessToken)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        print("✅ Logout başarılı")
+                    case .failure(let error):
+                        print("❌ Logout hatası: \(error)")
+                    }
+                },
+                receiveValue: {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.isAuthenticated = false
+                        self?.performLocalLogout()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+        
+       
         
         // Authentication state'i değiştir
-        DispatchQueue.main.async { [weak self] in
-            self?.isAuthenticated = false
-        }
-        
-        // Tüm stored data'yı temizle
-        UserDefaults.standard.removeObject(forKey: "auth_token")
-        UserDefaults.standard.removeObject(forKey: "user_id")
-        UserDefaults.standard.removeObject(forKey: "username")
-        UserDefaults.standard.removeObject(forKey: "user_email")
-        UserDefaults.standard.removeObject(forKey: "is_profile_complete")
-        UserDefaults.standard.removeObject(forKey: "refresh_token")
-        
-        username = ""
-        password = ""
-        resetValidation()
+
         print("✅ User logged out and data cleared")
     }
     
@@ -196,5 +207,41 @@ class AuthenticationViewModel: ObservableObject {
             return false
         }
         return true
+    }
+    
+    private func performLocalLogout() {
+        print("🧹 Performing local logout...")
+        
+        // UserDefaults'tan tüm kullanıcı verilerini temizle
+        UserDefaults.standard.removeObject(forKey: "auth_token")
+        UserDefaults.standard.removeObject(forKey: "refresh_token")
+        UserDefaults.standard.removeObject(forKey: "user_id")
+        UserDefaults.standard.removeObject(forKey: "username")
+        UserDefaults.standard.removeObject(forKey: "user_email")
+        UserDefaults.standard.removeObject(forKey: "is_profile_complete")
+        
+        // Form alanlarını temizle
+        username = ""
+        password = ""
+        rememberMe = false
+        showPassword = false
+        
+        // Error state'lerini temizle
+        resetValidation()
+        errorMessage = ""
+        showError = false
+        
+        // Authentication state'ini güncelle - bu LoginView'a yönlendirecek
+        isAuthenticated = false
+        
+        print("🔄 Setting isAuthenticated to false...")
+            print("Current thread: \(Thread.isMainThread ? "Main" : "Background")")
+            isAuthenticated = false
+            print("✅ isAuthenticated set to: \(isAuthenticated)")
+            
+            print("✅ Local logout completed, should redirect to LoginView")
+        
+        print("✅ Local logout completed, redirecting to LoginView")
+        print("New isAuthenticated: \(isAuthenticated)")
     }
 }

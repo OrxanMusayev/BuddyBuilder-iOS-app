@@ -11,11 +11,11 @@ struct BuddyBuilderApp: App {
     
     init() {
         print("🚀 BuddyBuilderApp initialized")
-        #if DEBUG
-        // Debug modda cache temizlemeyi geçici olarak kapatıyoruz
-        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
-        print("🐛 DEBUG MODE: Keeping cached data for testing")
-        #endif
+//        #if DEBUG
+//        // Debug modda cache temizlemeyi geçici olarak kapatıyoruz
+//        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
+//        print("🐛 DEBUG MODE: Keeping cached data for testing")
+//        #endif
     }
     
     var body: some Scene {
@@ -104,11 +104,11 @@ struct BuddyBuilderApp: App {
     
     @MainActor
     private func checkAuthenticationState() async {
-        #if DEBUG
-        // Test için simulated token
-        UserDefaults.standard.set("test_auth_token_12345", forKey: "auth_token")
-        print("🧪 DEBUG: Simulated auth token set for testing")
-        #endif
+//        #if DEBUG
+//        // Test için simulated token
+//        UserDefaults.standard.set("test_auth_token_12345", forKey: "auth_token")
+//        print("🧪 DEBUG: Simulated auth token set for testing")
+//        #endif
         
         // Check if user was previously logged in
         if let savedToken = UserDefaults.standard.string(forKey: "auth_token"),

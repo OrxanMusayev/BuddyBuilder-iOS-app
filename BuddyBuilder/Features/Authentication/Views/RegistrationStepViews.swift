@@ -31,7 +31,7 @@ struct BasicInfoStepView: View {
                                 .foregroundColor(viewModel.usernameAvailability.color)
                         }
                         
-                        Text(viewModel.usernameAvailability.message.localized(using: localizationManager))
+                        Text(viewModel.usernameAvailability.usernameMessage(using: localizationManager))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(viewModel.usernameAvailability.color)
                     }
@@ -61,7 +61,7 @@ struct BasicInfoStepView: View {
                                 .foregroundColor(viewModel.emailAvailability.color)
                         }
                         
-                        Text(viewModel.emailAvailability.message.localized(using: localizationManager))
+                        Text(viewModel.emailAvailability.emailMessage(using: localizationManager))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(viewModel.emailAvailability.color)
                     }
@@ -84,30 +84,11 @@ struct BasicInfoStepView: View {
                 placeholder: "registration.confirm_password.placeholder".localized(using: localizationManager),
                 hasError: viewModel.confirmPasswordError
             )
-            
-            // Password requirements
-            VStack(alignment: .leading, spacing: 4) {
-                Text("registration.password.requirements".localized(using: localizationManager))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                
-                PasswordRequirementRow(
-                    text: "registration.password.min_length".localized(using: localizationManager),
-                    isValid: viewModel.formData.password.count >= 6
-                )
-                
-                PasswordRequirementRow(
-                    text: "registration.password.match".localized(using: localizationManager),
-                    isValid: !viewModel.formData.confirmPassword.isEmpty && viewModel.formData.password == viewModel.formData.confirmPassword
-                )
-            }
-            .padding(.horizontal, 16)
         }
     }
 }
 
-
-// MARK: - Sports Preferences Step
+// MARK: - Sports Preferences Step (Original Simple Version)
 struct SportsPreferencesStepView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -190,95 +171,7 @@ struct SportsPreferencesStepView: View {
     }
 }
 
-// MARK: - Verification Step
-struct VerificationStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            // Success Icon
-            ZStack {
-                Circle()
-                    .fill(Color.primaryOrange.opacity(0.1))
-                    .frame(width: 100, height: 100)
-                
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60, weight: .medium))
-                    .foregroundColor(.primaryOrange)
-            }
-            
-            // Title
-            Text("registration.verification.title".localized(using: localizationManager))
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
-                .multilineTextAlignment(.center)
-            
-            // Subtitle
-            Text("registration.verification.subtitle".localized(using: localizationManager))
-                .font(.system(size: 16))
-                .foregroundColor(.textSecondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(nil)
-                .padding(.horizontal, 20)
-            
-            // Summary Card
-            VStack(spacing: 16) {
-                
-                RegistrationSummaryRow(
-                    label: "registration.summary.username".localized(using: localizationManager),
-                    value: viewModel.formData.userName
-                )
-                
-                RegistrationSummaryRow(
-                    label: "registration.summary.email".localized(using: localizationManager),
-                    value: viewModel.formData.email
-                )
-                
-                RegistrationSummaryRow(
-                    label: "registration.summary.location".localized(using: localizationManager),
-                    value: "\(viewModel.formData.selectedCity?.name ?? ""), \(viewModel.formData.selectedCountry?.name ?? "")"
-                )
-                
-                RegistrationSummaryRow(
-                    label: "registration.summary.sports".localized(using: localizationManager),
-                    value: "\(viewModel.formData.selectedSports.count) sports selected"
-                )
-            }
-            .padding(20)
-            .background(Color.formBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.formBorder, lineWidth: 1)
-            )
-        }
-    }
-}
-
-// MARK: - Helper Components
-
-// Password Requirement Row
-struct PasswordRequirementRow: View {
-    let text: String
-    let isValid: Bool
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isValid ? .green : .textSecondary)
-            
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundColor(.textSecondary)
-            
-            Spacer()
-        }
-    }
-}
-
-// Sport Selection Card
+// MARK: - Simple Sport Selection Card (Original Version)
 struct SportSelectionCard: View {
     let sport: Sport
     let isSelected: Bool
@@ -348,24 +241,159 @@ struct SportSelectionCard: View {
     }
 }
 
-// Registration Summary Row
-struct RegistrationSummaryRow: View {
-    let label: String
-    let value: String
+// MARK: - Compact Versions for RegistrationView
+
+// Compact Basic Info Step
+struct CompactBasicInfoStepView: View {
+    @ObservedObject var viewModel: RegistrationViewModel
+    @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.textSecondary)
+        VStack(spacing: 14) {
+            // Username Field with availability check
+            VStack(alignment: .leading, spacing: 8) {
+                CustomTextFieldNoTitle(
+                    text: $viewModel.formData.userName,
+                    icon: "person.fill",
+                    placeholder: "Username",
+                    hasError: viewModel.usernameError
+                )
+                
+                // Username availability indicator
+                if !viewModel.formData.userName.isEmpty && viewModel.formData.userName.count >= 3 {
+                    HStack(spacing: 6) {
+                        if viewModel.usernameAvailability == .checking {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                                .scaleEffect(0.6)
+                        } else {
+                            Image(systemName: viewModel.usernameAvailability.icon)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(viewModel.usernameAvailability.color)
+                        }
+                        
+                        Text(viewModel.usernameAvailability.usernameMessage(using: localizationManager))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(viewModel.usernameAvailability.color)
+                    }
+                    .padding(.leading, 16)
+                }
+            }
             
-            Spacer()
+            // Email Field with availability check
+            VStack(alignment: .leading, spacing: 8) {
+                CustomTextFieldNoTitle(
+                    text: $viewModel.formData.email,
+                    icon: "envelope.fill",
+                    placeholder: "Email",
+                    hasError: viewModel.emailError
+                )
+                
+                // Email availability indicator
+                if !viewModel.formData.email.isEmpty && viewModel.formData.email.contains("@") {
+                    HStack(spacing: 6) {
+                        if viewModel.emailAvailability == .checking {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                                .scaleEffect(0.6)
+                        } else {
+                            Image(systemName: viewModel.emailAvailability.icon)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(viewModel.emailAvailability.color)
+                        }
+                        
+                        Text(viewModel.emailAvailability.emailMessage(using: localizationManager))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(viewModel.emailAvailability.color)
+                    }
+                    .padding(.leading, 16)
+                }
+            }
             
-            Text(value)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.textPrimary)
-                .multilineTextAlignment(.trailing)
+            CustomPasswordFieldNoTitle(
+                text: $viewModel.formData.password,
+                showPassword: $viewModel.showPassword,
+                placeholder: "Password",
+                hasError: viewModel.passwordError
+            )
+            
+            CustomPasswordFieldNoTitle(
+                text: $viewModel.formData.confirmPassword,
+                showPassword: $viewModel.showConfirmPassword,
+                placeholder: "Confirm Password",
+                hasError: viewModel.confirmPasswordError
+            )
         }
-        .padding(.vertical, 2)
+    }
+}
+
+// Compact Sports Preferences Step
+struct CompactSportsPreferencesStepView: View {
+    @ObservedObject var viewModel: RegistrationViewModel
+    @EnvironmentObject var localizationManager: LocalizationManager
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Select your favorite sports (\(viewModel.formData.selectedSports.count))")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                ForEach(viewModel.availableSports.prefix(6), id: \.id) { sport in
+                    CompactSportCard(
+                        sport: sport,
+                        isSelected: viewModel.formData.selectedSports.contains { $0.sport.id == sport.id },
+                        action: {
+                            viewModel.toggleSportSelection(sport)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Simple Compact Sport Card
+struct CompactSportCard: View {
+    let sport: Sport
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: sportIcon(for: sport.name))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(isSelected ? .primaryOrange : .textSecondary)
+                
+                Text(sport.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isSelected ? .primaryOrange : .textPrimary)
+                    .lineLimit(1)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 80)
+            .background(isSelected ? Color.primaryOrange.opacity(0.1) : Color.formBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.primaryOrange : Color.formBorder, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func sportIcon(for sportName: String) -> String {
+        switch sportName.lowercased() {
+        case "basketball": return "basketball.fill"
+        case "tennis": return "tennis.racket"
+        case "soccer": return "soccerball"
+        case "swimming": return "figure.pool.swim"
+        case "volleyball": return "volleyball.fill"
+        case "running": return "figure.run"
+        case "cycling": return "bicycle"
+        case "fitness": return "dumbbell.fill"
+        default: return "sportscourt.fill"
+        }
     }
 }

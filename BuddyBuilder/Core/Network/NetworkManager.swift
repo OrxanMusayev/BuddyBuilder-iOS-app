@@ -1,4 +1,4 @@
-// Dosya Yolu: BuddyBuilder/Core/Network/NetworkManager.swift
+// BuddyBuilder/Core/Network/NetworkManager.swift
 
 import Foundation
 import Combine
@@ -30,6 +30,7 @@ class NetworkManager: ObservableObject {
         if let headers = headers {
             for (key, value) in headers {
                 request.addValue(value, forHTTPHeaderField: key)
+                print("🔗 Added header: \(key): \(key == "Authorization" ? "\(value.prefix(20))..." : value)")
             }
         }
         
@@ -40,8 +41,8 @@ class NetworkManager: ObservableObject {
         }
         
         print("🌐 Making request to: \(endpoint)")
-        if let headers = headers {
-            print("📋 Headers: \(headers)")
+        if method != .GET {
+            print("📋 Method: \(method.rawValue)")
         }
         
         return session.dataTaskPublisher(for: request)
@@ -49,18 +50,26 @@ class NetworkManager: ObservableObject {
                 // HTTP Status Code kontrolü
                 if let httpResponse = result.response as? HTTPURLResponse {
                     print("📊 HTTP Status: \(httpResponse.statusCode)")
+                    
+                    // Authorization errors için özel handling
+                    if httpResponse.statusCode == 401 {
+                        print("🔐 Unauthorized - Token may be invalid or expired")
+                    }
                 }
                 
-                // Debug: Response'u yazdır
-                print("📥 RAW RESPONSE:")
-                let responseString = String(data: result.data, encoding: .utf8) ?? "nil"
-                print(responseString)
+                // Debug: Response'u yazdır (sadece başlangıcını)
+                if let responseString = String(data: result.data, encoding: .utf8) {
+                    let preview = responseString.count > 200 ? String(responseString.prefix(200)) + "..." : responseString
+                    print("📥 Response preview: \(preview)")
+                }
                 
                 return result.data
             }
             .decode(type: type, decoder: JSONDecoder())
-            .catch { error -> AnyPublisher<T, Error> in // Explicit type belirttik
+            .catch { error -> AnyPublisher<T, Error> in
                 print("❌ Network Error: \(error)")
+                
+                // Decoding error'ları için detaylı log
                 if let decodingError = error as? DecodingError {
                     switch decodingError {
                     case .keyNotFound(let key, let context):
@@ -75,7 +84,22 @@ class NetworkManager: ObservableObject {
                         print("❓ Unknown decoding error: \(decodingError)")
                     }
                 }
-                return Fail<T, Error>(error: error) // Explicit generic type
+                
+                // URLError'lar için özel handling
+                if let urlError = error as? URLError {
+                    switch urlError.code {
+                    case .notConnectedToInternet:
+                        print("📵 No internet connection")
+                    case .timedOut:
+                        print("⏱️ Request timed out")
+                    case .cannotFindHost:
+                        print("🔍 Cannot find host")
+                    default:
+                        print("🌐 URL Error: \(urlError.localizedDescription)")
+                    }
+                }
+                
+                return Fail<T, Error>(error: error)
                     .eraseToAnyPublisher()
             }
             .receive(on: DispatchQueue.main)
@@ -94,15 +118,21 @@ enum NetworkError: Error, LocalizedError {
     case invalidURL
     case noData
     case decodingError
+    case unauthorized
+    case serverError(Int)
     
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Geçersiz URL"
+            return "Invalid URL"
         case .noData:
-            return "Veri bulunamadı"
+            return "No data received"
         case .decodingError:
-            return "Veri işleme hatası"
+            return "Data decoding error"
+        case .unauthorized:
+            return "Unauthorized - Please login again"
+        case .serverError(let code):
+            return "Server error with code: \(code)"
         }
     }
 }

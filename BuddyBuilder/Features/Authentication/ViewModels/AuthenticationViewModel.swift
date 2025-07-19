@@ -162,7 +162,6 @@ class AuthenticationViewModel: ObservableObject {
         UserDefaults.standard.set(loginData.userId, forKey: "user_id")
         UserDefaults.standard.set(loginData.username, forKey: "username")
         UserDefaults.standard.set(loginData.email, forKey: "user_email")
-        UserDefaults.standard.set(loginData.isProfileComplete, forKey: "is_profile_complete")
         UserDefaults.standard.set(loginData.refreshToken, forKey: "refresh_token")
         print("💾 User info saved successfully")
     }

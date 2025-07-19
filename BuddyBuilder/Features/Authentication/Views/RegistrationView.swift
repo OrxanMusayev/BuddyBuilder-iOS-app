@@ -25,6 +25,8 @@ struct RegistrationView: View {
                     
                     Spacer(minLength: 50)
                 }
+                .opacity(showOverlays ? 0.3 : 1.0)
+                .disabled(showOverlays)
                 
                 // Success Overlay
                 if viewModel.registrationCompleted {
@@ -32,7 +34,7 @@ struct RegistrationView: View {
                 }
                 
                 // Loading Overlay
-                if viewModel.isLoading {
+                if viewModel.isLoading && !viewModel.registrationCompleted {
                     loadingOverlay
                 }
                 
@@ -46,12 +48,38 @@ struct RegistrationView: View {
         .navigationBarBackButtonHidden(true)
         .onChange(of: viewModel.registrationCompleted) { completed in
             if completed {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    authViewModel.isAuthenticated = true
-                    dismiss()
+                print("🎉 Registration completed, starting redirect timer...")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    print("🔄 Redirecting to main app...")
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        authViewModel.isAuthenticated = true
+                    }
+                    
+                    // Small delay to ensure animation completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        dismiss()
+                    }
                 }
             }
         }
+        .onChange(of: authViewModel.isAuthenticated) { isAuth in
+            // Safety check: if somehow auth state changes, dismiss
+            if isAuth {
+                print("🔐 Auth state changed to authenticated, dismissing registration")
+                dismiss()
+            }
+        }
+        .onChange(of: viewModel.isLoading) { loading in
+            print("🔄 Loading state changed: \(loading)")
+        }
+        .onChange(of: viewModel.showError) { showError in
+            print("❌ Error state changed: \(showError)")
+        }
+    }
+    
+    // MARK: - Computed Properties
+    private var showOverlays: Bool {
+        viewModel.isLoading || viewModel.registrationCompleted || viewModel.showError
     }
     
     // MARK: - Main Registration Card
@@ -73,20 +101,8 @@ struct RegistrationView: View {
                         CompactBasicInfoStepView(viewModel: viewModel)
                             .environmentObject(localizationManager)
                         
-                    case .location:
-                        CompactLocationStepView(viewModel: viewModel)
-                            .environmentObject(localizationManager)
-                        
                     case .sportsPreferences:
                         CompactSportsPreferencesStepView(viewModel: viewModel)
-                            .environmentObject(localizationManager)
-                        
-                    case .profile:
-                        CompactProfileStepView(viewModel: viewModel)
-                            .environmentObject(localizationManager)
-                        
-                    case .verification:
-                        CompactVerificationStepView(viewModel: viewModel)
                             .environmentObject(localizationManager)
                     }
                 }
@@ -106,14 +122,16 @@ struct RegistrationView: View {
         )
     }
     
-    // MARK: - Card Header (Back button, Language, Progress inside card)
+    // MARK: - Card Header
     private var cardHeader: some View {
         VStack(spacing: 16) {
             // Top row: Back button and Language picker
             HStack {
                 // Back Button
                 Button(action: {
-                    dismiss()
+                    if !viewModel.isLoading {
+                        dismiss()
+                    }
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.left")
@@ -130,11 +148,13 @@ struct RegistrationView: View {
                             .fill(Color.primaryOrange.opacity(0.1))
                     )
                 }
+                .disabled(viewModel.isLoading)
                 
                 Spacer()
                 
-                // Language Picker - Now inside card, dropdown will go down
+                // Language Picker
                 CompactLanguagePicker(localizationManager: localizationManager)
+                    .disabled(viewModel.isLoading)
             }
             
             // Progress Section with smooth line
@@ -176,20 +196,14 @@ struct RegistrationView: View {
         }
     }
     
-    // MARK: - Custom Step Visual (Unique designs for each step)
+    // MARK: - Custom Step Visual
     private var customStepVisual: some View {
         Group {
             switch viewModel.currentStep {
             case .basicInfo:
                 UserCreationVisual()
-            case .location:
-                LocationVisual()
             case .sportsPreferences:
                 SportsVisual()
-            case .profile:
-                ProfileVisual()
-            case .verification:
-                SuccessVisual()
             }
         }
         .frame(height: 80)
@@ -201,7 +215,7 @@ struct RegistrationView: View {
         VStack(spacing: 12) {
             // Next/Complete Button
             Button(action: {
-                viewModel.proceedToNextStep()
+                handleNextButtonTap()
             }) {
                 HStack {
                     if viewModel.isLoading {
@@ -240,7 +254,9 @@ struct RegistrationView: View {
             // Back Button (only when not first step)
             if viewModel.currentStep != .basicInfo {
                 Button(action: {
-                    viewModel.goToPreviousStep()
+                    if !viewModel.isLoading {
+                        viewModel.goToPreviousStep()
+                    }
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.left")
@@ -256,10 +272,22 @@ struct RegistrationView: View {
         }
     }
     
+    // MARK: - Button Action Handler
+    private func handleNextButtonTap() {
+        print("📱 Next button tapped - Current step: \(viewModel.currentStep), Can proceed: \(viewModel.canProceedToNextStep)")
+        
+        guard viewModel.canProceedToNextStep && !viewModel.isLoading else {
+            print("⚠️ Cannot proceed - validation failed or already loading")
+            return
+        }
+        
+        viewModel.proceedToNextStep()
+    }
+    
     // MARK: - Overlays
     private var registrationSuccessOverlay: some View {
         ZStack {
-            Color.black.opacity(0.7)
+            Color.black.opacity(0.8)
                 .ignoresSafeArea()
             
             VStack(spacing: 24) {
@@ -297,11 +325,12 @@ struct RegistrationView: View {
             .padding(.horizontal, 40)
         }
         .transition(.opacity.combined(with: .scale))
+        .zIndex(1000)
     }
     
     private var loadingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.3)
+            Color.black.opacity(0.5)
                 .ignoresSafeArea()
             
             VStack(spacing: 16) {
@@ -311,23 +340,24 @@ struct RegistrationView: View {
                 
                 Text("Creating your account...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.white)
             }
             .padding(32)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.regularMaterial)
+                    .fill(.ultraThinMaterial)
             )
         }
         .transition(.opacity)
+        .zIndex(999)
     }
     
     private var errorAlertOverlay: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Color.black.opacity(0.6)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    viewModel.showError = false
+                    clearError()
                 }
             
             VStack(spacing: 20) {
@@ -337,16 +367,16 @@ struct RegistrationView: View {
                 
                 Text("Registration Error")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.white)
                 
                 Text(viewModel.errorMessage)
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
                     .lineLimit(nil)
                 
                 Button("OK") {
-                    viewModel.showError = false
+                    clearError()
                 }
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.primaryOrange)
@@ -354,21 +384,30 @@ struct RegistrationView: View {
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.primaryOrange, lineWidth: 1)
+                        .fill(.white)
                 )
             }
             .padding(32)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(.regularMaterial)
+                    .fill(.ultraThinMaterial)
             )
             .padding(.horizontal, 40)
         }
         .transition(.opacity.combined(with: .scale))
+        .zIndex(998)
+    }
+    
+    // MARK: - Helper Methods
+    private func clearError() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            viewModel.showError = false
+            viewModel.errorMessage = ""
+        }
     }
 }
 
-// MARK: - Custom Step Visuals
+// MARK: - Visual Components (unchanged)
 struct UserCreationVisual: View {
     @State private var isAnimating = false
     
@@ -419,39 +458,6 @@ struct UserCreationVisual: View {
     }
 }
 
-struct LocationVisual: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        ZStack {
-            // Map background
-            RoundedRectangle(cornerRadius: 16)
-                .fill(LinearGradient(colors: [.green.opacity(0.1), .blue.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 70, height: 50)
-            
-            // Pin with bounce animation
-            VStack(spacing: 2) {
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.red)
-                    .scaleEffect(isAnimating ? 1.1 : 1.0)
-                    .offset(y: isAnimating ? -2 : 0)
-            }
-            
-            // Ripple effect
-            Circle()
-                .stroke(Color.red.opacity(0.3), lineWidth: 2)
-                .frame(width: isAnimating ? 60 : 30, height: isAnimating ? 60 : 30)
-                .opacity(isAnimating ? 0.0 : 0.8)
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.5).repeatForever()) {
-                isAnimating = true
-            }
-        }
-    }
-}
-
 struct SportsVisual: View {
     @State private var isAnimating = false
     
@@ -480,55 +486,6 @@ struct SportsVisual: View {
         )
         .onAppear {
             isAnimating = true
-        }
-    }
-}
-
-struct ProfileVisual: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        ZStack {
-            // Profile card background
-            RoundedRectangle(cornerRadius: 12)
-                .fill(LinearGradient(colors: [.primaryOrange.opacity(0.1), .purple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 80, height: 60)
-                .rotationEffect(.degrees(isAnimating ? 2 : -2))
-            
-            VStack(spacing: 4) {
-                // Profile picture
-                Circle()
-                    .fill(Color.primaryOrange.opacity(0.3))
-                    .frame(width: 24, height: 24)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.primaryOrange)
-                    )
-                
-                // Profile lines
-                HStack(spacing: 2) {
-                    Rectangle()
-                        .fill(Color.primaryOrange.opacity(0.6))
-                        .frame(width: 20, height: 2)
-                        .clipShape(Capsule())
-                    
-                    Rectangle()
-                        .fill(Color.primaryOrange.opacity(0.4))
-                        .frame(width: 15, height: 2)
-                        .clipShape(Capsule())
-                }
-                
-                Rectangle()
-                    .fill(Color.primaryOrange.opacity(0.3))
-                    .frame(width: 25, height: 2)
-                    .clipShape(Capsule())
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                isAnimating = true
-            }
         }
     }
 }
@@ -564,325 +521,6 @@ struct SuccessVisual: View {
             withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 isAnimating = true
             }
-        }
-    }
-}
-
-// MARK: - Compact Step Views
-struct CompactBasicInfoStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 14) {
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.userName,
-                icon: "person.fill",
-                placeholder: "Username",
-                hasError: viewModel.usernameError
-            )
-            
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.email,
-                icon: "envelope.fill",
-                placeholder: "Email",
-                hasError: viewModel.emailError
-            )
-            
-            CustomPasswordFieldNoTitle(
-                text: $viewModel.formData.password,
-                showPassword: $viewModel.showPassword,
-                placeholder: "Password",
-                hasError: viewModel.passwordError
-            )
-            
-            CustomPasswordFieldNoTitle(
-                text: $viewModel.formData.confirmPassword,
-                showPassword: $viewModel.showConfirmPassword,
-                placeholder: "Confirm Password",
-                hasError: viewModel.confirmPasswordError
-            )
-        }
-    }
-}
-
-struct CompactLocationStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 14) {
-            // Country Selection
-            Menu {
-                ForEach(viewModel.availableCountries) { country in
-                    Button(country.name) {
-                        viewModel.formData.selectedCountry = country
-                    }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                        .frame(width: 20)
-                    
-                    Text(viewModel.formData.selectedCountry?.name ?? "Select Country")
-                        .font(.system(size: 16))
-                        .foregroundColor(viewModel.formData.selectedCountry != nil ? .textPrimary : .textSecondary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.formBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.formBorder, lineWidth: 1)
-                )
-            }
-            
-            // City Selection
-            Menu {
-                ForEach(viewModel.availableCities) { city in
-                    Button(city.name) {
-                        viewModel.formData.selectedCity = city
-                    }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "building.2")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                        .frame(width: 20)
-                    
-                    Text(viewModel.formData.selectedCity?.name ?? "Select City")
-                        .font(.system(size: 16))
-                        .foregroundColor(viewModel.formData.selectedCity != nil ? .textPrimary : .textSecondary)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.formBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 25))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 25)
-                        .stroke(Color.formBorder, lineWidth: 1)
-                )
-            }
-            .disabled(viewModel.formData.selectedCountry == nil)
-            
-            // District field - now optional with placeholder text showing it's optional
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.district,
-                icon: "location.fill",
-                placeholder: "District (Optional)",
-                hasError: false // Removed error checking since it's optional
-            )
-        }
-    }
-}
-
-struct CompactSportsPreferencesStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Select your favorite sports (\(viewModel.formData.selectedSports.count))")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.textPrimary)
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                ForEach(viewModel.availableSports.prefix(6), id: \.id) { sport in
-                    CompactSportCard(
-                        sport: sport,
-                        isSelected: viewModel.formData.selectedSports.contains { $0.sport.id == sport.id },
-                        action: {
-                            viewModel.toggleSportSelection(sport)
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-struct CompactSportCard: View {
-    let sport: Sport
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: sportIcon(for: sport.name))
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isSelected ? .primaryOrange : .textSecondary)
-                
-                Text(sport.name)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? .primaryOrange : .textPrimary)
-                    .lineLimit(1)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 80)
-            .background(isSelected ? Color.primaryOrange.opacity(0.1) : Color.formBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.primaryOrange : Color.formBorder, lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func sportIcon(for sportName: String) -> String {
-        switch sportName.lowercased() {
-        case "basketball": return "basketball.fill"
-        case "tennis": return "tennis.racket"
-        case "soccer": return "soccerball"
-        case "swimming": return "figure.pool.swim"
-        case "volleyball": return "volleyball.fill"
-        case "running": return "figure.run"
-        case "cycling": return "bicycle"
-        case "fitness": return "dumbbell.fill"
-        default: return "sportscourt.fill"
-        }
-    }
-}
-
-struct CompactProfileStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 14) {
-            // Bio
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Tell us about yourself")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textPrimary)
-                    .padding(.leading, 16)
-                
-                TextEditor(text: $viewModel.formData.bio)
-                    .font(.system(size: 16))
-                    .foregroundColor(.textPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .frame(height: 80)
-                    .background(Color.formBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.formBorder, lineWidth: 1)
-                    )
-            }
-            
-            // About Me
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Your sports story")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textPrimary)
-                    .padding(.leading, 16)
-                
-                TextEditor(text: $viewModel.formData.aboutMe)
-                    .font(.system(size: 16))
-                    .foregroundColor(.textPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .frame(height: 80)
-                    .background(Color.formBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.formBorder, lineWidth: 1)
-                    )
-            }
-        }
-    }
-}
-
-struct CompactVerificationStepView: View {
-    @ObservedObject var viewModel: RegistrationViewModel
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 12) {
-                Text("Almost Done!")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                Text("Review your information and complete registration")
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Summary card with fixed colors
-            VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Username")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Text(viewModel.formData.userName)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Sports")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Text("\(viewModel.formData.selectedSports.count) selected")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primaryOrange)
-                    }
-                }
-                
-                Divider()
-                    .background(Color.gray.opacity(0.3))
-                
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Email")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Text(viewModel.formData.email)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Location")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Text(viewModel.formData.selectedCity?.name ?? "Not set")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primary)
-                    }
-                }
-            }
-            .padding(16)
-            .background(Color(UIColor.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-            )
         }
     }
 }

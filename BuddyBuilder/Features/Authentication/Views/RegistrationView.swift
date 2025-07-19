@@ -289,7 +289,7 @@ struct RegistrationView: View {
         ZStack {
             Color.black.opacity(0.8)
                 .ignoresSafeArea()
-            
+            SuccessVisualModern()
             VStack(spacing: 24) {
                 SuccessVisual()
                     .scaleEffect(1.5)
@@ -407,88 +407,129 @@ struct RegistrationView: View {
     }
 }
 
-// MARK: - Visual Components (unchanged)
+// MARK: - User Creation Visual - STABLE VERSION (No Animation, No Sparkles)
 struct UserCreationVisual: View {
-    @State private var isAnimating = false
-    
     var body: some View {
         ZStack {
-            // Background circles
+            // Static background circle
             Circle()
-                .fill(LinearGradient(colors: [.blue.opacity(0.1), .purple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(
+                    RadialGradient(
+                        colors: [.primaryOrange.opacity(0.2), .primaryOrange.opacity(0.05)],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 40
+                    )
+                )
                 .frame(width: 80, height: 80)
-                .scaleEffect(isAnimating ? 1.1 : 1.0)
             
-            Circle()
-                .fill(LinearGradient(colors: [.primaryOrange.opacity(0.2), .pink.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 60, height: 60)
-                .scaleEffect(isAnimating ? 0.9 : 1.0)
-            
-            // User icon with sparkles
+            // Main content
             ZStack {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundColor(.primaryOrange)
+                // Document background
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white)
+                    .frame(width: 40, height: 50)
+                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 
-                // Floating sparkles
-                ForEach(0..<3, id: \.self) { index in
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 8))
-                        .foregroundColor(.primaryOrange.opacity(0.8))
-                        .offset(
-                            x: cos(Double(index) * 2 * .pi / 3) * 25,
-                            y: sin(Double(index) * 2 * .pi / 3) * 25
-                        )
-                        .scaleEffect(isAnimating ? 1.2 : 0.8)
-                        .opacity(isAnimating ? 1.0 : 0.6)
-                        .animation(
-                            .easeInOut(duration: 1.5)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.2),
-                            value: isAnimating
-                        )
+                // Document lines - STATIC
+                VStack(spacing: 3) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 0.5)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 28, height: 2)
+                    }
                 }
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                isAnimating = true
+                .offset(y: -5)
+                
+                // Pencil - STATIC (no animation)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(
+                            LinearGradient(
+                                colors: [.primaryOrange, .primaryOrange.opacity(0.8)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 3, height: 20)
+                    
+                    Circle()
+                        .fill(Color.primaryOrange)
+                        .frame(width: 4, height: 4)
+                        .offset(y: -12)
+                }
+                .rotationEffect(.degrees(-30))
+                .offset(x: 15, y: 15)
+                
+                // NO SPARKLES - completely removed
             }
         }
     }
 }
 
+// MARK: - Sports Visual - NEW MODERN DESIGN
 struct SportsVisual: View {
-    @State private var isAnimating = false
-    
     var body: some View {
-        HStack(spacing: 8) {
-            // Sports equipment icons floating
-            ForEach(["basketball.fill", "tennis.racket", "figure.run"], id: \.self) { icon in
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.primaryOrange)
-                    .scaleEffect(isAnimating ? 1.2 : 1.0)
-                    .rotationEffect(.degrees(isAnimating ? 10 : -10))
-                    .animation(
-                        .easeInOut(duration: 1.0)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double.random(in: 0...0.5)),
-                        value: isAnimating
+        ZStack {
+            // Background circle (consistent with UserCreationVisual)
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [.primaryOrange.opacity(0.2), .primaryOrange.opacity(0.05)],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 40
                     )
+                )
+                .frame(width: 80, height: 80)
+            
+            // Main content
+            ZStack {
+                // Modern card background
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
+                    .frame(width: 45, height: 45)
+                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 3)
+                
+                // Sport icons grid (2x2)
+                VStack(spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "basketball.fill")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.primaryOrange)
+                        
+                        Image(systemName: "tennis.racket")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.primaryOrange.opacity(0.7))
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "figure.run")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.primaryOrange.opacity(0.7))
+                        
+                        Image(systemName: "dumbbell.fill")
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundColor(.primaryOrange)
+                    }
+                }
+                
+                // Selection indicator (bottom right corner)
+                Circle()
+                    .fill(Color.primaryOrange)
+                    .frame(width: 12, height: 12)
+                    .overlay(
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 6, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                    .offset(x: 14, y: 14)
             }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            Capsule()
-                .fill(LinearGradient(colors: [.primaryOrange.opacity(0.1), .pink.opacity(0.1)], startPoint: .leading, endPoint: .trailing))
-        )
-        .onAppear {
-            isAnimating = true
         }
     }
 }
+
+// MARK: - Success Visual Component (from RegistrationView.swift)
 
 struct SuccessVisual: View {
     @State private var isAnimating = false
@@ -524,3 +565,81 @@ struct SuccessVisual: View {
         }
     }
 }
+
+// MARK: - Static Success Visual (Alternative - No Animation)
+struct SuccessVisualStatic: View {
+    var body: some View {
+        ZStack {
+            // Static success burst background
+            ForEach(0..<8, id: \.self) { index in
+                Rectangle()
+                    .fill(LinearGradient(colors: [.green, .green.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: 30, height: 3)
+                    .offset(x: 15)
+                    .rotationEffect(.degrees(Double(index) * 45))
+            }
+            
+            // Static central checkmark
+            Circle()
+                .fill(LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                )
+        }
+    }
+}
+
+// MARK: - Modern Success Visual (Alternative Design)
+struct SuccessVisualModern: View {
+    var body: some View {
+        ZStack {
+            // Modern circular background
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [.green.opacity(0.2), .green.opacity(0.05)],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 40
+                    )
+                )
+                .frame(width: 80, height: 80)
+            
+            // Success badge
+            ZStack {
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 50, height: 50)
+                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundColor(.green)
+            }
+        }
+    }
+}
+
+// MARK: - Usage in RegistrationView.swift
+/*
+RegistrationView.swift dosyasındaki registrationSuccessOverlay kısmında kullanılıyor:
+
+private var registrationSuccessOverlay: some View {
+    ZStack {
+        Color.black.opacity(0.8)
+            .ignoresSafeArea()
+        
+        VStack(spacing: 24) {
+            SuccessVisual()                    // Orijinal animasyonlu
+            // SuccessVisualStatic()          // Sabit versiyon
+            // SuccessVisualModern()          // Modern tasarım
+                .scaleEffect(1.5)
+            
+            // ... rest of the overlay content
+        }
+    }
+}
+*/

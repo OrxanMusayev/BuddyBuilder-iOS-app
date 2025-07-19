@@ -42,15 +42,40 @@ class RegistrationViewModel: ObservableObject {
     }
     
     var canProceedToNextStep: Bool {
-        return formData.isStepValid(currentStep)
+        return formData.isStepValid(currentStep) && additionalValidationChecks()
     }
     
     var isLastStep: Bool {
         return currentStep == .sportsPreferences
     }
     
+    // MARK: - Additional Validation Checks
+    private func additionalValidationChecks() -> Bool {
+        switch currentStep {
+        case .basicInfo:
+            // Check password requirements
+            let passwordValidation = validatePassword(formData.password)
+            let confirmPasswordValidation = validateConfirmPassword(formData.password, formData.confirmPassword)
+            
+            // Check availability states
+            let usernameAvailable = usernameAvailability == .available || usernameAvailability == .idle
+            let emailAvailable = emailAvailability == .available || emailAvailability == .idle
+            
+            // All conditions must be met
+            return passwordValidation.isValid &&
+                   confirmPasswordValidation.isValid &&
+                   usernameAvailable &&
+                   emailAvailable &&
+                   usernameAvailability != .taken &&
+                   emailAvailability != .taken
+            
+        case .sportsPreferences:
+            return !formData.selectedSports.isEmpty
+        }
+    }
+    
     // MARK: - Initialization
-    init(registrationService: RegistrationServiceProtocol = RegistrationService()) { // CHANGED: Use real service
+    init(registrationService: RegistrationServiceProtocol = RegistrationService()) {
         self.registrationService = registrationService
         setupValidationObservers()
         loadInitialData()
@@ -79,6 +104,34 @@ class RegistrationViewModel: ObservableObject {
         
         // Clear field errors when user types
         setupFieldErrorClearingObservers()
+        
+        // ENHANCED: Real-time password validation
+        formData.$password
+            .combineLatest(formData.$confirmPassword)
+            .sink { [weak self] password, confirmPassword in
+                self?.validatePasswordFields(password: password, confirmPassword: confirmPassword)
+            }
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Real-time Password Validation
+    private func validatePasswordFields(password: String, confirmPassword: String) {
+        // Validate password requirements
+        let passwordValidation = validatePassword(password)
+        passwordError = !passwordValidation.isValid && !password.isEmpty
+        
+        // Validate password confirmation
+        let confirmPasswordValidation = validateConfirmPassword(password, confirmPassword)
+        confirmPasswordError = !confirmPasswordValidation.isValid && !confirmPassword.isEmpty
+        
+        // Update error message if needed
+        if passwordError {
+            errorMessage = passwordValidation.errorMessage
+        } else if confirmPasswordError {
+            errorMessage = confirmPasswordValidation.errorMessage
+        } else if !passwordError && !confirmPasswordError {
+            errorMessage = ""
+        }
     }
     
     private func handleUsernameChange(_ username: String) {
@@ -219,8 +272,8 @@ class RegistrationViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Password Validation
-    private func validatePassword(_ password: String) -> (isValid: Bool, errorMessage: String) {
+    // MARK: - Enhanced Password Validation
+    func validatePassword(_ password: String) -> (isValid: Bool, errorMessage: String) {
         if password.isEmpty {
             return (false, "Password is required")
         }
@@ -248,7 +301,7 @@ class RegistrationViewModel: ObservableObject {
         return (true, "")
     }
     
-    private func validateConfirmPassword(_ password: String, _ confirmPassword: String) -> (isValid: Bool, errorMessage: String) {
+    func validateConfirmPassword(_ password: String, _ confirmPassword: String) -> (isValid: Bool, errorMessage: String) {
         if confirmPassword.isEmpty {
             return (false, "Please confirm your password")
         }
@@ -325,6 +378,7 @@ class RegistrationViewModel: ObservableObject {
                 receiveValue: { [weak self] sports in
                     print("✅ Loaded \(sports.count) sports")
                     self?.availableSports = sports
+                    print("✅ Here are available sports: ", self?.availableSports ?? [])
                 }
             )
             .store(in: &cancellables)

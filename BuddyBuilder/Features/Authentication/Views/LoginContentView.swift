@@ -10,7 +10,7 @@ struct LoginContentView: View {
             // Main Login Form
             loginForm
             
-            // Language Picker in top-right corner of the card
+            // Language Picker in top-right corner - FIXED POSITION
             VStack {
                 HStack {
                     Spacer()
@@ -20,14 +20,15 @@ struct LoginContentView: View {
                 }
                 Spacer()
             }
+            .zIndex(1000) // High z-index for language picker
         }
-        .onReceive(localizationManager.$currentLanguage) { _ in
-            // Update UI when language changes
-        }
-        .sheet(isPresented: $showRegistration) {
+        .navigationDestination(isPresented: $showRegistration) {
             RegistrationView()
                 .environmentObject(authViewModel)
                 .environmentObject(localizationManager)
+        }
+        .onReceive(localizationManager.$currentLanguage) { _ in
+            // Update UI when language changes
         }
     }
     
@@ -48,7 +49,7 @@ struct LoginContentView: View {
             
             // Form Section
             VStack(spacing: 20) {
-                // Sabit Error Message Alanı
+                // Error Message Area - FIXED HEIGHT
                 VStack {
                     if !authViewModel.validationMessage.isEmpty {
                         HStack {
@@ -75,7 +76,7 @@ struct LoginContentView: View {
                 .frame(height: 38)
                 .animation(.easeInOut(duration: 0.3), value: authViewModel.validationMessage.isEmpty)
                 
-                // Username Field - Localized
+                // Username Field
                 CustomTextFieldNoTitle(
                     text: $authViewModel.username,
                     icon: "person.fill",
@@ -83,7 +84,7 @@ struct LoginContentView: View {
                     hasError: authViewModel.usernameError
                 )
                 
-                // Password Field - Localized
+                // Password Field
                 CustomPasswordFieldNoTitle(
                     text: $authViewModel.password,
                     showPassword: $authViewModel.showPassword,
@@ -91,7 +92,7 @@ struct LoginContentView: View {
                     hasError: authViewModel.passwordError
                 )
                 
-                // Form Options - Localized
+                // Form Options
                 HStack {
                     // Remember Me
                     HStack(spacing: 10) {
@@ -119,7 +120,7 @@ struct LoginContentView: View {
                 }
                 .padding(.vertical, 8)
                 
-                // Login Button - Localized
+                // Login Button
                 Button(action: {
                     authViewModel.login()
                 }) {
@@ -171,7 +172,7 @@ struct LoginContentView: View {
                 }
                 .padding(.vertical, 24)
                 
-                // Sign Up Section - Localized with Registration Link
+                // Sign Up Section - FIXED POSITION
                 VStack(spacing: 16) {
                     Rectangle()
                         .fill(Color.formBorder)
@@ -182,11 +183,14 @@ struct LoginContentView: View {
                             .font(.system(size: 15))
                             .foregroundColor(.textSecondary)
                         
-                        Button("auth.login.signup.link".localized(using: localizationManager)) {
+                        Button(action: {
+                            print("🔄 Sign Up button tapped")
                             showRegistration = true
+                        }) {
+                            Text("auth.login.signup.link".localized(using: localizationManager))
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.primaryOrange)
                         }
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.primaryOrange)
                     }
                 }
                 .padding(.top, 20)
@@ -202,8 +206,10 @@ struct LoginContentView: View {
 }
 
 #Preview(traits: .sizeThatFitsLayout) {
-    LoginContentView()
-        .environmentObject(AuthenticationViewModel())
-        .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
-        .padding()
+    NavigationStack {
+        LoginContentView()
+            .environmentObject(AuthenticationViewModel())
+            .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
+            .padding()
+    }
 }

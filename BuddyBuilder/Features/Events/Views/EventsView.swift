@@ -53,9 +53,9 @@ struct EventsView: View {
                 eventsViewModel.loadEvents()
             }
         }
-        .onChange(of: selectedTab) { newTab in
-            // Convert EventsTab to EventTab for the ViewModel
-            eventsViewModel.selectedTab = newTab == .all ? .all : .my
+        .onChange(of: selectedTab) { oldValue, newTab in
+            let viewModelTab: EventTab = newTab == .all ? .all : .my
+            eventsViewModel.changeTab(to: viewModelTab) // Direct method call
         }
     }
     

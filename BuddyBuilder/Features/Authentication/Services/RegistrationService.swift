@@ -28,7 +28,6 @@ class RegistrationService: RegistrationServiceProtocol {
                 .eraseToAnyPublisher()
         }
         
-        // Debug: Request'i yazdır
         print("🚀 REGISTRATION REQUEST:")
         print("URL: \(baseURL)/register")
         print("Body: \(String(data: requestData, encoding: .utf8) ?? "nil")")
@@ -41,38 +40,83 @@ class RegistrationService: RegistrationServiceProtocol {
         )
     }
     
-    // MARK: - Username/Email Availability Check
+    // MARK: - Username Availability Check - FIXED: Direct Boolean Response
     func checkUsernameAvailability(_ username: String) -> AnyPublisher<Bool, Error> {
         let encodedUsername = username.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? username
         let endpoint = "\(baseURL)/check-username?username=\(encodedUsername)"
         
-        return networkManager.request(
-            endpoint: endpoint,
-            method: .GET,
-            type: APIResponse<Bool>.self
-        )
-        .map { response in
-            response.success && (response.data ?? false)
-        }
-        .eraseToAnyPublisher()
-    }
-    
-    func checkEmailAvailability(_ email: String) -> AnyPublisher<Bool, Error> {
-        let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email
-        let endpoint = "\(baseURL)/check-email?email=\(encodedEmail)"
+        print("🔍 Checking username availability:")
+        print("URL: \(endpoint)")
         
         return networkManager.request(
             endpoint: endpoint,
             method: .GET,
-            type: APIResponse<Bool>.self
+            type: Bool.self // Direct Bool response
         )
-        .map { response in
-            response.success && (response.data ?? false)
+        .handleEvents(
+            receiveOutput: { apiResponse in
+                print("✅ Username API returned: \(apiResponse) (true=taken, false=available)")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Username check failed: \(error)")
+                }
+            }
+        )
+        .map { apiResponse in
+            // API: true = taken, false = available
+            // Function should return: true = available, false = taken
+            return !apiResponse
+        }
+        .catch { error -> AnyPublisher<Bool, Error> in
+            print("❌ Username availability check error: \(error)")
+            // Network error durumunda false döndür (güvenli side - not available)
+            return Just(false)
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
         }
         .eraseToAnyPublisher()
     }
     
-    // MARK: - Location Data
+    // MARK: - Email Availability Check - FIXED: Direct Boolean Response
+    func checkEmailAvailability(_ email: String) -> AnyPublisher<Bool, Error> {
+        let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? email
+        let endpoint = "\(baseURL)/check-email?email=\(encodedEmail)"
+        
+        print("📧 Checking email availability:")
+        print("URL: \(endpoint)")
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: Bool.self // Direct Bool response
+        )
+        .handleEvents(
+            receiveOutput: { apiResponse in
+                print("✅ Email API returned: \(apiResponse) (true=taken, false=available)")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Email check failed: \(error)")
+                }
+            }
+        )
+        .map { apiResponse in
+            // API: true = taken, false = available
+            // Function should return: true = available, false = taken
+            return !apiResponse
+        }
+        .catch { error -> AnyPublisher<Bool, Error> in
+            print("❌ Email availability check error: \(error)")
+            // Network error durumunda false döndür (güvenli side - not available)
+            return Just(false)
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Location Data (kept for potential future use)
     func fetchCountries() -> AnyPublisher<[Country], Error> {
         return networkManager.request(
             endpoint: "\(locationURL)/countries",
@@ -99,10 +143,22 @@ class RegistrationService: RegistrationServiceProtocol {
     
     // MARK: - Sports Data
     func fetchAvailableSports() -> AnyPublisher<[Sport], Error> {
+        print("🏃‍♂️ Fetching available sports from: \(sportsURL)")
+        
         return networkManager.request(
             endpoint: sportsURL,
             method: .GET,
             type: APIResponse<[Sport]>.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Sports fetch response: success=\(response.success), count=\(response.data?.count ?? 0)")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Sports fetch failed: \(error)")
+                }
+            }
         )
         .compactMap { response in
             response.success ? response.data : []
@@ -111,9 +167,11 @@ class RegistrationService: RegistrationServiceProtocol {
     }
 }
 
-// MARK: - Mock Registration Service
+// MARK: - Mock Registration Service (for testing/preview)
 class MockRegistrationService: RegistrationServiceProtocol {
     func register(_ request: RegistrationRequest) -> AnyPublisher<RegistrationResponse, Error> {
+        print("🧪 MOCK: Simulating registration for user: \(request.userName)")
+        
         // Simulate network delay
         return Just(
             RegistrationResponse(
@@ -125,7 +183,6 @@ class MockRegistrationService: RegistrationServiceProtocol {
                     email: request.email,
                     accessToken: "mock_access_token_12345",
                     refreshToken: "mock_refresh_token_12345",
-                    isProfileComplete: true,
                     loginTime: ISO8601DateFormatter().string(from: Date())
                 ),
                 errors: nil,
@@ -138,23 +195,33 @@ class MockRegistrationService: RegistrationServiceProtocol {
     }
     
     func checkUsernameAvailability(_ username: String) -> AnyPublisher<Bool, Error> {
+        print("🧪 MOCK: Checking username availability for: \(username)")
+        
         // Simulate some usernames as taken
-        let takenUsernames = ["admin", "test", "user", "john", "jane"]
-        let isAvailable = !takenUsernames.contains(username.lowercased())
+        let takenUsernames = ["admin", "test", "user", "john", "jane", "orxanmuss"]
+        let isTaken = takenUsernames.contains(username.lowercased())
+        let isAvailable = !isTaken
+        
+        print("🧪 MOCK: Username '\(username)' is \(isAvailable ? "available" : "taken")")
         
         return Just(isAvailable)
-            .delay(for: .seconds(0.5), scheduler: RunLoop.main)
+            .delay(for: .seconds(1.0), scheduler: RunLoop.main) // Simulate network delay
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
     }
     
     func checkEmailAvailability(_ email: String) -> AnyPublisher<Bool, Error> {
+        print("🧪 MOCK: Checking email availability for: \(email)")
+        
         // Simulate some emails as taken
-        let takenEmails = ["test@example.com", "admin@example.com", "user@example.com"]
-        let isAvailable = !takenEmails.contains(email.lowercased())
+        let takenEmails = ["test@example.com", "admin@example.com", "user@example.com", "tesemail@example.com"]
+        let isTaken = takenEmails.contains(email.lowercased())
+        let isAvailable = !isTaken
+        
+        print("🧪 MOCK: Email '\(email)' is \(isAvailable ? "available" : "taken")")
         
         return Just(isAvailable)
-            .delay(for: .seconds(0.5), scheduler: RunLoop.main)
+            .delay(for: .seconds(1.0), scheduler: RunLoop.main) // Simulate network delay
             .setFailureType(to: Error.self)
             .eraseToAnyPublisher()
     }
@@ -209,6 +276,8 @@ class MockRegistrationService: RegistrationServiceProtocol {
     }
     
     func fetchAvailableSports() -> AnyPublisher<[Sport], Error> {
+        print("🧪 MOCK: Fetching available sports")
+        
         let mockSports = [
             Sport(id: 1, name: "Basketball", description: "Team sport played on a court", imageUrl: nil, defaultEventImageUrl: nil),
             Sport(id: 2, name: "Tennis", description: "Racket sport", imageUrl: nil, defaultEventImageUrl: nil),

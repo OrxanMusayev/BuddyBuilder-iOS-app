@@ -14,25 +14,18 @@ class RegistrationViewModel: ObservableObject {
     @Published var showPassword = false
     @Published var showConfirmPassword = false
     
-    // Step validation states
+    // Step validation states - SIMPLIFIED
     @Published var usernameError = false
     @Published var emailError = false
     @Published var passwordError = false
     @Published var confirmPasswordError = false
-    @Published var firstNameError = false
-    @Published var lastNameError = false
-    @Published var phoneError = false
-    @Published var locationError = false
     @Published var sportsError = false
-    @Published var profileError = false
     
     // Username/Email availability
     @Published var usernameAvailability: ValidationState = .idle
     @Published var emailAvailability: ValidationState = .idle
     
     // Data for dropdowns
-    @Published var availableCountries: [Country] = []
-    @Published var availableCities: [City] = []
     @Published var availableSports: [Sport] = []
     
     // Registration success
@@ -53,14 +46,15 @@ class RegistrationViewModel: ObservableObject {
     }
     
     var isLastStep: Bool {
-        return currentStep == .verification
+        return currentStep == .sportsPreferences
     }
     
     // MARK: - Initialization
-    init(registrationService: RegistrationServiceProtocol = MockRegistrationService()) {
+    init(registrationService: RegistrationServiceProtocol = RegistrationService()) { // CHANGED: Use real service
         self.registrationService = registrationService
         setupValidationObservers()
         loadInitialData()
+        print("🏗️ RegistrationViewModel initialized with real service")
     }
     
     // MARK: - Setup Methods
@@ -70,11 +64,7 @@ class RegistrationViewModel: ObservableObject {
             .debounce(for: .seconds(debounceInterval), scheduler: RunLoop.main)
             .removeDuplicates()
             .sink { [weak self] username in
-                if !username.isEmpty && username.count >= 3 {
-                    self?.checkUsernameAvailability(username)
-                } else {
-                    self?.usernameAvailability = .idle
-                }
+                self?.handleUsernameChange(username)
             }
             .store(in: &cancellables)
         
@@ -83,28 +73,58 @@ class RegistrationViewModel: ObservableObject {
             .debounce(for: .seconds(debounceInterval), scheduler: RunLoop.main)
             .removeDuplicates()
             .sink { [weak self] email in
-                if !email.isEmpty && self?.isValidEmail(email) == true {
-                    self?.checkEmailAvailability(email)
-                } else {
-                    self?.emailAvailability = .idle
-                }
-            }
-            .store(in: &cancellables)
-        
-        // Country selection observer
-        formData.$selectedCountry
-            .sink { [weak self] country in
-                if let country = country {
-                    self?.loadCities(for: country.id)
-                } else {
-                    self?.availableCities = []
-                    self?.formData.selectedCity = nil
-                }
+                self?.handleEmailChange(email)
             }
             .store(in: &cancellables)
         
         // Clear field errors when user types
         setupFieldErrorClearingObservers()
+    }
+    
+    private func handleUsernameChange(_ username: String) {
+        if username.isEmpty {
+            usernameAvailability = .idle
+            return
+        }
+        
+        if username.count < 3 {
+            usernameAvailability = .idle
+            return
+        }
+        
+        // Basic validation first
+        if !isValidUsername(username) {
+            usernameAvailability = .error
+            return
+        }
+        
+        checkUsernameAvailability(username)
+    }
+    
+    private func handleEmailChange(_ email: String) {
+        if email.isEmpty {
+            emailAvailability = .idle
+            return
+        }
+        
+        if !email.contains("@") {
+            emailAvailability = .idle
+            return
+        }
+        
+        if !isValidEmail(email) {
+            emailAvailability = .error
+            return
+        }
+        
+        checkEmailAvailability(email)
+    }
+    
+    private func isValidUsername(_ username: String) -> Bool {
+        // Username should be at least 3 characters, alphanumeric + underscore
+        let usernameRegex = "^[a-zA-Z0-9_]{3,20}$"
+        let usernameTest = NSPredicate(format:"SELF MATCHES %@", usernameRegex)
+        return usernameTest.evaluate(with: username)
     }
     
     private func setupFieldErrorClearingObservers() {
@@ -115,7 +135,7 @@ class RegistrationViewModel: ObservableObject {
     }
     
     private func loadInitialData() {
-        loadCountries()
+        print("📊 Loading initial data...")
         loadAvailableSports()
     }
     
@@ -159,26 +179,30 @@ class RegistrationViewModel: ObservableObject {
     private func markCurrentStepErrors() {
         switch currentStep {
         case .basicInfo:
-            usernameError = formData.userName.isEmpty
+            usernameError = formData.userName.isEmpty || !isValidUsername(formData.userName)
             emailError = formData.email.isEmpty || !isValidEmail(formData.email)
             passwordError = formData.password.isEmpty || formData.password.count < 6
             confirmPasswordError = formData.confirmPassword.isEmpty || formData.password != formData.confirmPassword
             
-        case .location:
-            locationError = formData.selectedCountry == nil || formData.selectedCity == nil || formData.district.isEmpty
+            // Check availability states
+            if !usernameError && usernameAvailability == .taken {
+                usernameError = true
+                errorMessage = "Username is already taken"
+            }
+            
+            if !emailError && emailAvailability == .taken {
+                emailError = true
+                errorMessage = "Email is already taken"
+            }
             
         case .sportsPreferences:
             sportsError = formData.selectedSports.isEmpty
-            
-        case .profile:
-            profileError = formData.bio.isEmpty || formData.aboutMe.isEmpty
-            
-        case .verification:
-            break
         }
         
         if !canProceedToNextStep {
-            errorMessage = "registration.error.complete_required_fields"
+            if errorMessage.isEmpty {
+                errorMessage = "Please complete all required fields correctly"
+            }
             showError = true
         }
     }
@@ -191,17 +215,20 @@ class RegistrationViewModel: ObservableObject {
     
     // MARK: - Availability Checks
     private func checkUsernameAvailability(_ username: String) {
+        print("🔍 Checking username availability for: \(username)")
         usernameAvailability = .checking
         
         registrationService.checkUsernameAvailability(username)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    if case .failure = completion {
+                    if case .failure(let error) = completion {
+                        print("❌ Username check failed: \(error)")
                         self?.usernameAvailability = .error
                     }
                 },
                 receiveValue: { [weak self] isAvailable in
+                    print("✅ Username check result: \(isAvailable ? "available" : "taken")")
                     self?.usernameAvailability = isAvailable ? .available : .taken
                 }
             )
@@ -209,17 +236,20 @@ class RegistrationViewModel: ObservableObject {
     }
     
     private func checkEmailAvailability(_ email: String) {
+        print("📧 Checking email availability for: \(email)")
         emailAvailability = .checking
         
         registrationService.checkEmailAvailability(email)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    if case .failure = completion {
+                    if case .failure(let error) = completion {
+                        print("❌ Email check failed: \(error)")
                         self?.emailAvailability = .error
                     }
                 },
                 receiveValue: { [weak self] isAvailable in
+                    print("✅ Email check result: \(isAvailable ? "available" : "taken")")
                     self?.emailAvailability = isAvailable ? .available : .taken
                 }
             )
@@ -227,52 +257,20 @@ class RegistrationViewModel: ObservableObject {
     }
     
     // MARK: - Data Loading Methods
-    private func loadCountries() {
-        registrationService.fetchCountries()
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        self?.handleError(error)
-                    }
-                },
-                receiveValue: { [weak self] countries in
-                    self?.availableCountries = countries
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    private func loadCities(for countryId: Int) {
-        registrationService.fetchCities(countryId: countryId)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let error) = completion {
-                        self?.handleError(error)
-                    }
-                },
-                receiveValue: { [weak self] cities in
-                    self?.availableCities = cities
-                    // Reset selected city when country changes
-                    if self?.formData.selectedCity?.countryId != countryId {
-                        self?.formData.selectedCity = nil
-                    }
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
     private func loadAvailableSports() {
+        print("🏃‍♂️ Loading available sports...")
+        
         registrationService.fetchAvailableSports()
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
+                        print("❌ Sports loading failed: \(error)")
                         self?.handleError(error)
                     }
                 },
                 receiveValue: { [weak self] sports in
+                    print("✅ Loaded \(sports.count) sports")
                     self?.availableSports = sports
                 }
             )
@@ -283,9 +281,11 @@ class RegistrationViewModel: ObservableObject {
     func toggleSportSelection(_ sport: Sport) {
         if let index = formData.selectedSports.firstIndex(where: { $0.sport.id == sport.id }) {
             formData.selectedSports.remove(at: index)
+            print("🏃‍♂️ Removed sport: \(sport.name)")
         } else {
             let sportSelection = SportSelection(sport: sport)
             formData.selectedSports.append(sportSelection)
+            print("🏃‍♂️ Added sport: \(sport.name)")
         }
         sportsError = false
     }
@@ -315,6 +315,22 @@ class RegistrationViewModel: ObservableObject {
             return
         }
         
+        // Final validation check for availability
+        if usernameAvailability == .taken {
+            usernameError = true
+            errorMessage = "Username is already taken"
+            showError = true
+            return
+        }
+        
+        if emailAvailability == .taken {
+            emailError = true
+            errorMessage = "Email is already taken"
+            showError = true
+            return
+        }
+        
+        print("🚀 Starting registration process...")
         isLoading = true
         errorMessage = ""
         
@@ -327,20 +343,23 @@ class RegistrationViewModel: ObservableObject {
                     self?.isLoading = false
                     switch completion {
                     case .failure(let error):
+                        print("❌ Registration failed: \(error)")
                         self?.handleError(error)
                     case .finished:
+                        print("✅ Registration request completed")
                         break
                     }
                 },
                 receiveValue: { [weak self] response in
                     if response.success, let loginData = response.data {
-                        print("🎉 Registration successful!")
+                        print("🎉 Registration successful for user: \(loginData.username)")
                         self?.saveRegistrationData(loginData)
                         withAnimation(.easeInOut(duration: 0.5)) {
                             self?.registrationCompleted = true
                         }
                     } else {
-                        let errorMsg = response.message ?? "registration.error.unknown"
+                        let errorMsg = response.message ?? "Registration failed. Please try again."
+                        print("❌ Registration response error: \(errorMsg)")
                         self?.errorMessage = errorMsg
                         self?.showError = true
                     }
@@ -355,7 +374,6 @@ class RegistrationViewModel: ObservableObject {
         UserDefaults.standard.set(loginData.userId, forKey: "user_id")
         UserDefaults.standard.set(loginData.username, forKey: "username")
         UserDefaults.standard.set(loginData.email, forKey: "user_email")
-        UserDefaults.standard.set(loginData.isProfileComplete, forKey: "is_profile_complete")
         UserDefaults.standard.set(loginData.refreshToken, forKey: "refresh_token")
         print("💾 Registration data saved successfully")
     }
@@ -375,6 +393,7 @@ class RegistrationViewModel: ObservableObject {
         usernameAvailability = .idle
         emailAvailability = .idle
         registrationCompleted = false
+        print("🔄 Registration form reset")
     }
     
     private func clearAllErrors() {
@@ -382,15 +401,13 @@ class RegistrationViewModel: ObservableObject {
         emailError = false
         passwordError = false
         confirmPasswordError = false
-        locationError = false
         sportsError = false
-        profileError = false
         errorMessage = ""
         showError = false
     }
 }
 
-// MARK: - Validation State Enum
+// MARK: - Validation State Enum with Localization Support
 enum ValidationState {
     case idle
     case checking
@@ -428,18 +445,59 @@ enum ValidationState {
         }
     }
     
-    var message: String {
+    // Username localization keys
+    var usernameMessageKey: String {
         switch self {
         case .idle:
             return ""
         case .checking:
-            return "registration.validation.checking"
+            return "registration.validation.username.checking"
         case .available:
-            return "registration.validation.available"
+            return "registration.validation.username.available"
         case .taken:
-            return "registration.validation.taken"
+            return "registration.validation.username.taken"
         case .error:
-            return "registration.validation.error"
+            return "registration.validation.username.error"
+        }
+    }
+    
+    // Email localization keys
+    var emailMessageKey: String {
+        switch self {
+        case .idle:
+            return ""
+        case .checking:
+            return "registration.validation.email.checking"
+        case .available:
+            return "registration.validation.email.available"
+        case .taken:
+            return "registration.validation.email.taken"
+        case .error:
+            return "registration.validation.email.error"
+        }
+    }
+    
+    // Helper methods to get localized messages
+    @MainActor
+    func usernameMessage(using localizationManager: LocalizationManager) -> String {
+        guard !usernameMessageKey.isEmpty else { return "" }
+        return usernameMessageKey.localized(using: localizationManager)
+    }
+    
+    @MainActor
+    func emailMessage(using localizationManager: LocalizationManager) -> String {
+        guard !emailMessageKey.isEmpty else { return "" }
+        return emailMessageKey.localized(using: localizationManager)
+    }
+    
+    // Deprecated - for backward compatibility
+    var message: String {
+        switch self {
+        case .idle: return ""
+        case .checking: return "Checking..."
+        case .available: return "Available"
+        case .taken: return "Already taken"
+        case .error: return "Check failed"
         }
     }
 }

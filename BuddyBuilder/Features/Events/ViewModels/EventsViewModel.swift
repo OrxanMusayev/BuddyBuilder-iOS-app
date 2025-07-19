@@ -101,6 +101,12 @@ class EventsViewModel: ObservableObject {
         .store(in: &cancellables)
     }
     
+    func changeTab(to newTab: EventTab) {
+        selectedTab = newTab
+        resetPagination()
+        loadEvents() // Immediately load for new tab
+    }
+    
     // MARK: - Public Methods
     func loadEvents(resetPagination: Bool = true) {
         if resetPagination {

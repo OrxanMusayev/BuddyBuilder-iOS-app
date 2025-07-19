@@ -10,9 +10,6 @@ struct RegistrationRequest: Codable {
     let email: String
     let password: String
     let confirmPassword: String
-    let dateOfBirth: Date
-    let gender: Int
-    let phoneNumber: String
     let countryId: Int
     let cityId: Int
     let district: String
@@ -25,7 +22,7 @@ struct RegistrationRequest: Codable {
     
     enum CodingKeys: String, CodingKey {
         case userName, firstName, lastName, email, password, confirmPassword
-        case dateOfBirth, gender, phoneNumber, countryId, cityId, district
+        case countryId, cityId, district
         case overallExperienceLevel, preferredSports, bio, profileImageUrl, notes, aboutMe
     }
     
@@ -37,10 +34,6 @@ struct RegistrationRequest: Codable {
         try container.encode(email, forKey: .email)
         try container.encode(password, forKey: .password)
         try container.encode(confirmPassword, forKey: .confirmPassword)
-        try container.encode(ISO8601DateFormatter().string(from: dateOfBirth), forKey: .dateOfBirth)
-        try container.encode(gender, forKey: .gender)
-        try container.encode(phoneNumber, forKey: .phoneNumber)
-        try container.encode(countryId, forKey: .countryId)
         try container.encode(cityId, forKey: .cityId)
         try container.encode(district, forKey: .district)
         try container.encode(overallExperienceLevel, forKey: .overallExperienceLevel)
@@ -63,26 +56,17 @@ struct PreferredSport: Codable {
 // MARK: - Registration Response Model
 typealias RegistrationResponse = APIResponse<LoginData>
 
-// MARK: - Registration Step Enum
+// MARK: - Registration Step Enum - UPDATED: Only 2 steps now
 enum RegistrationStep: Int, CaseIterable {
     case basicInfo = 0
-    case location = 1
-    case sportsPreferences = 2
-    case profile = 3
-    case verification = 4
+    case sportsPreferences = 1
     
     var title: String {
         switch self {
         case .basicInfo:
             return "registration.step.basic_info"
-        case .location:
-            return "registration.step.location"
         case .sportsPreferences:
             return "registration.step.sports_preferences"
-        case .profile:
-            return "registration.step.profile"
-        case .verification:
-            return "registration.step.verification"
         }
     }
     
@@ -90,14 +74,8 @@ enum RegistrationStep: Int, CaseIterable {
         switch self {
         case .basicInfo:
             return "registration.step.basic_info.subtitle"
-        case .location:
-            return "registration.step.location.subtitle"
         case .sportsPreferences:
             return "registration.step.sports_preferences.subtitle"
-        case .profile:
-            return "registration.step.profile.subtitle"
-        case .verification:
-            return "registration.step.verification.subtitle"
         }
     }
     
@@ -105,14 +83,8 @@ enum RegistrationStep: Int, CaseIterable {
         switch self {
         case .basicInfo:
             return "person.circle"
-        case .location:
-            return "location.circle"
         case .sportsPreferences:
             return "sportscourt"
-        case .profile:
-            return "pencil.circle"
-        case .verification:
-            return "checkmark.circle"
         }
     }
     
@@ -176,7 +148,7 @@ enum RegistrationExperienceLevel: Int, CaseIterable {
     }
 }
 
-// MARK: - Country and City Models
+// MARK: - Country and City Models - Keep for API compatibility but set defaults
 struct Country: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
@@ -190,7 +162,7 @@ struct City: Codable, Identifiable, Hashable {
     let countryId: Int
 }
 
-// MARK: - Registration Form Data
+// MARK: - Registration Form Data - SIMPLIFIED
 class RegistrationFormData: ObservableObject {
     // Basic Info (only essential fields)
     @Published var userName: String = ""
@@ -198,22 +170,11 @@ class RegistrationFormData: ObservableObject {
     @Published var password: String = ""
     @Published var confirmPassword: String = ""
     
-    // Location
-    @Published var selectedCountry: Country?
-    @Published var selectedCity: City?
-    @Published var district: String = ""
-    
     // Sports Preferences
     @Published var overallExperienceLevel: RegistrationExperienceLevel = .beginner
     @Published var selectedSports: [SportSelection] = []
     
-    // Profile
-    @Published var bio: String = ""
-    @Published var aboutMe: String = ""
-    @Published var profileImageUrl: String? = nil
-    @Published var notes: String = ""
-    
-    // Validation
+    // Validation - UPDATED: Only check basic info and sports
     func isStepValid(_ step: RegistrationStep) -> Bool {
         switch step {
         case .basicInfo:
@@ -221,17 +182,8 @@ class RegistrationFormData: ObservableObject {
                    !confirmPassword.isEmpty && password == confirmPassword &&
                    password.count >= 6 && isValidEmail(email)
             
-        case .location:
-            return selectedCountry != nil && selectedCity != nil && !district.isEmpty
-            
         case .sportsPreferences:
             return !selectedSports.isEmpty
-            
-        case .profile:
-            return !bio.isEmpty && !aboutMe.isEmpty
-            
-        case .verification:
-            return true // Always valid for verification step
         }
     }
     
@@ -241,7 +193,7 @@ class RegistrationFormData: ObservableObject {
         return emailTest.evaluate(with: email)
     }
     
-    // Convert to API request
+    // Convert to API request - WITH DEFAULT VALUES for removed fields
     func toRegistrationRequest() -> RegistrationRequest {
         let preferredSports = selectedSports.map { sport in
             PreferredSport(
@@ -254,23 +206,20 @@ class RegistrationFormData: ObservableObject {
         
         return RegistrationRequest(
             userName: userName,
-            firstName: "", // Empty - not collected
-            lastName: "", // Empty - not collected
+            firstName: "", // Default empty
+            lastName: "", // Default empty
             email: email,
             password: password,
             confirmPassword: confirmPassword,
-            dateOfBirth: Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date(), // Default date
-            gender: 1, // Default to male
-            phoneNumber: "", // Empty - not collected
-            countryId: selectedCountry?.id ?? 0,
-            cityId: selectedCity?.id ?? 0,
-            district: district,
+            countryId: 1, // Default country ID
+            cityId: 1, // Default city ID
+            district: "", // Default empty
             overallExperienceLevel: overallExperienceLevel.rawValue,
             preferredSports: preferredSports,
-            bio: bio,
-            profileImageUrl: profileImageUrl,
-            notes: notes.isEmpty ? nil : notes,
-            aboutMe: aboutMe
+            bio: "", // Default empty
+            profileImageUrl: nil,
+            notes: nil,
+            aboutMe: "" // Default empty
         )
     }
 }
@@ -300,11 +249,7 @@ enum RegistrationValidationError: Error, LocalizedError {
     case passwordTooShort
     case passwordMismatch
     case usernameEmpty
-    case nameEmpty
-    case phoneEmpty
-    case locationMissing
     case noSportsSelected
-    case profileIncomplete
     
     var errorDescription: String? {
         switch self {
@@ -316,16 +261,8 @@ enum RegistrationValidationError: Error, LocalizedError {
             return "registration.error.password_mismatch"
         case .usernameEmpty:
             return "registration.error.username_empty"
-        case .nameEmpty:
-            return "registration.error.name_empty"
-        case .phoneEmpty:
-            return "registration.error.phone_empty"
-        case .locationMissing:
-            return "registration.error.location_missing"
         case .noSportsSelected:
             return "registration.error.no_sports_selected"
-        case .profileIncomplete:
-            return "registration.error.profile_incomplete"
         }
     }
 }

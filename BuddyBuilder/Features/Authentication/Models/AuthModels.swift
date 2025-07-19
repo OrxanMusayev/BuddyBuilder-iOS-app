@@ -25,7 +25,6 @@ struct LoginData: Codable {
     let email: String
     let accessToken: String
     let refreshToken: String
-    let isProfileComplete: Bool
     let loginTime: String
     
     // Computed property - token'a kolay erişim için
@@ -42,13 +41,11 @@ struct User: Codable {
     let id: Int
     let username: String
     let email: String
-    let isProfileComplete: Bool
     
     init(from loginData: LoginData) {
         self.id = loginData.userId
         self.username = loginData.username
         self.email = loginData.email
-        self.isProfileComplete = loginData.isProfileComplete
     }
 }
 

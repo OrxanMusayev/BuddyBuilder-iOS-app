@@ -76,10 +76,22 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
         let queryString = buildQueryString(from: queryParams)
         let endpoint = queryString.isEmpty ? "\(baseURL)/my" : "\(baseURL)/my-events?\(queryString)"
         
+        print("🌐 Fetching events from: \(endpoint)")
+        
         return networkManager.request(
             endpoint: endpoint,
             method: .GET,
             type: EventsResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Successfully fetched \(response.events.count)  my events")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Failed to fetch my events: \(error)")
+                }
+            }
         )
         .eraseToAnyPublisher()
     }

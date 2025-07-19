@@ -194,11 +194,11 @@ struct ProfileView: View {
             
             // User Info
             VStack(spacing: 8) {
-                Text("profile.user.name".localized(using: localizationManager))
+                Text(getCurrentUsername())
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 
-                Text("user@example.com")
+                Text(getCurrentUserEmail())
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.textSecondary)
             }
@@ -326,6 +326,21 @@ struct ProfileView: View {
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 25))
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+    }
+    
+    // MARK: - Helper Methods
+    private func getCurrentUsername() -> String {
+        if let username = UserDefaults.standard.string(forKey: "username"), !username.isEmpty {
+            return username
+        }
+        return "profile.user.name".localized(using: localizationManager)
+    }
+    
+    private func getCurrentUserEmail() -> String {
+        if let email = UserDefaults.standard.string(forKey: "user_email"), !email.isEmpty {
+            return email
+        }
+        return "user@example.com"
     }
 }
 

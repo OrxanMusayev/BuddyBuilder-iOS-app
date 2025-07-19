@@ -197,10 +197,6 @@ struct ProfileView: View {
                 Text(getCurrentUsername())
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
-                
-                Text(getCurrentUserEmail())
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.textSecondary)
             }
         }
         .padding(.top, 20)

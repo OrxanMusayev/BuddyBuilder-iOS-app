@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-// MARK: - Basic Info Step
+// MARK: - Basic Info Step (Only Essential Fields)
 struct BasicInfoStepView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -68,30 +68,6 @@ struct BasicInfoStepView: View {
                     .padding(.leading, 16)
                 }
             }
-            
-            // First Name
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.firstName,
-                icon: "person.fill",
-                placeholder: "registration.first_name.placeholder".localized(using: localizationManager),
-                hasError: viewModel.firstNameError
-            )
-            
-            // Last Name
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.lastName,
-                icon: "person.fill",
-                placeholder: "registration.last_name.placeholder".localized(using: localizationManager),
-                hasError: viewModel.lastNameError
-            )
-            
-            // Phone Number
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.phoneNumber,
-                icon: "phone.fill",
-                placeholder: "registration.phone.placeholder".localized(using: localizationManager),
-                hasError: viewModel.phoneError
-            )
             
             // Password Field
             CustomPasswordFieldNoTitle(
@@ -437,10 +413,6 @@ struct VerificationStepView: View {
             
             // Summary Card
             VStack(spacing: 16) {
-                RegistrationSummaryRow(
-                    label: "registration.summary.name".localized(using: localizationManager),
-                    value: "\(viewModel.formData.firstName) \(viewModel.formData.lastName)"
-                )
                 
                 RegistrationSummaryRow(
                     label: "registration.summary.username".localized(using: localizationManager),

@@ -112,9 +112,6 @@ class RegistrationViewModel: ObservableObject {
         formData.$email.sink { [weak self] _ in self?.emailError = false }.store(in: &cancellables)
         formData.$password.sink { [weak self] _ in self?.passwordError = false }.store(in: &cancellables)
         formData.$confirmPassword.sink { [weak self] _ in self?.confirmPasswordError = false }.store(in: &cancellables)
-        formData.$firstName.sink { [weak self] _ in self?.firstNameError = false }.store(in: &cancellables)
-        formData.$lastName.sink { [weak self] _ in self?.lastNameError = false }.store(in: &cancellables)
-        formData.$phoneNumber.sink { [weak self] _ in self?.phoneError = false }.store(in: &cancellables)
     }
     
     private func loadInitialData() {
@@ -166,9 +163,6 @@ class RegistrationViewModel: ObservableObject {
             emailError = formData.email.isEmpty || !isValidEmail(formData.email)
             passwordError = formData.password.isEmpty || formData.password.count < 6
             confirmPasswordError = formData.confirmPassword.isEmpty || formData.password != formData.confirmPassword
-            firstNameError = formData.firstName.isEmpty
-            lastNameError = formData.lastName.isEmpty
-            phoneError = formData.phoneNumber.isEmpty
             
         case .location:
             locationError = formData.selectedCountry == nil || formData.selectedCity == nil || formData.district.isEmpty
@@ -388,9 +382,6 @@ class RegistrationViewModel: ObservableObject {
         emailError = false
         passwordError = false
         confirmPasswordError = false
-        firstNameError = false
-        lastNameError = false
-        phoneError = false
         locationError = false
         sportsError = false
         profileError = false

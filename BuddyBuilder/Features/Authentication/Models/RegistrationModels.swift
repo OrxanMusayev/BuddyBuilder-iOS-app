@@ -192,16 +192,11 @@ struct City: Codable, Identifiable, Hashable {
 
 // MARK: - Registration Form Data
 class RegistrationFormData: ObservableObject {
-    // Basic Info
+    // Basic Info (only essential fields)
     @Published var userName: String = ""
     @Published var email: String = ""
     @Published var password: String = ""
     @Published var confirmPassword: String = ""
-    @Published var firstName: String = ""
-    @Published var lastName: String = ""
-    @Published var dateOfBirth: Date = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
-    @Published var gender: GenderType = .male
-    @Published var phoneNumber: String = ""
     
     // Location
     @Published var selectedCountry: Country?
@@ -224,8 +219,7 @@ class RegistrationFormData: ObservableObject {
         case .basicInfo:
             return !userName.isEmpty && !email.isEmpty && !password.isEmpty &&
                    !confirmPassword.isEmpty && password == confirmPassword &&
-                   password.count >= 6 && isValidEmail(email) &&
-                   !firstName.isEmpty && !lastName.isEmpty && !phoneNumber.isEmpty
+                   password.count >= 6 && isValidEmail(email)
             
         case .location:
             return selectedCountry != nil && selectedCity != nil && !district.isEmpty
@@ -260,14 +254,14 @@ class RegistrationFormData: ObservableObject {
         
         return RegistrationRequest(
             userName: userName,
-            firstName: firstName,
-            lastName: lastName,
+            firstName: "", // Empty - not collected
+            lastName: "", // Empty - not collected
             email: email,
             password: password,
             confirmPassword: confirmPassword,
-            dateOfBirth: dateOfBirth,
-            gender: gender.rawValue,
-            phoneNumber: phoneNumber,
+            dateOfBirth: Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date(), // Default date
+            gender: 1, // Default to male
+            phoneNumber: "", // Empty - not collected
             countryId: selectedCountry?.id ?? 0,
             cityId: selectedCity?.id ?? 0,
             district: district,

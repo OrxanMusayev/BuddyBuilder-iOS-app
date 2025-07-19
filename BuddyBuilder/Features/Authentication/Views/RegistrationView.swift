@@ -9,34 +9,39 @@ struct RegistrationView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        ZStack {
-            // Background
-            LoginBackgroundView()
-            
-            // Main Content - Centered like LoginView
-            VStack {
-                Spacer()
+        GeometryReader { geometry in
+            ZStack {
+                // Background - Full screen like LoginView
+                LoginBackgroundView()
                 
-                // Registration Card
-                registrationCard
+                // Main Content - Centered like LoginView
+                ScrollView {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 80)
+                        
+                        // Registration Card
+                        registrationCard
+                            .frame(maxWidth: 420)
+                            .padding(.horizontal, 20)
+                        
+                        Spacer(minLength: 100)
+                    }
+                }
                 
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            
-            // Success Overlay
-            if viewModel.registrationCompleted {
-                registrationSuccessOverlay
-            }
-            
-            // Loading Overlay
-            if viewModel.isLoading {
-                loadingOverlay
-            }
-            
-            // Error Alert
-            if viewModel.showError {
-                errorAlertOverlay
+                // Success Overlay
+                if viewModel.registrationCompleted {
+                    registrationSuccessOverlay
+                }
+                
+                // Loading Overlay
+                if viewModel.isLoading {
+                    loadingOverlay
+                }
+                
+                // Error Alert
+                if viewModel.showError {
+                    errorAlertOverlay
+                }
             }
         }
         .ignoresSafeArea()
@@ -54,37 +59,28 @@ struct RegistrationView: View {
     // MARK: - Registration Card (Like Login Card)
     private var registrationCard: some View {
         VStack(spacing: 0) {
-            // Header Section
-            VStack(spacing: 16) {
-                // Back Button and Language Picker
+            // Header Section (Only language picker like LoginView)
+            VStack(spacing: 20) {
+                // Language Picker in top-right corner like LoginView
                 HStack {
-                    Button(action: {
-                        if viewModel.currentStep == .basicInfo {
-                            dismiss()
-                        } else {
-                            viewModel.goToPreviousStep()
-                        }
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.textPrimary)
-                            .frame(width: 40, height: 40)
-                            .background(Color.formBackground.opacity(0.8))
-                            .clipShape(Circle())
-                    }
-                    
                     Spacer()
-                    
-                    // Language Picker
                     CompactLanguagePicker(localizationManager: localizationManager)
+                        .zIndex(1000) // Ensure it stays on top
                 }
                 
-                // Title and Progress
-                VStack(spacing: 12) {
-                    Text("registration.title".localized(using: localizationManager))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
+                // Title and Logo like LoginView
+                VStack(spacing: 20) {
+                    Image(systemName: "figure.run.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.primaryOrange)
                     
+                    Text("registration.title".localized(using: localizationManager))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundColor(.textPrimary)
+                }
+                
+                // Step info and Progress
+                VStack(spacing: 12) {
                     Text(viewModel.currentStep.title.localized(using: localizationManager))
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.primaryOrange)
@@ -106,60 +102,56 @@ struct RegistrationView: View {
                     }
                 }
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, 32)
+            .padding(.top, 60) // Space for language picker like LoginView
             
             // Step Content
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Step Icon
-                    ZStack {
-                        Circle()
-                            .fill(Color.primaryOrange.opacity(0.1))
-                            .frame(width: 60, height: 60)
-                        
-                        Image(systemName: viewModel.currentStep.icon)
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundColor(.primaryOrange)
-                    }
+            VStack(spacing: 20) {
+                // Step Icon
+                ZStack {
+                    Circle()
+                        .fill(Color.primaryOrange.opacity(0.1))
+                        .frame(width: 60, height: 60)
                     
-                    // Step Content
-                    Group {
-                        switch viewModel.currentStep {
-                        case .basicInfo:
-                            BasicInfoStepView(viewModel: viewModel)
-                                .environmentObject(localizationManager)
-                                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
-                            
-                        case .location:
-                            LocationStepView(viewModel: viewModel)
-                                .environmentObject(localizationManager)
-                                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
-                            
-                        case .sportsPreferences:
-                            SportsPreferencesStepView(viewModel: viewModel)
-                                .environmentObject(localizationManager)
-                                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
-                            
-                        case .profile:
-                            ProfileStepView(viewModel: viewModel)
-                                .environmentObject(localizationManager)
-                                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
-                            
-                        case .verification:
-                            VerificationStepView(viewModel: viewModel)
-                                .environmentObject(localizationManager)
-                                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
-                    
-                    // Navigation Buttons
-                    navigationButtonsSection
+                    Image(systemName: viewModel.currentStep.icon)
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(.primaryOrange)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                
+                // Step Content
+                Group {
+                    switch viewModel.currentStep {
+                    case .basicInfo:
+                        BasicInfoStepView(viewModel: viewModel)
+                            .environmentObject(localizationManager)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                        
+                    case .location:
+                        LocationStepView(viewModel: viewModel)
+                            .environmentObject(localizationManager)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                        
+                    case .sportsPreferences:
+                        SportsPreferencesStepView(viewModel: viewModel)
+                            .environmentObject(localizationManager)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                        
+                    case .profile:
+                        ProfileStepView(viewModel: viewModel)
+                            .environmentObject(localizationManager)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                        
+                    case .verification:
+                        VerificationStepView(viewModel: viewModel)
+                            .environmentObject(localizationManager)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                    }
+                }
+                .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+                
+                // Navigation Buttons
+                navigationButtonsSection
             }
-            .frame(maxHeight: 500) // Limit height like login card
         }
         .padding(32)
         .background(
@@ -171,7 +163,7 @@ struct RegistrationView: View {
     
     // MARK: - Navigation Buttons Section
     private var navigationButtonsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             // Next/Complete Button
             Button(action: {
                 viewModel.proceedToNextStep()
@@ -214,22 +206,59 @@ struct RegistrationView: View {
             .animation(.easeInOut(duration: 0.2), value: viewModel.isLoading)
             .animation(.easeInOut(duration: 0.2), value: viewModel.canProceedToNextStep)
             
-            // Back to Login (only on first step)
-            if viewModel.currentStep == .basicInfo {
+            // Back/Previous Button
+            if viewModel.currentStep != .basicInfo {
                 Button(action: {
-                    dismiss()
+                    viewModel.goToPreviousStep()
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.left")
                             .font(.system(size: 14, weight: .medium))
                         
-                        Text("registration.back_to_login".localized(using: localizationManager))
+                        Text("registration.previous".localized(using: localizationManager))
                             .font(.system(size: 15, weight: .medium))
                     }
                     .foregroundColor(.textSecondary)
                 }
                 .disabled(viewModel.isLoading)
             }
+            
+            // Divider
+            HStack {
+                Rectangle()
+                    .fill(Color.formBorder)
+                    .frame(height: 1)
+                
+                Text("common.or".localized(using: localizationManager))
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+                    .padding(.horizontal, 16)
+                
+                Rectangle()
+                    .fill(Color.formBorder)
+                    .frame(height: 1)
+            }
+            .padding(.vertical, 24)
+            
+            // Back to Login Section
+            VStack(spacing: 16) {
+                Rectangle()
+                    .fill(Color.formBorder)
+                    .frame(height: 1)
+                
+                HStack {
+                    Text("registration.already_have_account".localized(using: localizationManager))
+                        .font(.system(size: 15))
+                        .foregroundColor(.textSecondary)
+                    
+                    Button("auth.login.button".localized(using: localizationManager)) {
+                        dismiss()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primaryOrange)
+                }
+            }
+            .padding(.top, 20)
         }
     }
     

@@ -3,6 +3,7 @@ import SwiftUI
 struct LoginContentView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
+    @State private var showRegistration = false
     
     var body: some View {
         ZStack {
@@ -22,6 +23,11 @@ struct LoginContentView: View {
         }
         .onReceive(localizationManager.$currentLanguage) { _ in
             // Update UI when language changes
+        }
+        .sheet(isPresented: $showRegistration) {
+            RegistrationView()
+                .environmentObject(authViewModel)
+                .environmentObject(localizationManager)
         }
     }
     
@@ -165,7 +171,7 @@ struct LoginContentView: View {
                 }
                 .padding(.vertical, 24)
                 
-                // Sign Up Section - Localized
+                // Sign Up Section - Localized with Registration Link
                 VStack(spacing: 16) {
                     Rectangle()
                         .fill(Color.formBorder)
@@ -177,7 +183,7 @@ struct LoginContentView: View {
                             .foregroundColor(.textSecondary)
                         
                         Button("auth.login.signup.link".localized(using: localizationManager)) {
-                            // TODO: Navigate to register
+                            showRegistration = true
                         }
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(.primaryOrange)

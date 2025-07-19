@@ -67,4 +67,24 @@ class AuthenticationService {
                 .map { _ in () }
                 .eraseToAnyPublisher()
     }
+    
+    func register(_ request: RegistrationRequest) -> AnyPublisher<RegistrationResponse, Error> {
+            guard let requestData = try? JSONEncoder().encode(request) else {
+                print("❌ Failed to encode registration request")
+                return Fail(error: NetworkError.decodingError)
+                    .eraseToAnyPublisher()
+            }
+            
+            // Debug: Request'i yazdır
+            print("🚀 REGISTRATION REQUEST:")
+            print("URL: \(baseURL)/register")
+            print("Body: \(String(data: requestData, encoding: .utf8) ?? "nil")")
+            
+            return networkManager.request(
+                endpoint: "\(baseURL)/register",
+                method: .POST,
+                body: requestData,
+                type: RegistrationResponse.self
+            )
+        }
 }

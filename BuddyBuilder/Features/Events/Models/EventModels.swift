@@ -57,14 +57,23 @@ struct Event: Codable, Identifiable {
         return Double(currentParticipants) / Double(maxParticipants) * 100
     }
 }
-
 // MARK: - Sport Model
-struct Sport: Codable {
+struct Sport: Codable, Identifiable, Equatable, Hashable {
     let id: Int
     let name: String
     let description: String?
     let imageUrl: String?
     let defaultEventImageUrl: String?
+    
+    // Equatable conformance
+    static func == (lhs: Sport, rhs: Sport) -> Bool {
+        return lhs.id == rhs.id
+    }
+    
+    // Hash function for Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 struct ParticipantDto: Codable {

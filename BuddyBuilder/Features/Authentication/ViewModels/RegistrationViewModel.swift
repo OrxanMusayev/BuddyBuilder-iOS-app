@@ -181,8 +181,13 @@ class RegistrationViewModel: ObservableObject {
         case .basicInfo:
             usernameError = formData.userName.isEmpty || !isValidUsername(formData.userName)
             emailError = formData.email.isEmpty || !isValidEmail(formData.email)
-            passwordError = formData.password.isEmpty || formData.password.count < 6
-            confirmPasswordError = formData.confirmPassword.isEmpty || formData.password != formData.confirmPassword
+            
+            // Enhanced password validation
+            let passwordValidation = validatePassword(formData.password)
+            passwordError = !passwordValidation.isValid
+            
+            let confirmPasswordValidation = validateConfirmPassword(formData.password, formData.confirmPassword)
+            confirmPasswordError = !confirmPasswordValidation.isValid
             
             // Check availability states
             if !usernameError && usernameAvailability == .taken {
@@ -195,6 +200,13 @@ class RegistrationViewModel: ObservableObject {
                 errorMessage = "Email is already taken"
             }
             
+            // Password specific error messages
+            if passwordError {
+                errorMessage = passwordValidation.errorMessage
+            } else if confirmPasswordError {
+                errorMessage = confirmPasswordValidation.errorMessage
+            }
+            
         case .sportsPreferences:
             sportsError = formData.selectedSports.isEmpty
         }
@@ -205,6 +217,47 @@ class RegistrationViewModel: ObservableObject {
             }
             showError = true
         }
+    }
+    
+    // MARK: - Password Validation
+    private func validatePassword(_ password: String) -> (isValid: Bool, errorMessage: String) {
+        if password.isEmpty {
+            return (false, "Password is required")
+        }
+        
+        if password.count < 8 {
+            return (false, "Password must be at least 8 characters long")
+        }
+        
+        let hasLowercase = password.range(of: "[a-z]", options: .regularExpression) != nil
+        let hasUppercase = password.range(of: "[A-Z]", options: .regularExpression) != nil
+        let hasNumber = password.range(of: "[0-9]", options: .regularExpression) != nil
+        
+        if !hasLowercase {
+            return (false, "Password must contain at least one lowercase letter")
+        }
+        
+        if !hasUppercase {
+            return (false, "Password must contain at least one uppercase letter")
+        }
+        
+        if !hasNumber {
+            return (false, "Password must contain at least one number")
+        }
+        
+        return (true, "")
+    }
+    
+    private func validateConfirmPassword(_ password: String, _ confirmPassword: String) -> (isValid: Bool, errorMessage: String) {
+        if confirmPassword.isEmpty {
+            return (false, "Please confirm your password")
+        }
+        
+        if password != confirmPassword {
+            return (false, "Passwords do not match")
+        }
+        
+        return (true, "")
     }
     
     private func isValidEmail(_ email: String) -> Bool {

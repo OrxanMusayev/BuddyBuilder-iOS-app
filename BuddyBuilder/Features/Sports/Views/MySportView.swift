@@ -245,34 +245,17 @@ struct MySportsView: View {
     }
 }
 
-// MARK: - My Sport Card
+// MARK: - Fixed My Sport Card with Working Background Images
 struct MySportCard: View {
     let userSport: UserSport
     let onRemove: () -> Void
     @State private var showRemoveConfirmation = false
+    @State private var imageLoadError = false
     
     var body: some View {
         ZStack {
-            // Background Image (API or Default)
-            if let iconUrl = userSport.iconUrl, !iconUrl.isEmpty {
-                // API Background Image
-                AsyncImage(url: URL(string: iconUrl)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    // Loading placeholder with default background
-                    defaultSportBackground(for: userSport.name)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
-                        )
-                }
-            } else {
-                // Default Sport Background
-                defaultSportBackground(for: userSport.name)
-            }
+            // Background Image Layer - FIXED
+            backgroundImageLayer
             
             // Dark overlay for better text readability
             LinearGradient(
@@ -305,11 +288,6 @@ struct MySportCard: View {
                                 Capsule()
                                     .fill(Color.white.opacity(0.2))
                             )
-                            .background(
-                                BlurView(style: .systemUltraThinMaterialLight)
-                                    .clipShape(Capsule()) // Make the blur effect follow the capsule shape
-                            )
-
                     }
                     
                     // Experience Level
@@ -347,11 +325,7 @@ struct MySportCard: View {
                 }) {
                     ZStack {
                         Circle()
-                            .fill(Color.red.opacity(0.2))
-                            .background(
-                                    BlurView(style: .systemUltraThinMaterialLight)
-                                        .clipShape(Capsule()) // Make the blur effect follow the capsule shape
-                                )
+                            .fill(Color.red.opacity(0.8))
                             .frame(width: 36, height: 36)
                         
                         Image(systemName: "minus")
@@ -373,9 +347,73 @@ struct MySportCard: View {
         } message: {
             Text("Are you sure you want to remove \(userSport.name) from your sports?")
         }
+        .onAppear {
+            // Debug: Print the iconUrl to check if it exists
+            if let iconUrl = userSport.iconUrl {
+                print("🖼️ Sport: \(userSport.name) - IconURL: \(iconUrl)")
+            } else {
+                print("🖼️ Sport: \(userSport.name) - No IconURL, using default")
+            }
+        }
     }
     
-    // MARK: - Default Sport Background Images
+    // MARK: - Background Image Layer - COMPLETELY REWRITTEN
+    @ViewBuilder
+    private var backgroundImageLayer: some View {
+        if let iconUrl = userSport.iconUrl, !iconUrl.isEmpty, !imageLoadError {
+            // Try to load API image
+            AsyncImage(url: URL(string: iconUrl)) { phase in
+                switch phase {
+                case .empty:
+                    // Loading state
+                    loadingBackground
+                    
+                case .success(let image):
+                    // Successfully loaded image
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .clipped() // Important: clip to bounds
+                    
+                case .failure(_):
+                    // Failed to load, show default and set error flag
+                    defaultSportBackground(for: userSport.name)
+                        .onAppear {
+                            imageLoadError = true
+                            print("❌ Failed to load image for \(userSport.name): \(iconUrl)")
+                        }
+                        
+                @unknown default:
+                    // Fallback
+                    defaultSportBackground(for: userSport.name)
+                }
+            }
+        } else {
+            // No URL or error occurred, use default
+            defaultSportBackground(for: userSport.name)
+        }
+    }
+    
+    // MARK: - Loading Background
+    private var loadingBackground: some View {
+        ZStack {
+            // Default background while loading
+            defaultSportBackground(for: userSport.name)
+            
+            // Loading indicator
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 40, height: 40)
+                
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(0.8)
+            }
+        }
+    }
+    
+    // MARK: - Default Sport Background Images - IMPROVED
     @ViewBuilder
     private func defaultSportBackground(for sportName: String) -> some View {
         let (colors, pattern) = getSportTheme(for: sportName)
@@ -388,14 +426,26 @@ struct MySportCard: View {
                 endPoint: .bottomTrailing
             )
             
-            // Pattern overlay
+            // Sport icon overlay for better identification
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Image(systemName: getSportIcon(for: sportName))
+                        .font(.system(size: 40, weight: .ultraLight))
+                        .foregroundColor(.white.opacity(0.15))
+                        .offset(x: 20, y: 10)
+                }
+            }
+            
+            // Pattern overlay (simplified for better performance)
             GeometryReader { geometry in
                 Path { path in
                     switch pattern {
                     case .basketball:
-                        // Basketball lines pattern
+                        // Simple basketball lines
                         let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-                        let radius = min(geometry.size.width, geometry.size.height) * 0.3
+                        let radius = min(geometry.size.width, geometry.size.height) * 0.25
                         
                         // Horizontal line
                         path.move(to: CGPoint(x: center.x - radius, y: center.y))
@@ -406,17 +456,17 @@ struct MySportCard: View {
                         path.addLine(to: CGPoint(x: center.x, y: center.y + radius))
                         
                     case .tennis:
-                        // Tennis net pattern
-                        let spacing: CGFloat = 20
+                        // Simple net pattern
+                        let spacing: CGFloat = 25
                         for x in stride(from: 0, to: geometry.size.width, by: spacing) {
-                            path.move(to: CGPoint(x: x, y: 0))
-                            path.addLine(to: CGPoint(x: x, y: geometry.size.height))
+                            path.move(to: CGPoint(x: x, y: geometry.size.height * 0.3))
+                            path.addLine(to: CGPoint(x: x, y: geometry.size.height * 0.7))
                         }
                         
                     case .soccer:
-                        // Soccer hexagon pattern
-                        let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-                        let radius: CGFloat = 25
+                        // Simple hexagon
+                        let center = CGPoint(x: geometry.size.width * 0.8, y: geometry.size.height * 0.2)
+                        let radius: CGFloat = 20
                         for i in 0..<6 {
                             let angle = Double(i) * .pi / 3
                             let point = CGPoint(
@@ -432,45 +482,103 @@ struct MySportCard: View {
                         path.closeSubpath()
                         
                     case .water:
-                        // Wave pattern for swimming
-                        let waveHeight: CGFloat = 10
-                        let waveLength: CGFloat = 40
-                        for y in stride(from: waveHeight, to: geometry.size.height, by: 30) {
-                            path.move(to: CGPoint(x: 0, y: y))
-                            for x in stride(from: 0, to: geometry.size.width, by: waveLength/4) {
-                                let controlY = y + (x.truncatingRemainder(dividingBy: waveLength) < waveLength/2 ? -waveHeight : waveHeight)
-                                path.addQuadCurve(
-                                    to: CGPoint(x: x + waveLength/4, y: y),
-                                    control: CGPoint(x: x + waveLength/8, y: controlY)
-                                )
-                            }
-                        }
+                        // Simple wave
+                        path.move(to: CGPoint(x: 0, y: geometry.size.height * 0.6))
+                        path.addQuadCurve(
+                            to: CGPoint(x: geometry.size.width, y: geometry.size.height * 0.6),
+                            control: CGPoint(x: geometry.size.width/2, y: geometry.size.height * 0.4)
+                        )
                         
                     case .track:
-                        // Track lanes for running
-                        let laneHeight = geometry.size.height / 4
-                        for i in 1..<4 {
-                            let y = CGFloat(i) * laneHeight
+                        // Simple lanes
+                        for i in 1...3 {
+                            let y = geometry.size.height * CGFloat(i) / 4
                             path.move(to: CGPoint(x: 0, y: y))
                             path.addLine(to: CGPoint(x: geometry.size.width, y: y))
                         }
                         
                     case .generic:
-                        // Simple geometric pattern
-                        let size: CGFloat = 30
-                        for x in stride(from: 0, to: geometry.size.width, by: size) {
-                            for y in stride(from: 0, to: geometry.size.height, by: size) {
-                                path.addRect(CGRect(x: x, y: y, width: size/2, height: size/2))
+                        // Simple dots pattern
+                        let spacing: CGFloat = 40
+                        for x in stride(from: spacing, to: geometry.size.width, by: spacing) {
+                            for y in stride(from: spacing, to: geometry.size.height, by: spacing) {
+                                path.addEllipse(in: CGRect(x: x-2, y: y-2, width: 4, height: 4))
                             }
                         }
                     }
                 }
-                .stroke(Color.white.opacity(0.1), lineWidth: 2)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1.5)
             }
         }
     }
     
-    // MARK: - Sport Theme Configuration
+    // MARK: - Sport Icon Helper
+    private func getSportIcon(for sportName: String) -> String {
+        switch sportName.lowercased() {
+        case "basketball":
+            return "basketball.fill"
+        case "tennis":
+            return "tennis.racket"
+        case "soccer", "football":
+            return "soccerball"
+        case "swimming":
+            return "figure.pool.swim"
+        case "volleyball":
+            return "volleyball.fill"
+        case "running", "run":
+            return "figure.run"
+        case "cycling", "bicycle", "bike":
+            return "bicycle"
+        case "fitness", "gym":
+            return "dumbbell.fill"
+        case "golf":
+            return "figure.golf"
+        case "baseball":
+            return "baseball.fill"
+        case "badminton":
+            return "tennisball.fill"
+        case "boxing":
+            return "figure.boxing"
+        case "skiing":
+            return "figure.skiing.downhill"
+        case "surfing":
+            return "figure.surfing"
+        case "climbing":
+            return "figure.climbing"
+        case "wrestling":
+            return "figure.wrestling"
+        case "martial arts", "karate", "judo":
+            return "figure.martial.arts"
+        case "yoga":
+            return "figure.yoga"
+        case "dance", "dancing":
+            return "figure.dance"
+        case "skating", "ice skating":
+            return "figure.skating"
+        case "hockey":
+            return "hockey.puck.fill"
+        case "archery":
+            return "figure.archery"
+        case "bowling":
+            return "figure.bowling"
+        case "fishing":
+            return "figure.fishing"
+        case "hiking":
+            return "figure.hiking"
+        case "sailing":
+            return "figure.sailing"
+        case "table tennis", "ping pong":
+            return "ping.pong.paddle.fill"
+        case "water polo":
+            return "figure.water.polo"
+        case "snowboarding":
+            return "figure.snowboarding"
+        default:
+            return "sportscourt.fill"
+        }
+    }
+    
+    // MARK: - Sport Theme Configuration - SAME AS BEFORE
     private func getSportTheme(for sportName: String) -> ([Color], PatternType) {
         switch sportName.lowercased() {
         case "basketball":
@@ -536,6 +644,7 @@ struct MySportCard: View {
         }
     }
 }
+
 
 // MARK: - Pattern Types
 enum PatternType {

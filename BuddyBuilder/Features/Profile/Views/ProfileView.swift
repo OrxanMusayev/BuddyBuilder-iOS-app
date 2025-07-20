@@ -3,8 +3,11 @@
 import SwiftUI
 import PhotosUI
 import Combine
+// ProfileView.swift dosyasında sadece ProfileViewModel class'ını değiştirin:
 
-// MARK: - Profile View Model
+// ProfileView.swift dosyasında sadece ProfileViewModel class'ını değiştirin:
+
+// MARK: - Profile View Model - SIMPLIFIED
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
     @Published var isLoadingPhoto = false
@@ -22,6 +25,7 @@ class ProfileViewModel: ObservableObject {
         loadProfilePhoto()
     }
     
+    // 🔴 SIMPLIFIED: Direct protocol methods (already have auto-refresh)
     func loadProfilePhoto() {
         isLoadingPhoto = true
         
@@ -41,6 +45,7 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // 🔴 SIMPLIFIED: Direct protocol methods
     func uploadProfilePhoto(_ imageData: Data) {
         isLoadingPhoto = true
         
@@ -65,6 +70,7 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // 🔴 SIMPLIFIED: Direct protocol method
     func deleteProfilePhoto() {
         isLoadingPhoto = true
         
@@ -92,6 +98,10 @@ class ProfileViewModel: ObservableObject {
         showError = true
     }
 }
+
+// ProfileView'in geri kalanı aynı kalacak, sadece ProfileViewModel değişti
+
+
 
 // MARK: - Profile View - Modern & Multilingual with Photo Integration
 struct ProfileView: View {
@@ -714,7 +724,7 @@ struct CameraView: View {
     }
 }
 
-// MARK: - Profile Stat Card (unchanged)
+// MARK: - Profile Stat Card
 struct ProfileStatCard: View {
     let title: String
     let value: String
@@ -740,7 +750,7 @@ struct ProfileStatCard: View {
     }
 }
 
-// MARK: - Profile Menu Row (unchanged)
+// MARK: - Profile Menu Row
 struct ProfileMenuRow: View {
     let icon: String
     let title: String
@@ -773,7 +783,7 @@ struct ProfileMenuRow: View {
     }
 }
 
-// MARK: - Profile Menu Divider (unchanged)
+// MARK: - Profile Menu Divider
 struct ProfileMenuDivider: View {
     var body: some View {
         Divider()

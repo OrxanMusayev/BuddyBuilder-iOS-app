@@ -19,11 +19,12 @@ class MySportsViewModel: ObservableObject {
         loadMySports()
     }
     
+    // loadMySports() FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func loadMySports() {
         isLoading = true
         errorMessage = ""
         
-        mySportsService.fetchMySports()
+        mySportsService.fetchMySportsWithAutoRefresh() // 🔴 DEĞİŞTİ
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -34,14 +35,15 @@ class MySportsViewModel: ObservableObject {
                 },
                 receiveValue: { [weak self] sports in
                     self?.userSports = sports
-                    print("✅ Loaded \(sports.count) user sports")
+                    print("✅ Loaded \(sports.count) user sports with auto-refresh")
                 }
             )
             .store(in: &cancellables)
     }
     
+    // removeSport() FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func removeSport(_ userSport: UserSport) {
-        mySportsService.removeSport(userSportId: userSport.id)
+        mySportsService.removeSportWithAutoRefresh(userSportId: userSport.id) // 🔴 DEĞİŞTİ
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -52,7 +54,7 @@ class MySportsViewModel: ObservableObject {
                 receiveValue: { [weak self] success in
                     if success {
                         self?.userSports.removeAll { $0.id == userSport.id }
-                        print("✅ Sport removed successfully")
+                        print("✅ Sport removed successfully with auto-refresh")
                     }
                 }
             )

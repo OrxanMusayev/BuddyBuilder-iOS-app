@@ -4,6 +4,7 @@ import SwiftUI
 struct BuddyBuilderApp: App {
     @StateObject private var authViewModel = AuthenticationViewModel()
     @StateObject private var localizationManager = LocalizationManager()
+    @StateObject private var tokenManager = TokenManager.shared
     @State private var isInitializing = true
     @State private var splashAnimationCompleted = false
     @State private var showMainContent = false
@@ -11,11 +12,6 @@ struct BuddyBuilderApp: App {
     
     init() {
         print("🚀 BuddyBuilderApp initialized")
-//        #if DEBUG
-//        // Debug modda cache temizlemeyi geçici olarak kapatıyoruz
-//        UserDefaults.standard.removePersistentDomain(forName: Bundle.main.bundleIdentifier!)
-//        print("🐛 DEBUG MODE: Keeping cached data for testing")
-//        #endif
     }
     
     var body: some Scene {
@@ -26,6 +22,7 @@ struct BuddyBuilderApp: App {
                     MainTabView()
                         .environmentObject(authViewModel)
                         .environmentObject(localizationManager)
+                        .environmentObject(tokenManager)
                         .environment(\.localizationManager, localizationManager)
                         .opacity(showMainContent ? 1.0 : 0.0)
                         .scaleEffect(showMainContent ? 1.0 : 0.9)
@@ -33,6 +30,7 @@ struct BuddyBuilderApp: App {
                     LoginView()
                         .environmentObject(authViewModel)
                         .environmentObject(localizationManager)
+                        .environmentObject(tokenManager)
                         .environment(\.localizationManager, localizationManager)
                         .opacity(showMainContent ? 1.0 : 0.0)
                         .scaleEffect(showMainContent ? 1.0 : 0.9)
@@ -45,8 +43,12 @@ struct BuddyBuilderApp: App {
                     })
                     .environmentObject(localizationManager)
                     .opacity(splashOpacity)
-                    .zIndex(1) // En üstte olsun
+                    .zIndex(1)
                 }
+            }
+            .overlay(AuthErrorAlertView()) // 🔴 BU SATIRI EKLEDİK
+            .onAppear {
+                authViewModel.setupAuthExpirationListener() // 🔴 BU SATIRI EKLEDİK
             }
             .task {
                 await setupApp()
@@ -104,12 +106,6 @@ struct BuddyBuilderApp: App {
     
     @MainActor
     private func checkAuthenticationState() async {
-//        #if DEBUG
-//        // Test için simulated token
-//        UserDefaults.standard.set("test_auth_token_12345", forKey: "auth_token")
-//        print("🧪 DEBUG: Simulated auth token set for testing")
-//        #endif
-        
         // Check if user was previously logged in
         if let savedToken = UserDefaults.standard.string(forKey: "auth_token"),
            !savedToken.isEmpty {
@@ -126,7 +122,7 @@ struct BuddyBuilderApp: App {
     }
 }
 
-// MARK: - Splash Screen View
+// Splash Screen kodu aynı kalacak (değişiklik yok)
 struct SplashScreenView: View {
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var scale: CGFloat = 0.8

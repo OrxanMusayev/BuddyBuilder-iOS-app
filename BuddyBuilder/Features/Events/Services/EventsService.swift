@@ -5,9 +5,13 @@ import Combine
 
 protocol EventsServiceProtocol {
     func fetchEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
+    func fetchEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
+    func fetchMyEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
     func fetchMyEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
     func joinEvent(eventId: Int) -> AnyPublisher<Bool, Error>
     func leaveEvent(eventId: Int) -> AnyPublisher<Bool, Error>
+    func joinEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error>
+    func leaveEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error>
     func fetchEventDetails(eventId: Int) -> AnyPublisher<Event, Error>
     func fetchEventParticipants(eventId: Int) -> AnyPublisher<[EventParticipant], Error>
     func fetchAvailableSports() -> AnyPublisher<[Sport], Error>
@@ -472,5 +476,108 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
             return "\(key)=\(encodedValue)"
         }
         .joined(separator: "&")
+    }
+}
+
+// BU KODLARI EventsService.swift DOSYASININ SONUNA EKLEYİN
+
+// MARK: - Auto-Refresh Methods
+extension CompleteEventsService {
+    func fetchEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error> {
+        let queryParams = filter.toQueryParameters()
+        let queryString = buildQueryString(from: queryParams)
+        let endpoint = queryString.isEmpty ? baseURL : "\(baseURL)?\(queryString)"
+        
+        print("🌐 Fetching events with auto-refresh from: \(endpoint)")
+        
+        return networkManager.requestWithAutoRefresh(
+            endpoint: endpoint,
+            method: .GET,
+            type: EventsResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Successfully fetched \(response.events.count) events with auto-refresh")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Failed to fetch events with auto-refresh: \(error)")
+                    Task { @MainActor in
+                        AuthErrorHandler.shared.handleAuthError(error)
+                    }
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    func fetchMyEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error> {
+        let queryParams = filter.toQueryParameters()
+        let queryString = buildQueryString(from: queryParams)
+        let endpoint = queryString.isEmpty ? "\(baseURL)/my" : "\(baseURL)/my-events?\(queryString)"
+        
+        print("🌐 Fetching my events with auto-refresh from: \(endpoint)")
+        
+        return networkManager.requestWithAutoRefresh(
+            endpoint: endpoint,
+            method: .GET,
+            type: EventsResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Successfully fetched \(response.events.count) my events with auto-refresh")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Failed to fetch my events with auto-refresh: \(error)")
+                    Task { @MainActor in
+                        AuthErrorHandler.shared.handleAuthError(error)
+                    }
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    func joinEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.requestWithAutoRefresh(
+            endpoint: "\(baseURL)/\(eventId)/join",
+            method: .POST,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success && (response.data ?? false)
+        }
+        .handleEvents(
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    Task { @MainActor in
+                        AuthErrorHandler.shared.handleAuthError(error)
+                    }
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    func leaveEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error> {
+        return networkManager.requestWithAutoRefresh(
+            endpoint: "\(baseURL)/\(eventId)/leave",
+            method: .POST,
+            type: APIResponse<Bool>.self
+        )
+        .map { response in
+            response.success && (response.data ?? false)
+        }
+        .handleEvents(
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    Task { @MainActor in
+                        AuthErrorHandler.shared.handleAuthError(error)
+                    }
+                }
+            }
+        )
+        .eraseToAnyPublisher()
     }
 }

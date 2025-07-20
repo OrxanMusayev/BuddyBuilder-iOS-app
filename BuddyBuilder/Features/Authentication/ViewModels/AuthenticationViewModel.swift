@@ -244,3 +244,79 @@ class AuthenticationViewModel: ObservableObject {
         print("New isAuthenticated: \(isAuthenticated)")
     }
 }
+
+
+// BU KODLARI AuthenticationViewModel.swift DOSYASININ SONUNA EKLEYİN
+
+// MARK: - Token Refresh Support
+extension AuthenticationViewModel {
+    func setupAuthExpirationListener() {
+        NotificationCenter.default.addObserver(
+            forName: .authenticationExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("🔔 Authentication expired notification received")
+            self?.isAuthenticated = false
+            self?.showError = true
+            self?.errorMessage = "Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın."
+        }
+    }
+    
+    func loginWithAutoRefresh() {
+        // Validation'ı resetle
+        resetValidation()
+        
+        // Field validation
+        if username.isEmpty {
+            usernameError = true
+        }
+        
+        if password.isEmpty {
+            passwordError = true
+        }
+        
+        // Eğer herhangi bir field boşsa validation mesajı göster
+        if username.isEmpty || password.isEmpty {
+            validationMessage = "auth.login.validation.required"
+            return
+        }
+        
+        isLoading = true
+        validationMessage = ""
+        
+        print("🔐 Starting login with auto-refresh for user: \(username)")
+        
+        authService.loginWithTokenSave(userName: username, password: password, rememberMe: rememberMe)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    DispatchQueue.main.async {
+                        self?.isLoading = false
+                        switch completion {
+                        case .failure(let error):
+                            print("❌ Login failed with error: \(error)")
+                            self?.validationMessage = "auth.login.error.connection" + ": \(error.localizedDescription)"
+                        case .finished:
+                            print("✅ Login request completed")
+                            break
+                        }
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    DispatchQueue.main.async {
+                        if response.success, let loginData = response.data {
+                            print("🎉 Login successful with auto-refresh support!")
+                            self?.isAuthenticated = true
+                            self?.saveUserInfo(loginData)
+                            self?.validationMessage = ""
+                        } else {
+                            let errorMsg = response.message ?? "auth.login.validation.required"
+                            print("❌ Login failed: \(errorMsg)")
+                            self?.validationMessage = errorMsg
+                        }
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+}

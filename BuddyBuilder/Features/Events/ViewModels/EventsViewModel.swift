@@ -108,6 +108,7 @@ class EventsViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
+    // ESKİ loadEvents FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func loadEvents(resetPagination: Bool = true) {
         if resetPagination {
             self.resetPagination()
@@ -122,9 +123,9 @@ class EventsViewModel: ObservableObject {
         
         switch selectedTab {
         case .all:
-            publisher = eventsService.fetchEvents(filter: currentFilter)
+            publisher = eventsService.fetchEventsWithAutoRefresh(filter: currentFilter) // 🔴 DEĞİŞTİ
         case .my:
-            publisher = eventsService.fetchMyEvents(filter: currentFilter)
+            publisher = eventsService.fetchMyEventsWithAutoRefresh(filter: currentFilter) // 🔴 DEĞİŞTİ
         }
         
         publisher
@@ -158,11 +159,12 @@ class EventsViewModel: ObservableObject {
         loadEvents()
     }
     
+    // ESKİ joinEvent FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func joinEvent(_ event: Event) {
         guard !isLoading else { return }
         
         isLoading = true
-        eventsService.joinEvent(eventId: event.id)
+        eventsService.joinEventWithAutoRefresh(eventId: event.id) // 🔴 DEĞİŞTİ
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -183,11 +185,12 @@ class EventsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // ESKİ leaveEvent FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func leaveEvent(_ event: Event) {
         guard !isLoading else { return }
         
         isLoading = true
-        eventsService.leaveEvent(eventId: event.id)
+        eventsService.leaveEventWithAutoRefresh(eventId: event.id) // 🔴 DEĞİŞTİ
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in

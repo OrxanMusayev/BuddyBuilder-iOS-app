@@ -51,10 +51,11 @@ struct MySportsResponse: Codable {
 
 // MARK: - My Sports Service Protocol
 protocol MySportsServiceProtocol {
-    func fetchMySports() -> AnyPublisher<[UserSport], Error>
+    func fetchMySportsWithAutoRefresh() -> AnyPublisher<[UserSport], Error>
+    
     func addSport(sportId: Int, experienceLevel: Int, isPreferred: Bool, notes: String?) -> AnyPublisher<UserSport, Error>
     func updateSport(userSportId: Int, experienceLevel: Int, isPreferred: Bool, notes: String?) -> AnyPublisher<UserSport, Error>
-    func removeSport(userSportId: Int) -> AnyPublisher<Bool, Error>
+    func removeSportWithAutoRefresh(userSportId: Int) -> AnyPublisher<Bool, Error>
 }
 
 // MARK: - My Sports Service Implementation
@@ -63,7 +64,7 @@ class MySportsService: MySportsServiceProtocol {
     private let baseURL = "http://localhost:5206/api/Sports"
     
     // MARK: - Fetch My Sports
-    func fetchMySports() -> AnyPublisher<[UserSport], Error> {
+    func fetchMySportsWithAutoRefresh() -> AnyPublisher<[UserSport], Error> {
         let headers = getAuthHeaders()
         
         return networkManager.request(
@@ -147,7 +148,7 @@ class MySportsService: MySportsServiceProtocol {
     }
     
     // MARK: - Remove Sport
-    func removeSport(userSportId: Int) -> AnyPublisher<Bool, Error> {
+    func removeSportWithAutoRefresh(userSportId: Int) -> AnyPublisher<Bool, Error> {
         let headers = getAuthHeaders()
         
         return networkManager.request(
@@ -175,93 +176,3 @@ class MySportsService: MySportsServiceProtocol {
     }
 }
 
-// MARK: - Mock My Sports Service (for testing)
-class MockMySportsService: MySportsServiceProtocol {
-    func fetchMySports() -> AnyPublisher<[UserSport], Error> {
-        let mockSports = [
-            UserSport(
-                id: 1,
-                name: "Basketball",
-                description: "Team sport played on a court",
-                iconUrl: nil,
-                experienceLevel: 3,
-                isActive: true,
-                userCount: 125,
-                createdAt: "2024-01-15T10:30:00Z",
-                updatedAt: nil
-            ),
-            UserSport(
-                id: 2,
-                name: "Tennis",
-                description: "Racket sport",
-                iconUrl: nil,
-                experienceLevel: 2,
-                isActive: true,
-                userCount: 89,
-                createdAt: "2024-02-01T14:20:00Z",
-                updatedAt: "2024-02-15T16:45:00Z"
-            ),
-            UserSport(
-                id: 3,
-                name: "Running",
-                description: "Individual endurance sport",
-                iconUrl: nil,
-                experienceLevel: 4,
-                isActive: true,
-                userCount: 203,
-                createdAt: "2024-01-01T08:00:00Z",
-                updatedAt: nil
-            )
-        ]
-        
-        return Just(mockSports)
-            .setFailureType(to: Error.self)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .eraseToAnyPublisher()
-    }
-    
-    func addSport(sportId: Int, experienceLevel: Int, isPreferred: Bool, notes: String?) -> AnyPublisher<UserSport, Error> {
-        let newSport = UserSport(
-            id: Int.random(in: 100...999),
-            name: "New Sport",
-            description: "Added sport",
-            iconUrl: nil,
-            experienceLevel: experienceLevel,
-            isActive: true,
-            userCount: 0,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: nil
-        )
-        
-        return Just(newSport)
-            .setFailureType(to: Error.self)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .eraseToAnyPublisher()
-    }
-    
-    func updateSport(userSportId: Int, experienceLevel: Int, isPreferred: Bool, notes: String?) -> AnyPublisher<UserSport, Error> {
-        let updatedSport = UserSport(
-            id: userSportId,
-            name: "Updated Sport",
-            description: "Updated sport description",
-            iconUrl: nil,
-            experienceLevel: experienceLevel,
-            isActive: true,
-            userCount: 50,
-            createdAt: "2024-01-01T08:00:00Z",
-            updatedAt: ISO8601DateFormatter().string(from: Date())
-        )
-        
-        return Just(updatedSport)
-            .setFailureType(to: Error.self)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .eraseToAnyPublisher()
-    }
-    
-    func removeSport(userSportId: Int) -> AnyPublisher<Bool, Error> {
-        return Just(true)
-            .setFailureType(to: Error.self)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .eraseToAnyPublisher()
-    }
-}

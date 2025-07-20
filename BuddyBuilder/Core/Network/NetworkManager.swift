@@ -136,3 +136,172 @@ enum NetworkError: Error, LocalizedError {
         }
     }
 }
+
+// MARK: - Enhanced Network Manager with Auto-Refresh
+extension NetworkManager {
+    // New method specifically for token refresh (no auto-retry to avoid infinite loops)
+    func performTokenRefresh<T: Codable>(
+        endpoint: String,
+        requestData: Data,
+        type: T.Type = T.self
+    ) async throws -> T {
+        guard let url = URL(string: endpoint) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = requestData
+        request.timeoutInterval = 10 // Shorter timeout for token refresh
+        
+        print("🔄 Token refresh request to: \(endpoint)")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        // Check HTTP status
+        if let httpResponse = response as? HTTPURLResponse {
+            print("📊 Token refresh HTTP Status: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 401 {
+                throw NetworkError.unauthorized
+            }
+        }
+        
+        // Debug response
+        if let responseString = String(data: data, encoding: .utf8) {
+            let preview = responseString.count > 200 ? String(responseString.prefix(200)) + "..." : responseString
+            print("📥 Token refresh response: \(preview)")
+        }
+        
+        return try JSONDecoder().decode(type, from: data)
+    }
+    
+    // Enhanced request method with automatic token refresh
+    func requestWithAutoRefresh<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod = .GET,
+        body: Data? = nil,
+        headers: [String: String]? = nil,
+        type: T.Type,
+        retryCount: Int = 0
+    ) -> AnyPublisher<T, Error> {
+        
+        return Future<T, Error> { promise in
+            Task {
+                // Add auth header if available
+                var finalHeaders = headers ?? [:]
+                if let token = TokenManager.shared.accessToken {
+                    finalHeaders["Authorization"] = "Bearer \(token)"
+                }
+                
+                // Make the request
+                let result = await self.makeRequest(
+                    endpoint: endpoint,
+                    method: method,
+                    body: body,
+                    headers: finalHeaders,
+                    type: type
+                )
+                
+                switch result {
+                case .success(let data):
+                    promise(.success(data))
+                    
+                case .failure(let error):
+                    // Check if it's a 401 error and we haven't already retried
+                    if case NetworkError.unauthorized = error, retryCount == 0 {
+                        print("🔐 Received 401, attempting token refresh...")
+                        
+                        // Try to refresh token
+                        let refreshSuccess = await TokenManager.shared.refreshTokenIfNeeded()
+                        
+                        if refreshSuccess {
+                            print("✅ Token refreshed, retrying original request...")
+                            // Retry the original request with new token
+                            let retryPublisher = self.requestWithAutoRefresh(
+                                endpoint: endpoint,
+                                method: method,
+                                body: body,
+                                headers: headers,
+                                type: type,
+                                retryCount: 1
+                            )
+                            
+                            // 🔴 BURADA DEĞİŞİKLİK: cancellables set'ini tanımlayalım
+                            var cancellables = Set<AnyCancellable>()
+                            
+                            retryPublisher
+                                .sink(
+                                    receiveCompletion: { completion in
+                                        if case .failure(let retryError) = completion {
+                                            promise(.failure(retryError))
+                                        }
+                                    },
+                                    receiveValue: { value in
+                                        promise(.success(value))
+                                    }
+                                )
+                                .store(in: &cancellables) // 🔴 ARTIK HATA YOK!
+                            
+                        } else {
+                            print("❌ Token refresh failed, user needs to login again")
+                            promise(.failure(NetworkError.unauthorized))
+                        }
+                    } else {
+                        promise(.failure(error))
+                    }
+                }
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // Helper method to make actual network request
+    private func makeRequest<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        body: Data?,
+        headers: [String: String],
+        type: T.Type
+    ) async -> Result<T, Error> {
+        
+        guard let url = URL(string: endpoint) else {
+            return .failure(NetworkError.invalidURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add headers
+        for (key, value) in headers {
+            request.addValue(value, forHTTPHeaderField: key)
+        }
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        request.timeoutInterval = 30
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            // Check HTTP status
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 401 {
+                    return .failure(NetworkError.unauthorized)
+                } else if httpResponse.statusCode >= 400 {
+                    return .failure(NetworkError.serverError(httpResponse.statusCode))
+                }
+            }
+            
+            let decodedData = try JSONDecoder().decode(type, from: data)
+            return .success(decodedData)
+            
+        } catch {
+            return .failure(error)
+        }
+    }
+}

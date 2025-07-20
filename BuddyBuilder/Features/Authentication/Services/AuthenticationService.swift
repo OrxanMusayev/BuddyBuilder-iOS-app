@@ -88,3 +88,45 @@ class AuthenticationService {
             )
         }
 }
+
+// BU KODLARI AuthenticationService.swift DOSYASININ SONUNA EKLEYİN
+
+// MARK: - Token Refresh Support
+extension AuthenticationService {
+    func loginWithTokenSave(userName: String, password: String, rememberMe: Bool) -> AnyPublisher<LoginResponse, Error> {
+        let loginRequest = LoginRequest(
+            userName: userName,
+            password: password,
+            rememberMe: rememberMe
+        )
+        
+        guard let requestData = try? JSONEncoder().encode(loginRequest) else {
+            print("❌ Failed to encode login request")
+            return Fail(error: NetworkError.decodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        // Debug: Request'i yazdır
+        print("🚀 LOGIN REQUEST WITH TOKEN SAVE:")
+        print("URL: \(baseURL)/login")
+        print("Body: \(String(data: requestData, encoding: .utf8) ?? "nil")")
+        
+        return networkManager.request(
+            endpoint: "\(baseURL)/login",
+            method: .POST,
+            body: requestData,
+            type: LoginResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                if response.success, let loginData = response.data {
+                    // Save tokens using TokenManager
+                    TokenManager.shared.accessToken = loginData.accessToken
+                    TokenManager.shared.refreshToken = loginData.refreshToken
+                    print("💾 Tokens saved via TokenManager")
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+}

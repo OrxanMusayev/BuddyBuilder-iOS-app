@@ -162,7 +162,7 @@ struct City: Codable, Identifiable, Hashable {
     let countryId: Int
 }
 
-// MARK: - Registration Form Data - SIMPLIFIED
+// MARK: - Registration Form Data - ENHANCED VALIDATION
 class RegistrationFormData: ObservableObject {
     // Basic Info (only essential fields)
     @Published var userName: String = ""
@@ -174,23 +174,98 @@ class RegistrationFormData: ObservableObject {
     @Published var overallExperienceLevel: RegistrationExperienceLevel = .beginner
     @Published var selectedSports: [SportSelection] = []
     
-    // Validation - UPDATED: Only check basic info and sports
+    // ENHANCED: Step validation with detailed password requirements
     func isStepValid(_ step: RegistrationStep) -> Bool {
         switch step {
         case .basicInfo:
-            return !userName.isEmpty && !email.isEmpty && !password.isEmpty &&
-                   !confirmPassword.isEmpty && password == confirmPassword &&
-                   password.count >= 6 && isValidEmail(email)
-            
+            return isBasicInfoValid()
         case .sportsPreferences:
             return !selectedSports.isEmpty
         }
+    }
+    
+    // MARK: - Enhanced Basic Info Validation
+    private func isBasicInfoValid() -> Bool {
+        // Check all required fields are filled
+        guard !userName.isEmpty,
+              !email.isEmpty,
+              !password.isEmpty,
+              !confirmPassword.isEmpty else {
+            return false
+        }
+        
+        // Username validation
+        guard isValidUsername(userName) else {
+            return false
+        }
+        
+        // Email validation
+        guard isValidEmail(email) else {
+            return false
+        }
+        
+        // Password validation
+        guard isValidPassword(password) else {
+            return false
+        }
+        
+        // Password confirmation
+        guard password == confirmPassword else {
+            return false
+        }
+        
+        return true
+    }
+    
+    // MARK: - Individual Field Validations
+    private func isValidUsername(_ username: String) -> Bool {
+        // Username: 3-20 characters, alphanumeric + underscore
+        let usernameRegex = "^[a-zA-Z0-9_]{3,20}$"
+        let usernameTest = NSPredicate(format:"SELF MATCHES %@", usernameRegex)
+        return usernameTest.evaluate(with: username)
     }
     
     private func isValidEmail(_ email: String) -> Bool {
         let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let emailTest = NSPredicate(format:"SELF MATCHES %@", emailRegex)
         return emailTest.evaluate(with: email)
+    }
+    
+    private func isValidPassword(_ password: String) -> Bool {
+        // Password requirements:
+        // - At least 8 characters
+        // - At least one lowercase letter
+        // - At least one uppercase letter
+        // - At least one number
+        
+        guard password.count >= 8 else { return false }
+        
+        let hasLowercase = password.range(of: "[a-z]", options: .regularExpression) != nil
+        let hasUppercase = password.range(of: "[A-Z]", options: .regularExpression) != nil
+        let hasNumber = password.range(of: "[0-9]", options: .regularExpression) != nil
+        
+        return hasLowercase && hasUppercase && hasNumber
+    }
+    
+    // MARK: - Password Requirement Checks (for UI indicators)
+    func passwordHasMinLength() -> Bool {
+        return password.count >= 8
+    }
+    
+    func passwordHasLowercase() -> Bool {
+        return password.range(of: "[a-z]", options: .regularExpression) != nil
+    }
+    
+    func passwordHasUppercase() -> Bool {
+        return password.range(of: "[A-Z]", options: .regularExpression) != nil
+    }
+    
+    func passwordHasNumber() -> Bool {
+        return password.range(of: "[0-9]", options: .regularExpression) != nil
+    }
+    
+    func passwordsMatch() -> Bool {
+        return !confirmPassword.isEmpty && password == confirmPassword
     }
     
     // Convert to API request - WITH DEFAULT VALUES for removed fields
@@ -247,9 +322,15 @@ struct SportSelection: Identifiable, Hashable, Equatable {
 enum RegistrationValidationError: Error, LocalizedError {
     case invalidEmail
     case passwordTooShort
+    case passwordMissingLowercase
+    case passwordMissingUppercase
+    case passwordMissingNumber
     case passwordMismatch
     case usernameEmpty
+    case usernameInvalid
     case noSportsSelected
+    case usernameTaken
+    case emailTaken
     
     var errorDescription: String? {
         switch self {
@@ -257,12 +338,24 @@ enum RegistrationValidationError: Error, LocalizedError {
             return "registration.error.invalid_email"
         case .passwordTooShort:
             return "registration.error.password_too_short"
+        case .passwordMissingLowercase:
+            return "registration.error.password_missing_lowercase"
+        case .passwordMissingUppercase:
+            return "registration.error.password_missing_uppercase"
+        case .passwordMissingNumber:
+            return "registration.error.password_missing_number"
         case .passwordMismatch:
             return "registration.error.password_mismatch"
         case .usernameEmpty:
             return "registration.error.username_empty"
+        case .usernameInvalid:
+            return "registration.error.username_invalid"
         case .noSportsSelected:
             return "registration.error.no_sports_selected"
+        case .usernameTaken:
+            return "registration.error.username_taken"
+        case .emailTaken:
+            return "registration.error.email_taken"
         }
     }
 }

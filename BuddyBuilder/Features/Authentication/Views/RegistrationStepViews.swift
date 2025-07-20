@@ -85,40 +85,52 @@ struct BasicInfoStepView: View {
                 hasError: viewModel.confirmPasswordError
             )
             
-            // Password requirements validation
-            VStack(alignment: .leading, spacing: 8) {
-                Text("registration.password.requirements".localized(using: localizationManager))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    PasswordRequirementRow(
-                        text: "registration.password.min_8_chars".localized(using: localizationManager),
-                        isValid: viewModel.formData.password.count >= 8
-                    )
+            // Enhanced Password requirements validation
+            if !viewModel.formData.password.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("registration.password.requirements".localized(using: localizationManager))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
                     
-                    PasswordRequirementRow(
-                        text: "registration.password.lowercase".localized(using: localizationManager),
-                        isValid: viewModel.formData.password.range(of: "[a-z]", options: .regularExpression) != nil
-                    )
-                    
-                    PasswordRequirementRow(
-                        text: "registration.password.uppercase".localized(using: localizationManager),
-                        isValid: viewModel.formData.password.range(of: "[A-Z]", options: .regularExpression) != nil
-                    )
-                    
-                    PasswordRequirementRow(
-                        text: "registration.password.number".localized(using: localizationManager),
-                        isValid: viewModel.formData.password.range(of: "[0-9]", options: .regularExpression) != nil
-                    )
-                    
-                    PasswordRequirementRow(
-                        text: "registration.password.match".localized(using: localizationManager),
-                        isValid: !viewModel.formData.confirmPassword.isEmpty && viewModel.formData.password == viewModel.formData.confirmPassword
-                    )
+                    VStack(alignment: .leading, spacing: 4) {
+                        PasswordRequirementRow(
+                            text: "registration.password.min_8_chars".localized(using: localizationManager),
+                            isValid: viewModel.formData.passwordHasMinLength()
+                        )
+                        
+                        PasswordRequirementRow(
+                            text: "registration.password.lowercase".localized(using: localizationManager),
+                            isValid: viewModel.formData.passwordHasLowercase()
+                        )
+                        
+                        PasswordRequirementRow(
+                            text: "registration.password.uppercase".localized(using: localizationManager),
+                            isValid: viewModel.formData.passwordHasUppercase()
+                        )
+                        
+                        PasswordRequirementRow(
+                            text: "registration.password.number".localized(using: localizationManager),
+                            isValid: viewModel.formData.passwordHasNumber()
+                        )
+                        
+                        // Password match indicator (only show if confirm password is not empty)
+                        if !viewModel.formData.confirmPassword.isEmpty {
+                            PasswordRequirementRow(
+                                text: "registration.password.match".localized(using: localizationManager),
+                                isValid: viewModel.formData.passwordsMatch()
+                            )
+                        }
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.formBackground.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.formBorder.opacity(0.3), lineWidth: 1)
+                )
             }
-            .padding(.horizontal, 16)
         }
     }
 }
@@ -208,23 +220,36 @@ struct SportsPreferencesStepView: View {
 
 // MARK: - Helper Components
 
-// Password Requirement Row
+// Enhanced Password Requirement Row with Animation
 struct PasswordRequirementRow: View {
     let text: String
     let isValid: Bool
     
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isValid ? .green : .textSecondary)
+            ZStack {
+                Circle()
+                    .fill(isValid ? Color.green : Color.textSecondary.opacity(0.3))
+                    .frame(width: 16, height: 16)
+                    .scaleEffect(isValid ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: isValid)
+                
+                Image(systemName: isValid ? "checkmark" : "circle")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(isValid ? .white : .textSecondary)
+                    .scaleEffect(isValid ? 1.2 : 1.0)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isValid)
+            }
             
             Text(text)
-                .font(.system(size: 12))
-                .foregroundColor(.textSecondary)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isValid ? .green : .textSecondary)
+                .animation(.easeInOut(duration: 0.2), value: isValid)
             
             Spacer()
         }
+        .padding(.horizontal, 4)
+        .animation(.easeInOut(duration: 0.3), value: isValid)
     }
 }
 
@@ -270,6 +295,8 @@ struct SportSelectionCard: View {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isSelected ? Color.primaryOrange : Color.formBorder, lineWidth: isSelected ? 2 : 1)
             )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -300,7 +327,7 @@ struct SportSelectionCard: View {
 
 // MARK: - Compact Versions for RegistrationView
 
-// Compact Basic Info Step
+// Compact Basic Info Step with Enhanced Password Validation
 struct CompactBasicInfoStepView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -381,75 +408,88 @@ struct CompactBasicInfoStepView: View {
                 hasError: viewModel.confirmPasswordError
             )
             
-            // Compact Password Requirements
+            // Enhanced Compact Password Requirements
             if !viewModel.formData.password.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Password Requirements:")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.textSecondary)
                     
-                    HStack(spacing: 12) {
+                    // Grid layout for requirements
+                    LazyVGrid(columns: [
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ], spacing: 6) {
                         CompactPasswordIndicator(
-                            isValid: viewModel.formData.password.count >= 8,
+                            isValid: viewModel.formData.passwordHasMinLength(),
                             text: "8+ chars"
                         )
                         
                         CompactPasswordIndicator(
-                            isValid: viewModel.formData.password.range(of: "[a-z]", options: .regularExpression) != nil,
+                            isValid: viewModel.formData.passwordHasLowercase(),
                             text: "a-z"
                         )
                         
                         CompactPasswordIndicator(
-                            isValid: viewModel.formData.password.range(of: "[A-Z]", options: .regularExpression) != nil,
+                            isValid: viewModel.formData.passwordHasUppercase(),
                             text: "A-Z"
                         )
                         
                         CompactPasswordIndicator(
-                            isValid: viewModel.formData.password.range(of: "[0-9]", options: .regularExpression) != nil,
+                            isValid: viewModel.formData.passwordHasNumber(),
                             text: "0-9"
                         )
-                        
-                        Spacer()
                     }
                     
+                    // Password match indicator (full width)
                     if !viewModel.formData.confirmPassword.isEmpty {
                         CompactPasswordIndicator(
-                            isValid: viewModel.formData.password == viewModel.formData.confirmPassword,
+                            isValid: viewModel.formData.passwordsMatch(),
                             text: "Passwords match"
                         )
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.vertical, 10)
                 .background(Color.formBackground.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.formBorder.opacity(0.3), lineWidth: 1)
+                )
             }
         }
     }
 }
 
-// Compact Sports Preferences Step
+// MARK: - Compact Sports Preferences Step - SCROLLABLE VERSION
 struct CompactSportsPreferencesStepView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {
         VStack(spacing: 16) {
+            // Header (fixed)
             Text("Select your favorite sports (\(viewModel.formData.selectedSports.count))")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.textPrimary)
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                ForEach(viewModel.availableSports.prefix(6), id: \.id) { sport in
-                    CompactSportCard(
-                        sport: sport,
-                        isSelected: viewModel.formData.selectedSports.contains { $0.sport.id == sport.id },
-                        action: {
-                            viewModel.toggleSportSelection(sport)
-                        }
-                    )
+            // Scrollable Sports Grid
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+                    ForEach(viewModel.availableSports, id: \.id) { sport in
+                        CompactSportCard(
+                            sport: sport,
+                            isSelected: viewModel.formData.selectedSports.contains { $0.sport.id == sport.id },
+                            action: {
+                                viewModel.toggleSportSelection(sport)
+                            }
+                        )
+                    }
                 }
+                .padding(.horizontal, 4)
             }
+            .frame(maxHeight: 300) // Limit height to make it scrollable
         }
     }
 }
@@ -480,6 +520,8 @@ struct CompactSportCard: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(isSelected ? Color.primaryOrange : Color.formBorder, lineWidth: isSelected ? 2 : 1)
             )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -499,20 +541,33 @@ struct CompactSportCard: View {
     }
 }
 
-// MARK: - Compact Password Indicator
+// MARK: - Enhanced Compact Password Indicator
 struct CompactPasswordIndicator: View {
     let isValid: Bool
     let text: String
     
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(isValid ? .green : .textSecondary.opacity(0.6))
+            ZStack {
+                Circle()
+                    .fill(isValid ? Color.green : Color.textSecondary.opacity(0.3))
+                    .frame(width: 12, height: 12)
+                    .scaleEffect(isValid ? 1.1 : 1.0)
+                
+                Image(systemName: isValid ? "checkmark" : "circle")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(isValid ? .white : .textSecondary)
+                    .scaleEffect(isValid ? 1.2 : 1.0)
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isValid)
             
             Text(text)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(isValid ? .green : .textSecondary)
+                .lineLimit(1)
+            
+            Spacer(minLength: 0)
         }
+        .animation(.easeInOut(duration: 0.2), value: isValid)
     }
 }

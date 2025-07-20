@@ -6,6 +6,7 @@ import Combine
 // MARK: - Token Refresh Models
 struct RefreshTokenRequest: Codable {
     let refreshToken: String
+    let accessToken: String?
 }
 
 struct RefreshTokenResponse: Codable {
@@ -90,9 +91,15 @@ class TokenManager: ObservableObject {
             return false
         }
         
+        guard let currentAccessToken = accessToken else {
+            print("❌ No Access token available")
+            await clearAllTokens()
+            return false
+        }
+        
         print("🔄 Attempting to refresh tokens...")
         
-        let request = RefreshTokenRequest(refreshToken: currentRefreshToken)
+        let request = RefreshTokenRequest(refreshToken: currentRefreshToken, accessToken: currentAccessToken)
         
         do {
             guard let requestData = try? JSONEncoder().encode(request) else {

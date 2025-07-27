@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Sports/Views/AddSportView.swift - COMPLETE FILE
+// BuddyBuilder/Features/Sports/Views/AddSportView.swift - UPDATED VERSION
 
 import SwiftUI
 import Combine
@@ -101,6 +101,14 @@ class AddSportViewModel: ObservableObject {
     // Check if sport is already added by user
     func isSportAlreadyAdded(_ sport: Sport) -> Bool {
         return userSports.contains { $0.sport.id == sport.id || $0.name.lowercased() == sport.name.lowercased() }
+    }
+    
+    // Get the experience level for an already added sport
+    func getExistingSportLevel(_ sport: Sport) -> ExperienceLevel {
+        if let userSport = userSports.first(where: { $0.sport.id == sport.id || $0.name.lowercased() == sport.name.lowercased() }) {
+            return userSport.experienceLevelEnum ?? .beginner
+        }
+        return .beginner
     }
     
     func toggleSportSelection(_ sport: Sport) {
@@ -409,7 +417,10 @@ struct AddSportView: View {
                         sport: sport,
                         isSelected: viewModel.isSportSelected(sport),
                         isDisabled: viewModel.isSportAlreadyAdded(sport),
-                        currentLevel: viewModel.getSelectedExperience(for: sport),
+                        // 🔴 FIX: Use the correct level for disabled sports
+                        currentLevel: viewModel.isSportAlreadyAdded(sport) ?
+                            viewModel.getExistingSportLevel(sport) :
+                            viewModel.getSelectedExperience(for: sport),
                         onToggle: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 viewModel.toggleSportSelection(sport)

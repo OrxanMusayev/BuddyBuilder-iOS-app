@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Sports/Views/MySportsView.swift
+// BuddyBuilder/Features/Sports/Views/MySportsView.swift - COMPLETE FILE
 
 import SwiftUI
 import Combine
@@ -9,22 +9,24 @@ class MySportsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String = ""
     @Published var showError = false
-    @Published var showAddSport = false
+    @Published var isUpdating = false
     
     private let mySportsService: MySportsServiceProtocol
+    private let profileService: ProfileServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
-    init(mySportsService: MySportsServiceProtocol = MySportsService()) {
+    init(mySportsService: MySportsServiceProtocol = MySportsService(),
+         profileService: ProfileServiceProtocol = ProfileService()) {
         self.mySportsService = mySportsService
+        self.profileService = profileService
         loadMySports()
     }
     
-    // loadMySports() FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func loadMySports() {
         isLoading = true
         errorMessage = ""
         
-        mySportsService.fetchMySportsWithAutoRefresh() // 🔴 DEĞİŞTİ
+        mySportsService.fetchMySportsWithAutoRefresh()
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -41,9 +43,10 @@ class MySportsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // removeSport() FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func removeSport(_ userSport: UserSport) {
-        mySportsService.removeSportWithAutoRefresh(userSportId: userSport.id) // 🔴 DEĞİŞTİ
+        print(userSport.id)
+        // Use ProfileService for deleting sport
+        profileService.deleteSport(sportId: userSport.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -53,12 +56,45 @@ class MySportsViewModel: ObservableObject {
                 },
                 receiveValue: { [weak self] success in
                     if success {
-                        self?.userSports.removeAll { $0.id == userSport.id }
-                        print("✅ Sport removed successfully with auto-refresh")
+                        print("✅ Sport removed successfully via Profile API")
+                        // Reload fresh data from server
+                        self?.loadMySports()
+                    } else {
+                        self?.handleError("Failed to remove sport")
                     }
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    func updateSportExperience(_ userSport: UserSport, newLevel: ExperienceLevel) {
+        isUpdating = true
+        
+        // Use ProfileService for updating experience level
+        profileService.updateSportExperience(
+            sportId: userSport.id,
+            experienceLevel: newLevel.rawValue
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                self?.isUpdating = false
+                if case .failure(let error) = completion {
+                    self?.handleError("Failed to update sport experience: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] success in
+                if success {
+                    print("✅ Sport experience updated successfully via Profile API")
+                    // UI will be updated when MySports is refreshed
+                    // For immediate UI feedback, we could reload MySports:
+                    self?.loadMySports()
+                } else {
+                    self?.handleError("Failed to update sport experience")
+                }
+            }
+        )
+        .store(in: &cancellables)
     }
     
     private func handleError(_ message: String) {
@@ -73,99 +109,110 @@ struct MySportsView: View {
     @StateObject private var viewModel = MySportsViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.dismiss) var dismiss
+    @State private var navigateToAddSport = false // For animated navigation
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background
-                LoginBackgroundView()
-                
-                VStack(spacing: 0) {
-                    // Custom Header
-                    customHeader
-                    
-                    // Content
-                    if viewModel.isLoading && viewModel.userSports.isEmpty {
-                        loadingView
-                    } else if viewModel.userSports.isEmpty {
-                        emptyStateView
-                    } else {
-                        sportsListView
+        mainContent
+            .navigationDestination(isPresented: $navigateToAddSport) {
+                AddSportView { success in
+                    if success {
+                        viewModel.loadMySports()
                     }
                 }
+                .environmentObject(localizationManager)
+            }
+            .navigationBarHidden(true)
+            .alert("Error", isPresented: $viewModel.showError) {
+                Button("OK") { }
+            } message: {
+                Text(viewModel.errorMessage)
+            }
+    }
+    
+    // MARK: - Main Content
+    private var mainContent: some View {
+        ZStack {
+            LoginBackgroundView()
+            
+            VStack(spacing: 0) {
+                customHeader
+                contentBasedOnState
             }
         }
-        .navigationBarHidden(true)
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK") { }
-        } message: {
-            Text(viewModel.errorMessage)
+    }
+    
+    // MARK: - Content Based on State
+    @ViewBuilder
+    private var contentBasedOnState: some View {
+        if viewModel.isLoading && viewModel.userSports.isEmpty {
+            loadingView
+        } else if viewModel.userSports.isEmpty {
+            emptyStateView
+        } else {
+            sportsListView
         }
     }
     
     // MARK: - Custom Header
     private var customHeader: some View {
         HStack {
-            // Back Button
-            Button(action: {
-                dismiss()
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 16, weight: .medium))
-                    
-                    Text("Back")
-                        .font(.system(size: 16, weight: .medium))
-                }
-                .foregroundColor(.primaryOrange)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color.primaryOrange.opacity(0.1))
-                )
-            }
-            
+            backButton
             Spacer()
-            
-            // Title
-            Text("My Sports")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            
+            headerTitle
             Spacer()
-            
-            // Add Button
-            Button(action: {
-                viewModel.showAddSport = true
-            }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.primaryOrange)
-                    .clipShape(Circle())
-                    .shadow(color: .primaryOrange.opacity(0.3), radius: 4, x: 0, y: 2)
-            }
+            addButton
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .background(Color.white.opacity(0.9))
     }
     
+    private var backButton: some View {
+        Button(action: { dismiss() }) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.left")
+                    .font(.system(size: 16, weight: .medium))
+                Text("Back")
+                    .font(.system(size: 16, weight: .medium))
+            }
+            .foregroundColor(.primaryOrange)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.primaryOrange.opacity(0.1))
+            )
+        }
+    }
+    
+    private var headerTitle: some View {
+        Text("My Sports")
+            .font(.system(size: 20, weight: .bold, design: .rounded))
+            .foregroundColor(.textPrimary)
+    }
+    
+    private var addButton: some View {
+        Button(action: { navigateToAddSport = true }) {
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 36, height: 36)
+                .background(Color.primaryOrange)
+                .clipShape(Circle())
+                .shadow(color: .primaryOrange.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+    }
+    
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: 20) {
             Spacer()
-            
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                 .scaleEffect(1.5)
-            
             Text("Loading your sports...")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.textSecondary)
-            
             Spacer()
         }
     }
@@ -175,18 +222,15 @@ struct MySportsView: View {
         VStack(spacing: 24) {
             Spacer()
             
-            // Icon with AsyncImage support
             ZStack {
                 Circle()
                     .fill(Color.primaryOrange.opacity(0.1))
                     .frame(width: 100, height: 100)
-                
                 Image(systemName: "figure.run.circle")
                     .font(.system(size: 50, weight: .light))
                     .foregroundColor(.primaryOrange.opacity(0.6))
             }
             
-            // Text
             VStack(spacing: 12) {
                 Text("No Sports Added Yet")
                     .font(.system(size: 22, weight: .bold))
@@ -200,14 +244,10 @@ struct MySportsView: View {
             }
             .padding(.horizontal, 40)
             
-            // Add Sport Button
-            Button(action: {
-                viewModel.showAddSport = true
-            }) {
+            Button(action: { navigateToAddSport = true }) {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 16))
-                    
                     Text("Add Your First Sport")
                         .font(.system(size: 16, weight: .semibold))
                 }
@@ -227,185 +267,280 @@ struct MySportsView: View {
     // MARK: - Sports List View
     private var sportsListView: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.userSports) { userSport in
-                    MySportCard(userSport: userSport) {
-                        // Remove action
-                        viewModel.removeSport(userSport)
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 100)
+            sportsListContent
         }
         .refreshable {
             viewModel.loadMySports()
         }
     }
+    
+    private var sportsListContent: some View {
+        LazyVStack(spacing: 20) {
+            ForEach(viewModel.userSports) { userSport in
+                sportCardView(for: userSport)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 24)
+        .padding(.bottom, 120)
+    }
+    
+    private func sportCardView(for userSport: UserSport) -> some View {
+        EnhancedMySportCard(
+            userSport: userSport,
+            isUpdating: viewModel.isUpdating,
+            onRemove: { viewModel.removeSport(userSport) },
+            onUpdateExperience: { newLevel in
+                viewModel.updateSportExperience(userSport, newLevel: newLevel)
+            }
+        )
+    }
 }
 
-// MARK: - Fixed My Sport Card with Working Background Images
-struct MySportCard: View {
+// MARK: - Enhanced My Sport Card
+struct EnhancedMySportCard: View {
     let userSport: UserSport
+    let isUpdating: Bool
     let onRemove: () -> Void
+    let onUpdateExperience: (ExperienceLevel) -> Void
+    
     @State private var showRemoveConfirmation = false
+    @State private var showLevelPicker = false
     @State private var imageLoadError = false
     
     var body: some View {
         ZStack {
-            // Background Image Layer - FIXED
             backgroundImageLayer
-            
-            // Dark overlay for better text readability
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.6),
-                    Color.black.opacity(0.3),
-                    Color.black.opacity(0.7)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            // Content over background
-            HStack(spacing: 16) {
-                // Sport Info
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(userSport.name)
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        Spacer()
-                        
-                        Text("\(userSport.userCount) users")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.9))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(Color.white.opacity(0.2))
-                            )
-                    }
-                    
-                    // Experience Level
-                    HStack(spacing: 6) {
-                        ForEach(1...4, id: \.self) { level in
-                            Circle()
-                                .fill(level <= userSport.experienceLevel ? Color.white : Color.white.opacity(0.3))
-                                .frame(width: 8, height: 8)
-                        }
-                        
-                        Text(userSport.experienceLevelName)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                    }
-                    
-                    // Description
-                    if !userSport.description.isEmpty {
-                        Text(userSport.description)
-                            .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.8))
-                            .lineLimit(2)
-                    }
-                    
-                    // Added date
-                    Text("Added \(userSport.formattedAddedDate)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                }
-                
-                Spacer()
-                
-                // Remove Button
-                Button(action: {
-                    showRemoveConfirmation = true
-                }) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.red.opacity(0.8))
-                            .frame(width: 36, height: 36)
-                        
-                        Image(systemName: "minus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                }
-            }
-            .padding(20)
+            backgroundOverlay
+            cardContent
         }
-        .frame(height: 120)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .frame(height: 140)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 6)
+        .opacity(isUpdating ? 0.7 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isUpdating)
         .confirmationDialog("Remove Sport", isPresented: $showRemoveConfirmation) {
-            Button("Remove", role: .destructive) {
-                onRemove()
-            }
+            Button("Remove", role: .destructive) { onRemove() }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Are you sure you want to remove \(userSport.name) from your sports?")
         }
-        .onAppear {
-            // Debug: Print the iconUrl to check if it exists
-            if let iconUrl = userSport.iconUrl {
-                print("🖼️ Sport: \(userSport.name) - IconURL: \(iconUrl)")
-            } else {
-                print("🖼️ Sport: \(userSport.name) - No IconURL, using default")
+        .sheet(isPresented: $showLevelPicker) {
+            ExperienceLevelPickerSheet(
+                currentLevel: userSport.experienceLevelEnum ?? .beginner,
+                sportName: userSport.name,
+                onLevelSelected: onUpdateExperience
+            )
+        }
+    }
+    
+    private var backgroundOverlay: some View {
+        LinearGradient(
+            colors: [
+                Color.black.opacity(0.6),
+                Color.black.opacity(0.3),
+                Color.black.opacity(0.7)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+    
+    private var cardContent: some View {
+        VStack(spacing: 18) {
+            topRow
+            middleRow
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 28)
+    }
+    
+    private var topRow: some View {
+        HStack(alignment: .center) {
+            Text(userSport.name)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+            
+            Spacer()
+            
+            // Modern delete button in top right
+            deleteButton
+        }
+    }
+    
+    private var userCountBadge: some View {
+        Text("\(userSport.userCount) users")
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(.white.opacity(0.9))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.white.opacity(0.2)))
+    }
+    
+    private var middleRow: some View {
+        HStack(alignment: .bottom) {
+            experienceLevelSection
+            Spacer()
+            userCountBadge
+        }
+    }
+    
+    private var experienceLevelSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Experience Level")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.white.opacity(0.8))
+            
+            Button(action: { showLevelPicker = true }) {
+                experienceLevelContent
+            }
+            .disabled(isUpdating)
+        }
+    }
+    
+    private var experienceLevelContent: some View {
+        HStack(spacing: 12) {
+            experienceDots
+            Text(userSport.experienceLevelName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 22).fill(Color.white.opacity(0.2)))
+    }
+    
+    private var experienceDots: some View {
+        HStack(spacing: 5) {
+            ForEach(1...4, id: \.self) { level in
+                Circle()
+                    .fill(level <= userSport.experienceLevel ? Color.white : Color.white.opacity(0.3))
+                    .frame(width: 10, height: 10)
             }
         }
     }
     
-    // MARK: - Background Image Layer - COMPLETELY REWRITTEN
+    private var bottomRow: some View {
+        HStack(alignment: .bottom) {
+            descriptionSection
+            Spacer(minLength: 24)
+            actionButtons
+        }
+    }
+    
+    private var actionButtons: some View {
+        HStack(spacing: 16) {
+            if isUpdating {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(0.9)
+                    .frame(width: 44, height: 44)
+            }
+            
+            Button(action: { showRemoveConfirmation = true }) {
+                ZStack {
+                    // Modern glassmorphism background
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.red.opacity(0.15))
+                        )
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                        )
+                    
+                    // Modern trash icon
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.red.opacity(0.9), .red],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .scaleEffect(isUpdating ? 0.8 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isUpdating)
+                .shadow(color: .red.opacity(0.2), radius: 8, x: 0, y: 4)
+            }
+            .disabled(isUpdating)
+            .buttonStyle(ModernButtonStyle())
+        }
+    }
+    
+    private var descriptionSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !userSport.description.isEmpty {
+                Text(userSport.description)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.8))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Added \(userSport.formattedAddedDate)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.white.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private var deleteButton: some View {
+        Button(action: { showRemoveConfirmation = true }) {
+            if isUpdating {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(0.8)
+                    .frame(width: 32, height: 32)
+            } else {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(
+                        Color.white.opacity(0.8),
+                        Color.red.opacity(0.7)
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+            }
+        }
+        .disabled(isUpdating)
+        .buttonStyle(PlainButtonStyle())
+    }
+    
     @ViewBuilder
     private var backgroundImageLayer: some View {
         if let iconUrl = userSport.iconUrl, !iconUrl.isEmpty, !imageLoadError {
-            // Try to load API image
             AsyncImage(url: URL(string: iconUrl)) { phase in
                 switch phase {
                 case .empty:
-                    // Loading state
                     loadingBackground
-                    
                 case .success(let image):
-                    // Successfully loaded image
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .clipped() // Important: clip to bounds
-                    
+                    image.resizable().aspectRatio(contentMode: .fill).clipped()
                 case .failure(_):
-                    // Failed to load, show default and set error flag
-                    defaultSportBackground(for: userSport.name)
-                        .onAppear {
-                            imageLoadError = true
-                            print("❌ Failed to load image for \(userSport.name): \(iconUrl)")
-                        }
-                        
+                    defaultSportBackground
+                        .onAppear { imageLoadError = true }
                 @unknown default:
-                    // Fallback
-                    defaultSportBackground(for: userSport.name)
+                    defaultSportBackground
                 }
             }
         } else {
-            // No URL or error occurred, use default
-            defaultSportBackground(for: userSport.name)
+            defaultSportBackground
         }
     }
     
-    // MARK: - Loading Background
     private var loadingBackground: some View {
         ZStack {
-            // Default background while loading
-            defaultSportBackground(for: userSport.name)
-            
-            // Loading indicator
+            defaultSportBackground
             ZStack {
                 Circle()
                     .fill(Color.black.opacity(0.3))
                     .frame(width: 40, height: 40)
-                
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     .scaleEffect(0.8)
@@ -413,258 +548,199 @@ struct MySportCard: View {
         }
     }
     
-    // MARK: - Default Sport Background Images - IMPROVED
-    @ViewBuilder
-    private func defaultSportBackground(for sportName: String) -> some View {
-        let (colors, pattern) = getSportTheme(for: sportName)
+    private var defaultSportBackground: some View {
+        let (colors, _) = getSportTheme(for: userSport.name)
         
-        ZStack {
-            // Base gradient
+        return ZStack {
             LinearGradient(
                 colors: colors,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             
-            // Sport icon overlay for better identification
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    Image(systemName: getSportIcon(for: sportName))
+                    Image(systemName: getSportIcon(for: userSport.name))
                         .font(.system(size: 40, weight: .ultraLight))
                         .foregroundColor(.white.opacity(0.15))
                         .offset(x: 20, y: 10)
                 }
             }
+        }
+    }
+    
+    private func getSportIcon(for sportName: String) -> String {
+        switch sportName.lowercased() {
+        case "basketball": return "basketball.fill"
+        case "tennis": return "tennis.racket"
+        case "soccer", "football": return "soccerball"
+        case "swimming": return "figure.pool.swim"
+        case "volleyball": return "volleyball.fill"
+        case "running", "run": return "figure.run"
+        case "cycling", "bicycle", "bike": return "bicycle"
+        case "fitness", "gym": return "dumbbell.fill"
+        default: return "sportscourt.fill"
+        }
+    }
+    
+    private func getSportTheme(for sportName: String) -> ([Color], PatternType) {
+        switch sportName.lowercased() {
+        case "basketball": return ([.orange, .red.opacity(0.8)], .basketball)
+        case "tennis": return ([.green, .yellow.opacity(0.8)], .tennis)
+        case "soccer", "football": return ([.green, .blue.opacity(0.8)], .soccer)
+        case "swimming": return ([.blue, .cyan.opacity(0.8)], .water)
+        case "volleyball": return ([.yellow, .orange.opacity(0.8)], .generic)
+        case "running", "run": return ([.red, .pink.opacity(0.8)], .track)
+        case "cycling", "bicycle", "bike": return ([.blue, .indigo.opacity(0.8)], .generic)
+        case "fitness", "gym": return ([.gray, .black.opacity(0.6)], .generic)
+        default: return ([.primaryOrange, .primaryOrange.opacity(0.6)], .generic)
+        }
+    }
+}
+
+// MARK: - Experience Level Picker Sheet
+struct ExperienceLevelPickerSheet: View {
+    let currentLevel: ExperienceLevel
+    let sportName: String
+    let onLevelSelected: (ExperienceLevel) -> Void
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            sheetHeader
+            levelOptionsSection
+            cancelButton
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .presentationDetents([.height(400)])
+        .presentationDragIndicator(.hidden)
+    }
+    
+    private var sheetHeader: some View {
+        VStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 5)
+                .padding(.top, 8)
             
-            // Pattern overlay (simplified for better performance)
-            GeometryReader { geometry in
-                Path { path in
-                    switch pattern {
-                    case .basketball:
-                        // Simple basketball lines
-                        let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-                        let radius = min(geometry.size.width, geometry.size.height) * 0.25
-                        
-                        // Horizontal line
-                        path.move(to: CGPoint(x: center.x - radius, y: center.y))
-                        path.addLine(to: CGPoint(x: center.x + radius, y: center.y))
-                        
-                        // Vertical line
-                        path.move(to: CGPoint(x: center.x, y: center.y - radius))
-                        path.addLine(to: CGPoint(x: center.x, y: center.y + radius))
-                        
-                    case .tennis:
-                        // Simple net pattern
-                        let spacing: CGFloat = 25
-                        for x in stride(from: 0, to: geometry.size.width, by: spacing) {
-                            path.move(to: CGPoint(x: x, y: geometry.size.height * 0.3))
-                            path.addLine(to: CGPoint(x: x, y: geometry.size.height * 0.7))
-                        }
-                        
-                    case .soccer:
-                        // Simple hexagon
-                        let center = CGPoint(x: geometry.size.width * 0.8, y: geometry.size.height * 0.2)
-                        let radius: CGFloat = 20
-                        for i in 0..<6 {
-                            let angle = Double(i) * .pi / 3
-                            let point = CGPoint(
-                                x: center.x + cos(angle) * radius,
-                                y: center.y + sin(angle) * radius
-                            )
-                            if i == 0 {
-                                path.move(to: point)
-                            } else {
-                                path.addLine(to: point)
-                            }
-                        }
-                        path.closeSubpath()
-                        
-                    case .water:
-                        // Simple wave
-                        path.move(to: CGPoint(x: 0, y: geometry.size.height * 0.6))
-                        path.addQuadCurve(
-                            to: CGPoint(x: geometry.size.width, y: geometry.size.height * 0.6),
-                            control: CGPoint(x: geometry.size.width/2, y: geometry.size.height * 0.4)
-                        )
-                        
-                    case .track:
-                        // Simple lanes
-                        for i in 1...3 {
-                            let y = geometry.size.height * CGFloat(i) / 4
-                            path.move(to: CGPoint(x: 0, y: y))
-                            path.addLine(to: CGPoint(x: geometry.size.width, y: y))
-                        }
-                        
-                    case .generic:
-                        // Simple dots pattern
-                        let spacing: CGFloat = 40
-                        for x in stride(from: spacing, to: geometry.size.width, by: spacing) {
-                            for y in stride(from: spacing, to: geometry.size.height, by: spacing) {
-                                path.addEllipse(in: CGRect(x: x-2, y: y-2, width: 4, height: 4))
-                            }
-                        }
+            Text("Experience Level")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            
+            Text("Select your experience level for \(sportName)")
+                .font(.system(size: 14))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.bottom, 24)
+    }
+    
+    private var levelOptionsSection: some View {
+        VStack(spacing: 12) {
+            ForEach(ExperienceLevel.allCases, id: \.self) { level in
+                ExperienceLevelRow(
+                    level: level,
+                    isSelected: level == currentLevel,
+                    onSelect: {
+                        onLevelSelected(level)
+                        dismiss()
                     }
-                }
-                .stroke(Color.white.opacity(0.1), lineWidth: 1.5)
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private var cancelButton: some View {
+        Button(action: { dismiss() }) {
+            Text("Cancel")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(Color.formBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 22))
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+    }
+}
+
+// MARK: - Experience Level Row
+struct ExperienceLevelRow: View {
+    let level: ExperienceLevel
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 16) {
+                levelDots
+                levelInfo
+                Spacer()
+                selectionIndicator
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(rowBackground)
+            .overlay(rowBorder)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var levelDots: some View {
+        HStack(spacing: 4) {
+            ForEach(1...4, id: \.self) { dot in
+                Circle()
+                    .fill(dot <= level.rawValue ? Color.primaryOrange : Color.gray.opacity(0.3))
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .frame(width: 60)
+    }
+    
+    private var levelInfo: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(level.displayName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            
+        }
+    }
+    
+    private var selectionIndicator: some View {
+        Group {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.primaryOrange)
             }
         }
     }
     
-    // MARK: - Sport Icon Helper
-    private func getSportIcon(for sportName: String) -> String {
-        switch sportName.lowercased() {
-        case "basketball":
-            return "basketball.fill"
-        case "tennis":
-            return "tennis.racket"
-        case "soccer", "football":
-            return "soccerball"
-        case "swimming":
-            return "figure.pool.swim"
-        case "volleyball":
-            return "volleyball.fill"
-        case "running", "run":
-            return "figure.run"
-        case "cycling", "bicycle", "bike":
-            return "bicycle"
-        case "fitness", "gym":
-            return "dumbbell.fill"
-        case "golf":
-            return "figure.golf"
-        case "baseball":
-            return "baseball.fill"
-        case "badminton":
-            return "tennisball.fill"
-        case "boxing":
-            return "figure.boxing"
-        case "skiing":
-            return "figure.skiing.downhill"
-        case "surfing":
-            return "figure.surfing"
-        case "climbing":
-            return "figure.climbing"
-        case "wrestling":
-            return "figure.wrestling"
-        case "martial arts", "karate", "judo":
-            return "figure.martial.arts"
-        case "yoga":
-            return "figure.yoga"
-        case "dance", "dancing":
-            return "figure.dance"
-        case "skating", "ice skating":
-            return "figure.skating"
-        case "hockey":
-            return "hockey.puck.fill"
-        case "archery":
-            return "figure.archery"
-        case "bowling":
-            return "figure.bowling"
-        case "fishing":
-            return "figure.fishing"
-        case "hiking":
-            return "figure.hiking"
-        case "sailing":
-            return "figure.sailing"
-        case "table tennis", "ping pong":
-            return "ping.pong.paddle.fill"
-        case "water polo":
-            return "figure.water.polo"
-        case "snowboarding":
-            return "figure.snowboarding"
-        default:
-            return "sportscourt.fill"
-        }
+    private var rowBackground: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(isSelected ? Color.primaryOrange.opacity(0.1) : Color.formBackground.opacity(0.5))
     }
     
-    // MARK: - Sport Theme Configuration - SAME AS BEFORE
-    private func getSportTheme(for sportName: String) -> ([Color], PatternType) {
-        switch sportName.lowercased() {
-        case "basketball":
-            return ([.orange, .red.opacity(0.8)], .basketball)
-        case "tennis":
-            return ([.green, .yellow.opacity(0.8)], .tennis)
-        case "soccer", "football":
-            return ([.green, .blue.opacity(0.8)], .soccer)
-        case "swimming":
-            return ([.blue, .cyan.opacity(0.8)], .water)
-        case "volleyball":
-            return ([.yellow, .orange.opacity(0.8)], .generic)
-        case "running", "run":
-            return ([.red, .pink.opacity(0.8)], .track)
-        case "cycling", "bicycle", "bike":
-            return ([.blue, .indigo.opacity(0.8)], .generic)
-        case "fitness", "gym":
-            return ([.gray, .black.opacity(0.6)], .generic)
-        case "golf":
-            return ([.green, .mint.opacity(0.8)], .generic)
-        case "baseball":
-            return ([.brown, .yellow.opacity(0.8)], .generic)
-        case "badminton":
-            return ([.purple, .pink.opacity(0.8)], .tennis)
-        case "boxing":
-            return ([.red, .black.opacity(0.8)], .generic)
-        case "skiing":
-            return ([.white, .blue.opacity(0.6)], .generic)
-        case "surfing":
-            return ([.blue, .teal.opacity(0.8)], .water)
-        case "climbing":
-            return ([.brown, .orange.opacity(0.8)], .generic)
-        case "wrestling":
-            return ([.red, .yellow.opacity(0.8)], .generic)
-        case "martial arts", "karate", "judo":
-            return ([.black, .red.opacity(0.8)], .generic)
-        case "yoga":
-            return ([.purple, .pink.opacity(0.8)], .generic)
-        case "dance", "dancing":
-            return ([.pink, .purple.opacity(0.8)], .generic)
-        case "skating", "ice skating":
-            return ([.white, .blue.opacity(0.6)], .generic)
-        case "hockey":
-            return ([.blue, .white.opacity(0.8)], .generic)
-        case "archery":
-            return ([.brown, .green.opacity(0.8)], .generic)
-        case "bowling":
-            return ([.purple, .yellow.opacity(0.8)], .generic)
-        case "fishing":
-            return ([.blue, .green.opacity(0.8)], .water)
-        case "hiking":
-            return ([.green, .brown.opacity(0.8)], .generic)
-        case "sailing":
-            return ([.blue, .white.opacity(0.8)], .water)
-        case "table tennis", "ping pong":
-            return ([.green, .orange.opacity(0.8)], .tennis)
-        case "water polo":
-            return ([.blue, .yellow.opacity(0.8)], .water)
-        case "snowboarding":
-            return ([.white, .blue.opacity(0.6)], .generic)
-        default:
-            return ([.primaryOrange, .primaryOrange.opacity(0.6)], .generic)
-        }
+    private var rowBorder: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .stroke(isSelected ? Color.primaryOrange : Color.clear, lineWidth: 1.5)
     }
 }
 
-
-// MARK: - Pattern Types
-enum PatternType {
-    case basketball
-    case tennis
-    case soccer
-    case water
-    case track
-    case generic
-}
-
-// MARK: - Blur View Helper
-struct BlurView: UIViewRepresentable {
-    let style: UIBlurEffect.Style
-    
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: style))
+// MARK: - Modern Button Style
+struct ModernButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
-    
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
 }
 
 // MARK: - Preview

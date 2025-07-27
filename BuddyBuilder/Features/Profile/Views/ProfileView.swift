@@ -20,6 +20,7 @@ class ProfileViewModel: ObservableObject {
     private let profilePhotoService: ProfilePhotoServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
+    
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService()) {
         self.profilePhotoService = profilePhotoService
         loadProfilePhoto()

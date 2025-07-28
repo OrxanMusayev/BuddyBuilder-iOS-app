@@ -98,7 +98,6 @@ enum GenderType: Int, CaseIterable {
     case male = 1
     case female = 2
     case other = 3
-    case preferNotToSay = 4
     
     var displayName: String {
         switch self {
@@ -108,8 +107,6 @@ enum GenderType: Int, CaseIterable {
             return "registration.gender.female"
         case .other:
             return "registration.gender.other"
-        case .preferNotToSay:
-            return "registration.gender.prefer_not_to_say"
         }
     }
 }

@@ -1,13 +1,10 @@
-// BuddyBuilder/Features/Profile/Views/ProfileView.swift
+// BuddyBuilder/Features/Profile/Views/ProfileView.swift - UPDATED VERSION
 
 import SwiftUI
 import PhotosUI
 import Combine
-// ProfileView.swift dosyasında sadece ProfileViewModel class'ını değiştirin:
 
-// ProfileView.swift dosyasında sadece ProfileViewModel class'ını değiştirin:
-
-// MARK: - Profile View Model - SIMPLIFIED
+// MARK: - Profile View Model - SIMPLIFIED (Same as before)
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
     @Published var isLoadingPhoto = false
@@ -20,13 +17,11 @@ class ProfileViewModel: ObservableObject {
     private let profilePhotoService: ProfilePhotoServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
-    
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService()) {
         self.profilePhotoService = profilePhotoService
         loadProfilePhoto()
     }
     
-    // 🔴 SIMPLIFIED: Direct protocol methods (already have auto-refresh)
     func loadProfilePhoto() {
         isLoadingPhoto = true
         
@@ -46,7 +41,6 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // 🔴 SIMPLIFIED: Direct protocol methods
     func uploadProfilePhoto(_ imageData: Data) {
         isLoadingPhoto = true
         
@@ -71,7 +65,6 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // 🔴 SIMPLIFIED: Direct protocol method
     func deleteProfilePhoto() {
         isLoadingPhoto = true
         
@@ -100,11 +93,7 @@ class ProfileViewModel: ObservableObject {
     }
 }
 
-// ProfileView'in geri kalanı aynı kalacak, sadece ProfileViewModel değişti
-
-
-
-// MARK: - Profile View - Modern & Multilingual with Photo Integration
+// MARK: - Profile View - UPDATED WITH NAVIGATION TO PROFILE DETAILS
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -114,6 +103,7 @@ struct ProfileView: View {
     @State private var showLogoutLoading = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
+    @State private var navigateToProfileDetails = false // 🔴 NEW: Navigation to Profile Details
     
     var body: some View {
         NavigationStack {
@@ -149,6 +139,11 @@ struct ProfileView: View {
             }
             .navigationDestination(isPresented: $navigateToMySports) {
                 MySportsView()
+                    .environmentObject(localizationManager)
+            }
+            // 🔴 NEW: Navigation to Profile Details
+            .navigationDestination(isPresented: $navigateToProfileDetails) {
+                ProfileDetailsView()
                     .environmentObject(localizationManager)
             }
         }
@@ -197,7 +192,7 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - Profile Header Section with Photo
+    // MARK: - Profile Header Section with Photo (Same as before)
     private var profileHeaderSection: some View {
         VStack(spacing: 20) {
             // Profile Image with Upload Functionality
@@ -300,7 +295,7 @@ struct ProfileView: View {
         .padding(.top, 20)
     }
     
-    // MARK: - Profile Stats Section
+    // MARK: - Profile Stats Section (Same as before)
     private var profileStatsSection: some View {
         HStack(spacing: 0) {
             ProfileStatCard(
@@ -338,15 +333,16 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Menu Section
+    // MARK: - Menu Section - UPDATED WITH PROFILE DETAILS NAVIGATION
     private var menuSection: some View {
         VStack(spacing: 0) {
+            // 🔴 UPDATED: Navigate to ProfileDetailsView
             ProfileMenuRow(
                 icon: "person.crop.circle",
                 title: "profile.menu.profile".localized(using: localizationManager),
                 color: .primaryOrange,
                 action: {
-                    // TODO: Navigate to profile details
+                    navigateToProfileDetails = true // Navigate to Profile Details
                 }
             )
             
@@ -421,7 +417,7 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Logout Confirmation Overlay
+    // MARK: - Logout Confirmation Overlay (Same as before)
     private var logoutConfirmationOverlay: some View {
         Color.black.opacity(0.4)
             .ignoresSafeArea()
@@ -522,7 +518,7 @@ struct ProfileView: View {
             )
     }
     
-    // MARK: - Logout Loading Overlay
+    // MARK: - Logout Loading Overlay (Same as before)
     private var logoutLoadingOverlay: some View {
         ZStack {
             Color.gray
@@ -561,6 +557,8 @@ struct ProfileView: View {
         return "profile.user.name".localized(using: localizationManager)
     }
 }
+
+// MARK: - Supporting Views (Same as before)
 
 // MARK: - Custom Photo Selection Sheet
 struct CustomPhotoSelectionSheet: View {

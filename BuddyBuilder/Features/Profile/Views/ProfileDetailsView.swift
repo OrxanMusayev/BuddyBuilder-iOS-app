@@ -28,7 +28,7 @@ class ProfileDetailsViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let debounceInterval: TimeInterval = 0.8
     
-    // 🔴 NEW: Store dismiss action
+    // Store dismiss action
     private var dismissAction: (() -> Void)?
     
     init(profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService(),
@@ -39,12 +39,12 @@ class ProfileDetailsViewModel: ObservableObject {
         loadProfileDetails()
     }
     
-    // 🔴 NEW: Set dismiss action
+    // Set dismiss action
     func setDismissAction(_ action: @escaping () -> Void) {
         self.dismissAction = action
     }
     
-    // 🔴 NEW: Get dismiss action
+    // Get dismiss action
     func getDismissAction() -> (() -> Void)? {
         return dismissAction
     }
@@ -160,7 +160,7 @@ class ProfileDetailsViewModel: ObservableObject {
             overallExperienceLevel: editOverallExperience
         )
         
-        // 🔴 EXTENDED SAVING DURATION - Add minimum loading time of 2.5 seconds
+        // Extended saving duration - Add minimum loading time of 2.5 seconds
         let startTime = Date()
         let minimumLoadingDuration: TimeInterval = 2.5
         
@@ -187,7 +187,7 @@ class ProfileDetailsViewModel: ObservableObject {
                         self?.profileDetails = updatedProfile
                         print("✅ Profile updated successfully - preparing smooth navigation")
                         
-                        // 🔴 SMOOTH NAVIGATION: Trigger dismiss with fade transition
+                        // Smooth navigation: Trigger dismiss with fade transition
                         withAnimation(.easeInOut(duration: 0.4)) {
                             if let dismiss = self?.getDismissAction() {
                                 dismiss()
@@ -228,7 +228,7 @@ class ProfileDetailsViewModel: ObservableObject {
     }
 }
 
-// MARK: - Profile Details View - SINGLE PAGE WITH DIRECT EDITING
+// MARK: - Profile Details View - SINGLE PAGE WITH DIRECT EDITING & FULL LOCALIZATION
 struct ProfileDetailsView: View {
     @StateObject private var viewModel = ProfileDetailsViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -253,19 +253,17 @@ struct ProfileDetailsView: View {
                         errorStateView
                     }
                 }
-                
-                // 🔴 REMOVED: Success message overlay
             }
         }
         .navigationBarHidden(true)
         .onAppear {
-            // 🔴 NEW: Set dismiss action when view appears
+            // Set dismiss action when view appears
             viewModel.setDismissAction {
                 dismiss()
             }
         }
-        .alert(localizationManager.translate("error", defaultValue: "Error"), isPresented: $viewModel.showError) {
-            Button(localizationManager.translate("ok", defaultValue: "OK")) { }
+        .alert("profile.error.title".localized(using: localizationManager), isPresented: $viewModel.showError) {
+            Button("common.ok".localized(using: localizationManager)) { }
         } message: {
             Text(viewModel.errorMessage)
         }
@@ -280,19 +278,19 @@ struct ProfileDetailsView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.left")
                             .font(.system(size: 16, weight: .medium))
-                        Text(localizationManager.translate("back", defaultValue: ""))
+                        Text("common.back".localized(using: localizationManager))
                             .font(.system(size: 16, weight: .medium))
                     }
                     .foregroundColor(.primaryOrange)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
-                .frame(width: 80, alignment: .leading) // 🔴 FIXED WIDTH for back button
+                .frame(width: 80, alignment: .leading) // Fixed width for back button
                 
                 Spacer()
                 
-                // Title - Always centered (no HStack wrapper needed)
-                Text(localizationManager.translate("profile_details_title", defaultValue: "Profile Details"))
+                // Title - Always centered
+                Text("profile.details.title".localized(using: localizationManager))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
                 
@@ -313,7 +311,7 @@ struct ProfileDetailsView: View {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 12, weight: .semibold))
                                     
-                                    Text(localizationManager.translate("save", defaultValue: "Save"))
+                                    Text("common.save".localized(using: localizationManager))
                                         .font(.system(size: 14, weight: .semibold))
                                 }
                             }
@@ -330,7 +328,7 @@ struct ProfileDetailsView: View {
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.hasUnsavedChanges)
                     }
                 }
-                .frame(width: 80, alignment: .trailing) // 🔴 FIXED WIDTH for save button area
+                .frame(width: 80, alignment: .trailing) // Fixed width for save button area
             }
         }
         .padding(.horizontal, 20)
@@ -345,7 +343,7 @@ struct ProfileDetailsView: View {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                 .scaleEffect(1.5)
-            Text(localizationManager.translate("loading_profile", defaultValue: "Loading profile..."))
+            Text("profile.loading".localized(using: localizationManager))
                 .font(.system(size: 16, weight: .medium))
                 .foregroundColor(.textSecondary)
             Spacer()
@@ -359,10 +357,10 @@ struct ProfileDetailsView: View {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50, weight: .light))
                 .foregroundColor(.red.opacity(0.6))
-            Text(localizationManager.translate("failed_to_load_profile", defaultValue: "Failed to load profile"))
+            Text("profile.error.load_failed".localized(using: localizationManager))
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.textPrimary)
-            Button(localizationManager.translate("try_again", defaultValue: "Try Again")) {
+            Button("common.try_again".localized(using: localizationManager)) {
                 viewModel.loadProfileDetails()
             }
             .font(.system(size: 16, weight: .medium))
@@ -403,7 +401,10 @@ struct ProfileDetailsView: View {
     // MARK: - Personal Information Card
     private var personalInformationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: localizationManager.translate("personal_information", defaultValue: "Personal Information"), icon: "person.badge.plus")
+            sectionHeader(
+                title: "profile.section.personal_info".localized(using: localizationManager),
+                icon: "person.badge.plus"
+            )
             
             VStack(spacing: 16) {
                 // Username with validation
@@ -411,7 +412,7 @@ struct ProfileDetailsView: View {
                     CustomTextFieldNoTitle(
                         text: $viewModel.editUsername,
                         icon: "person.fill",
-                        placeholder: localizationManager.translate("username", defaultValue: "Username"),
+                        placeholder: "profile.field.username".localized(using: localizationManager),
                         hasError: viewModel.usernameError
                     )
                     .textInputAutocapitalization(.never)
@@ -438,16 +439,18 @@ struct ProfileDetailsView: View {
                     }
                 }
                 
+                // First Name Field
                 CustomTextFieldNoTitle(
                     text: $viewModel.editFirstName,
                     icon: "person.fill",
-                    placeholder: localizationManager.translate("first_name", defaultValue: "First Name")
+                    placeholder: "profile.field.first_name".localized(using: localizationManager)
                 )
                 
+                // Last Name Field
                 CustomTextFieldNoTitle(
                     text: $viewModel.editLastName,
                     icon: "person.fill",
-                    placeholder: localizationManager.translate("last_name", defaultValue: "Last Name")
+                    placeholder: "profile.field.last_name".localized(using: localizationManager)
                 )
                 
                 // Gender Picker
@@ -458,15 +461,15 @@ struct ProfileDetailsView: View {
                             .foregroundColor(.textSecondary)
                             .frame(width: 20)
                         
-                        Text(localizationManager.translate("gender", defaultValue: "Gender"))
+                        Text("profile.field.gender".localized(using: localizationManager))
                             .font(.system(size: 16))
                             .foregroundColor(.textSecondary)
                     }
                     .padding(.leading, 16)
                     
-                    Picker(localizationManager.translate("gender", defaultValue: "Gender"), selection: $viewModel.editGender) {
+                    Picker("profile.field.gender".localized(using: localizationManager), selection: $viewModel.editGender) {
                         ForEach(GenderType.allCases, id: \.self) { gender in
-                            Text(gender.displayName).tag(gender)
+                            Text(gender.displayName.localized(using: localizationManager)).tag(gender)
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
@@ -480,43 +483,176 @@ struct ProfileDetailsView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Experience Level Card
+    // MARK: - Experience Level Card - FIXED: Broken into smaller expressions
     private var experienceLevelCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: localizationManager.translate("experience_level", defaultValue: "Experience Level"), icon: "star.circle")
+            sectionHeader(
+                title: "profile.section.experience".localized(using: localizationManager),
+                icon: "star.circle"
+            )
             
-            VStack(alignment: .leading, spacing: 12) {
-                Text(localizationManager.translate("overall_experience_level", defaultValue: "Overall Experience Level"))
-                    .font(.system(size: 14, weight: .semibold))
+            VStack(alignment: .leading, spacing: 16) {
+                Text("profile.field.overall_experience".localized(using: localizationManager))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.textPrimary)
                 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                    ForEach(RegistrationExperienceLevel.allCases, id: \.self) { level in
-                        Button(action: {
-                            viewModel.editOverallExperience = level
-                        }) {
-                            VStack(spacing: 8) {
-                                Text(level.displayName)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(viewModel.editOverallExperience == level ? .white : .textPrimary)
-                                
-                                Text(level.description)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(viewModel.editOverallExperience == level ? .white.opacity(0.8) : .textSecondary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 12)
-                            .frame(minHeight: 80)
-                            .background(viewModel.editOverallExperience == level ? Color.primaryOrange : Color.formBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(viewModel.editOverallExperience == level ? Color.primaryOrange : Color.formBorder, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                experienceGrid
+            }
+        }
+        .padding(20)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+    }
+    
+    // MARK: - Experience Grid (Broken out to fix compiler issue)
+    private var experienceGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+            ForEach(RegistrationExperienceLevel.allCases, id: \.self) { level in
+                experienceButton(for: level)
+            }
+        }
+    }
+    
+    // MARK: - Individual Experience Button (Broken out to fix compiler issue)
+    private func experienceButton(for level: RegistrationExperienceLevel) -> some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.editOverallExperience = level
+            }
+        }) {
+            experienceButtonContent(for: level)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .animation(.easeInOut(duration: 0.2), value: viewModel.editOverallExperience)
+    }
+    
+    // MARK: - Experience Button Content (Broken out to fix compiler issue)
+    private func experienceButtonContent(for level: RegistrationExperienceLevel) -> some View {
+        let isSelected = viewModel.editOverallExperience == level
+        
+        return VStack(spacing: 12) {
+            // Experience icon
+            experienceIconView(for: level, isSelected: isSelected)
+            
+            // Experience details
+            experienceDetailsView(for: level, isSelected: isSelected)
+            
+            // Selection indicator
+            if isSelected {
+                selectionIndicator
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
+        .background(experienceBackground(isSelected: isSelected))
+        .overlay(experienceBorder(isSelected: isSelected))
+    }
+    
+    // MARK: - Experience Icon View
+    private func experienceIconView(for level: RegistrationExperienceLevel, isSelected: Bool) -> some View {
+        ZStack {
+            Circle()
+                .fill(isSelected ? Color.white.opacity(0.2) : Color.primaryOrange.opacity(0.1))
+                .frame(width: 50, height: 50)
+            
+            Image(systemName: experienceIcon(for: level))
+                .font(.system(size: 22, weight: .medium))
+                .foregroundColor(isSelected ? .white : .primaryOrange)
+        }
+    }
+    
+    // MARK: - Experience Details View
+    private func experienceDetailsView(for level: RegistrationExperienceLevel, isSelected: Bool) -> some View {
+        VStack(spacing: 4) {
+            Text(level.displayName.localized(using: localizationManager))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(isSelected ? .white : .textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
+            
+            Text(level.description.localized(using: localizationManager))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(isSelected ? .white.opacity(0.8) : .textSecondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
+        }
+    }
+    
+    // MARK: - Selection Indicator
+    private var selectionIndicator: some View {
+        Image(systemName: "checkmark.circle.fill")
+            .font(.system(size: 16, weight: .medium))
+            .foregroundColor(.white)
+            .opacity(0.9)
+    }
+    
+    // MARK: - Experience Background
+    private func experienceBackground(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(isSelected ?
+                  LinearGradient(colors: [.primaryOrange, .primaryOrange.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                  LinearGradient(colors: [.formBackground, .formBackground], startPoint: .topLeading, endPoint: .bottomTrailing))
+    }
+    
+    // MARK: - Experience Border
+    private func experienceBorder(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 16)
+            .stroke(isSelected ? Color.primaryOrange : Color.formBorder, lineWidth: 1)
+    }
+    
+    // MARK: - Bio Card - ENHANCED: Fixed styling with white background and proper borders
+    private var bioCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                title: "profile.section.bio".localized(using: localizationManager),
+                icon: "text.quote"
+            )
+            
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                        .frame(width: 20)
+                    
+                    Text("profile.field.bio_description".localized(using: localizationManager))
+                        .font(.system(size: 16))
+                        .foregroundColor(.textSecondary)
+                }
+                .padding(.leading, 16)
+                .padding(.top, 2)
+                
+                // ENHANCED: TextEditor with proper white background and consistent border
+                ZStack(alignment: .topLeading) {
+                    // Background with consistent styling
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white) // WHITE background instead of formBackground
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.formBorder, lineWidth: 1)
+                        )
+                        .frame(minHeight: 120)
+                    
+                    // TextEditor
+                    TextEditor(text: $viewModel.editBio)
+                        .font(.system(size: 16))
+                        .foregroundColor(.textPrimary)
+                        .padding(14)
+                        .background(Color.clear)
+                        .scrollContentBackground(.hidden) // Hide default TextEditor background
+                        .frame(minHeight: 120)
+                    
+                    // Placeholder text
+                    if viewModel.editBio.isEmpty {
+                        Text("profile.field.bio_placeholder".localized(using: localizationManager))
+                            .font(.system(size: 16))
+                            .foregroundColor(.textSecondary.opacity(0.6))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 22)
+                            .allowsHitTesting(false)
                     }
                 }
             }
@@ -527,42 +663,18 @@ struct ProfileDetailsView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Bio Card
-    private var bioCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: localizationManager.translate("bio", defaultValue: "Bio"), icon: "text.quote")
-            
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    Image(systemName: "text.quote")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                        .frame(width: 20)
-                    
-                    Text(localizationManager.translate("tell_others_about_yourself", defaultValue: "Tell others about yourself"))
-                        .font(.system(size: 16))
-                        .foregroundColor(.textSecondary)
-                }
-                .padding(.leading, 16)
-                .padding(.top, 2)
-                
-                TextEditor(text: $viewModel.editBio)
-                    .font(.system(size: 14))
-                    .foregroundColor(Color.formBackground)
-                    .padding(12)
-                    .frame(minHeight: 100)
-                    .background(Color.formBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.formBorder, lineWidth: 1)
-                    )
-            }
+    // MARK: - Helper function for experience icons
+    private func experienceIcon(for level: RegistrationExperienceLevel) -> String {
+        switch level {
+        case .beginner:
+            return "star"
+        case .intermediate:
+            return "star.leadinghalf.filled"
+        case .advanced:
+            return "star.fill"
+        case .expert:
+            return "crown.fill"
         }
-        .padding(20)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
     // MARK: - Helper Views and Methods
@@ -579,6 +691,35 @@ struct ProfileDetailsView: View {
             Spacer()
         }
     }
+}
+
+// MARK: - Localization Keys Extension - NEW: For better organization
+extension String {
+    // Common Keys
+    static let commonOk = "common.ok"
+    static let commonSave = "common.save"
+    static let commonBack = "common.back"
+    static let commonTryAgain = "common.try_again"
+    
+    // Profile Details Keys
+    static let profileDetailsTitle = "profile.details.title"
+    static let profileLoading = "profile.loading"
+    static let profileErrorTitle = "profile.error.title"
+    static let profileErrorLoadFailed = "profile.error.load_failed"
+    
+    // Profile Sections
+    static let profileSectionPersonalInfo = "profile.section.personal_info"
+    static let profileSectionExperience = "profile.section.experience"
+    static let profileSectionBio = "profile.section.bio"
+    
+    // Profile Fields
+    static let profileFieldUsername = "profile.field.username"
+    static let profileFieldFirstName = "profile.field.first_name"
+    static let profileFieldLastName = "profile.field.last_name"
+    static let profileFieldGender = "profile.field.gender"
+    static let profileFieldOverallExperience = "profile.field.overall_experience"
+    static let profileFieldBioDescription = "profile.field.bio_description"
+    static let profileFieldBioPlaceholder = "profile.field.bio_placeholder"
 }
 
 // MARK: - Preview

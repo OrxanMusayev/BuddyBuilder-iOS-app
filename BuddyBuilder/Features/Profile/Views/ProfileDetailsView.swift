@@ -278,7 +278,7 @@ struct ProfileDetailsView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.left")
                             .font(.system(size: 16, weight: .medium))
-                        Text("common.back".localized(using: localizationManager))
+                        Text("".localized(using: localizationManager))
                             .font(.system(size: 16, weight: .medium))
                     }
                     .foregroundColor(.primaryOrange)

@@ -3,9 +3,6 @@
 import SwiftUI
 import Combine
 
-// Make sure RegistrationService is imported
-// import RegistrationService  // Add this if needed
-
 // MARK: - Profile Details View Model - REDESIGNED FOR DIRECT EDITING
 class ProfileDetailsViewModel: ObservableObject {
     @Published var profileDetails: ProfileDetails?
@@ -13,7 +10,6 @@ class ProfileDetailsViewModel: ObservableObject {
     @Published var isSaving = false
     @Published var errorMessage: String = ""
     @Published var showError = false
-    @Published var showSuccessMessage = false
     
     // Direct edit fields (always editable)
     @Published var editUsername: String = ""
@@ -32,12 +28,25 @@ class ProfileDetailsViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let debounceInterval: TimeInterval = 0.8
     
+    // 🔴 NEW: Store dismiss action
+    private var dismissAction: (() -> Void)?
+    
     init(profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService(),
          registrationService: RegistrationServiceProtocol = RegistrationService()) {
         self.profileDetailsService = profileDetailsService
         self.registrationService = registrationService
         setupUsernameValidation()
         loadProfileDetails()
+    }
+    
+    // 🔴 NEW: Set dismiss action
+    func setDismissAction(_ action: @escaping () -> Void) {
+        self.dismissAction = action
+    }
+    
+    // 🔴 NEW: Get dismiss action
+    func getDismissAction() -> (() -> Void)? {
+        return dismissAction
     }
     
     // MARK: - Username Validation Setup
@@ -124,7 +133,7 @@ class ProfileDetailsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Save Profile Changes
+    // MARK: - Save Profile Changes - EXTENDED DURATION (NO SUCCESS ALERT)
     func saveProfileChanges() {
         guard let currentProfile = profileDetails else {
             handleError("No profile data available")
@@ -151,23 +160,39 @@ class ProfileDetailsViewModel: ObservableObject {
             overallExperienceLevel: editOverallExperience
         )
         
+        // 🔴 EXTENDED SAVING DURATION - Add minimum loading time of 2.5 seconds
+        let startTime = Date()
+        let minimumLoadingDuration: TimeInterval = 2.5
+        
         profileDetailsService.updateProfileWithAutoRefresh(updateRequest)
             .receive(on: DispatchQueue.main)
+            .delay(for: .seconds(0.5), scheduler: RunLoop.main) // Additional delay before processing
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isSaving = false
-                    if case .failure(let error) = completion {
-                        self?.handleError("Failed to update profile: \(error.localizedDescription)")
+                    let elapsedTime = Date().timeIntervalSince(startTime)
+                    let remainingTime = max(0, minimumLoadingDuration - elapsedTime)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + remainingTime) {
+                        self?.isSaving = false
+                        if case .failure(let error) = completion {
+                            self?.handleError("Failed to update profile: \(error.localizedDescription)")
+                        }
                     }
                 },
                 receiveValue: { [weak self] updatedProfile in
-                    self?.profileDetails = updatedProfile
-                    self?.showSuccessMessage = true
-                    print("✅ Profile updated successfully")
+                    let elapsedTime = Date().timeIntervalSince(startTime)
+                    let remainingTime = max(0, minimumLoadingDuration - elapsedTime)
                     
-                    // Hide success message after 3 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        self?.showSuccessMessage = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + remainingTime) {
+                        self?.profileDetails = updatedProfile
+                        print("✅ Profile updated successfully - preparing smooth navigation")
+                        
+                        // 🔴 SMOOTH NAVIGATION: Trigger dismiss with fade transition
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if let dismiss = self?.getDismissAction() {
+                                dismiss()
+                            }
+                        }
                     }
                 }
             )
@@ -229,13 +254,16 @@ struct ProfileDetailsView: View {
                     }
                 }
                 
-                // Success Message Overlay
-                if viewModel.showSuccessMessage {
-                    successMessageOverlay
-                }
+                // 🔴 REMOVED: Success message overlay
             }
         }
         .navigationBarHidden(true)
+        .onAppear {
+            // 🔴 NEW: Set dismiss action when view appears
+            viewModel.setDismissAction {
+                dismiss()
+            }
+        }
         .alert(localizationManager.translate("error", defaultValue: "Error"), isPresented: $viewModel.showError) {
             Button(localizationManager.translate("ok", defaultValue: "OK")) { }
         } message: {
@@ -247,79 +275,62 @@ struct ProfileDetailsView: View {
     private var customHeader: some View {
         VStack(spacing: 16) {
             HStack {
-                // Back button
+                // Back button - Fixed width
                 Button(action: { dismiss() }) {
                     HStack(spacing: 8) {
                         Image(systemName: "arrow.left")
                             .font(.system(size: 16, weight: .medium))
-                        Text(localizationManager.translate("back", defaultValue: "Back"))
+                        Text(localizationManager.translate("back", defaultValue: ""))
                             .font(.system(size: 16, weight: .medium))
                     }
                     .foregroundColor(.primaryOrange)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.primaryOrange.opacity(0.1))
-                    )
                 }
+                .frame(width: 80, alignment: .leading) // 🔴 FIXED WIDTH for back button
                 
                 Spacer()
                 
-                // Title - Always centered
+                // Title - Always centered (no HStack wrapper needed)
+                Text(localizationManager.translate("profile_details_title", defaultValue: "Profile Details"))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+                
+                Spacer()
+                
+                // Save button area - Fixed width to match back button
                 HStack {
-                    Spacer()
-                    Text(localizationManager.translate("profile_details_title", defaultValue: "Profile Details"))
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
-                    Spacer()
-                }
-                
-                Spacer()
-                
-                // Save button - Only show if there are unsaved changes
-                if viewModel.hasUnsavedChanges {
-                    Button(action: {
-                        viewModel.saveProfileChanges()
-                    }) {
-                        HStack(spacing: 4) {
-                            if viewModel.isSaving {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .semibold))
+                    if viewModel.hasUnsavedChanges {
+                        Button(action: {
+                            viewModel.saveProfileChanges()
+                        }) {
+                            HStack(spacing: 4) {
+                                if viewModel.isSaving {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    
+                                    Text(localizationManager.translate("save", defaultValue: "Save"))
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
                             }
-                            
-                            Text(viewModel.isSaving ?
-                                localizationManager.translate("saving", defaultValue: "Saving...") :
-                                localizationManager.translate("save", defaultValue: "Save"))
-                                .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.primaryOrange)
+                            )
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color.primaryOrange)
-                        )
+                        .disabled(viewModel.isSaving)
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.hasUnsavedChanges)
                     }
-                    .disabled(viewModel.isSaving)
-                    .transition(.scale.combined(with: .opacity))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.hasUnsavedChanges)
-                } else {
-                    // Invisible placeholder to maintain layout balance
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(localizationManager.translate("save", defaultValue: "Save"))
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .foregroundColor(.clear)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
                 }
+                .frame(width: 80, alignment: .trailing) // 🔴 FIXED WIDTH for save button area
             }
         }
         .padding(.horizontal, 20)
@@ -537,7 +548,7 @@ struct ProfileDetailsView: View {
                 
                 TextEditor(text: $viewModel.editBio)
                     .font(.system(size: 14))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color.formBackground)
                     .padding(12)
                     .frame(minHeight: 100)
                     .background(Color.formBackground)
@@ -552,37 +563,6 @@ struct ProfileDetailsView: View {
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
-    }
-    
-    // MARK: - Success Message Overlay
-    private var successMessageOverlay: some View {
-        VStack {
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.green)
-                
-                Text(localizationManager.translate("profile_updated_successfully", defaultValue: "Profile updated successfully!"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.green)
-                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            Spacer()
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.showSuccessMessage)
-        .zIndex(1000)
     }
     
     // MARK: - Helper Views and Methods

@@ -1,13 +1,15 @@
-// BuddyBuilder/Features/Profile/Views/ProfileView.swift - UPDATED VERSION
+// BuddyBuilder/Features/Profile/Views/ProfileView.swift - COMPLETE VERSION WITH ENHANCED HEADER
 
 import SwiftUI
 import PhotosUI
 import Combine
 
-// MARK: - Profile View Model - SIMPLIFIED (Same as before)
+// MARK: - Profile View Model - ENHANCED WITH USER DETAILS
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
+    @Published var profileDetails: ProfileDetails? // Store full profile details
     @Published var isLoadingPhoto = false
+    @Published var isLoadingProfile = false // Loading state for profile details
     @Published var showImagePicker = false
     @Published var showCamera = false
     @Published var showPhotoOptions = false
@@ -15,11 +17,15 @@ class ProfileViewModel: ObservableObject {
     @Published var showError = false
     
     private let profilePhotoService: ProfilePhotoServiceProtocol
+    private let profileDetailsService: ProfileDetailsServiceProtocol // Profile details service
     private var cancellables = Set<AnyCancellable>()
     
-    init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService()) {
+    init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService(),
+         profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService()) {
         self.profilePhotoService = profilePhotoService
+        self.profileDetailsService = profileDetailsService
         loadProfilePhoto()
+        loadProfileDetails() // Load profile details
     }
     
     func loadProfilePhoto() {
@@ -36,6 +42,27 @@ class ProfileViewModel: ObservableObject {
                 },
                 receiveValue: { [weak self] url in
                     self?.profilePhotoURL = url
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // Load Profile Details
+    func loadProfileDetails() {
+        isLoadingProfile = true
+        
+        profileDetailsService.fetchProfileDetailsWithAutoRefresh()
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoadingProfile = false
+                    if case .failure(let error) = completion {
+                        print("❌ Failed to load profile details: \(error)")
+                    }
+                },
+                receiveValue: { [weak self] profile in
+                    self?.profileDetails = profile
+                    print("✅ Profile details loaded successfully")
                 }
             )
             .store(in: &cancellables)
@@ -93,7 +120,7 @@ class ProfileViewModel: ObservableObject {
     }
 }
 
-// MARK: - Profile View - UPDATED WITH NAVIGATION TO PROFILE DETAILS
+// MARK: - Profile View - ENHANCED USER INFO DISPLAY
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -103,7 +130,7 @@ struct ProfileView: View {
     @State private var showLogoutLoading = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
-    @State private var navigateToProfileDetails = false // 🔴 NEW: Navigation to Profile Details
+    @State private var navigateToProfileDetails = false
     
     var body: some View {
         NavigationStack {
@@ -113,8 +140,8 @@ struct ProfileView: View {
                 
                 ScrollView {
                     VStack(spacing: 32) {
-                        // Profile Header with Photo
-                        profileHeaderSection
+                        // ENHANCED: Profile Header with Better User Info
+                        enhancedProfileHeaderSection
                         
                         // Profile Stats
                         profileStatsSection
@@ -126,6 +153,10 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
+                }
+                .refreshable {
+                    profileViewModel.loadProfilePhoto()
+                    profileViewModel.loadProfileDetails()
                 }
                 
                 // Overlays (logout, error, etc.)
@@ -141,10 +172,16 @@ struct ProfileView: View {
                 MySportsView()
                     .environmentObject(localizationManager)
             }
-            // 🔴 NEW: Navigation to Profile Details
             .navigationDestination(isPresented: $navigateToProfileDetails) {
                 ProfileDetailsView()
                     .environmentObject(localizationManager)
+                    .onDisappear {
+                        // 🔴 SMOOTH REFRESH with animation when returning from ProfileDetailsView
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            profileViewModel.loadProfileDetails()
+                            profileViewModel.loadProfilePhoto()
+                        }
+                    }
             }
         }
         .photosPicker(isPresented: $profileViewModel.showImagePicker, selection: $selectedPhoto, matching: .images)
@@ -190,12 +227,17 @@ struct ProfileView: View {
         } message: {
             Text(profileViewModel.errorMessage)
         }
+        .onAppear {
+            // 🔴 REFRESH profile data when view appears
+            profileViewModel.loadProfileDetails()
+            profileViewModel.loadProfilePhoto()
+        }
     }
     
-    // MARK: - Profile Header Section with Photo (Same as before)
-    private var profileHeaderSection: some View {
-        VStack(spacing: 20) {
-            // Profile Image with Upload Functionality
+    // MARK: - ENHANCED Profile Header Section - BIGGER & BETTER USER INFO
+    private var enhancedProfileHeaderSection: some View {
+        VStack(spacing: 24) {
+            // Profile Image with Upload Functionality (Slightly bigger)
             Button(action: {
                 profileViewModel.showPhotoOptions = true
             }) {
@@ -204,7 +246,7 @@ struct ProfileView: View {
                         // Loading state
                         Circle()
                             .fill(Color.gray.opacity(0.1))
-                            .frame(width: 100, height: 100)
+                            .frame(width: 110, height: 110) // Slightly bigger
                             .overlay(
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
@@ -223,19 +265,19 @@ struct ProfileView: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                                 )
                         }
-                        .frame(width: 100, height: 100)
+                        .frame(width: 110, height: 110)
                         .clipShape(Circle())
                         
                         // Camera edit icon for existing photo
                         Circle()
                             .fill(Color.white)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 34, height: 34)
                             .overlay(
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: 15, weight: .medium))
                                     .foregroundColor(.primaryOrange)
                             )
-                            .offset(x: 35, y: 35)
+                            .offset(x: 38, y: 38)
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     } else {
                         // Modern default profile icon - SUBTLE & SOFT
@@ -252,7 +294,7 @@ struct ProfileView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 100, height: 100)
+                                .frame(width: 110, height: 110)
                             
                             // Subtle border
                             Circle()
@@ -260,24 +302,24 @@ struct ProfileView: View {
                                     Color.gray.opacity(0.15),
                                     lineWidth: 1
                                 )
-                                .frame(width: 100, height: 100)
+                                .frame(width: 110, height: 110)
                             
                             // Modern person icon - very subtle
                             Image(systemName: "person.crop.circle")
-                                .font(.system(size: 45, weight: .ultraLight))
+                                .font(.system(size: 50, weight: .ultraLight))
                                 .foregroundColor(.gray.opacity(0.3))
                         }
                         
                         // Add photo icon
                         Circle()
                             .fill(Color.primaryOrange)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 34, height: 34)
                             .overlay(
                                 Image(systemName: "plus")
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.system(size: 17, weight: .medium))
                                     .foregroundColor(.white)
                             )
-                            .offset(x: 35, y: 35)
+                            .offset(x: 38, y: 38)
                             .shadow(color: .primaryOrange.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
                 }
@@ -285,17 +327,63 @@ struct ProfileView: View {
             }
             .disabled(profileViewModel.isLoadingPhoto)
             
-            // User Info
-            VStack(spacing: 8) {
-                Text(getCurrentUsername())
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
+            // ENHANCED User Info - BIGGER AND MORE PROMINENT
+            VStack(spacing: 12) {
+                // Username - Large and Bold
+                if profileViewModel.isLoadingProfile {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+                            .scaleEffect(0.8)
+                        Text("Loading...")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .transition(.opacity.combined(with: .scale))
+                } else {
+                    VStack(spacing: 12) {
+                        Text(getDisplayUsername())
+                            .font(.system(size: 28, weight: .bold, design: .rounded)) // Bigger font
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .transition(.opacity.combined(with: .scale))
+                        
+                        // Full Name - Prominent but smaller than username
+                        if let fullName = getDisplayFullName(), !fullName.isEmpty {
+                            Text(fullName)
+                                .font(.system(size: 20, weight: .semibold, design: .rounded)) // New: Full name display
+                                .foregroundColor(.textSecondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                        
+                        // Optional: Bio preview (first line only)
+                        if let bio = profileViewModel.profileDetails?.bio,
+                           !bio.isEmpty,
+                           bio.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 {
+                            Text(bio)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.textSecondary.opacity(0.8))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 4)
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.username)
+                    .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.firstName)
+                    .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.lastName)
+                    .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.bio)
+                }
             }
         }
         .padding(.top, 20)
     }
     
-    // MARK: - Profile Stats Section (Same as before)
+    // MARK: - Profile Stats Section
     private var profileStatsSection: some View {
         HStack(spacing: 0) {
             ProfileStatCard(
@@ -333,16 +421,15 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Menu Section - UPDATED WITH PROFILE DETAILS NAVIGATION
+    // MARK: - Menu Section
     private var menuSection: some View {
         VStack(spacing: 0) {
-            // 🔴 UPDATED: Navigate to ProfileDetailsView
             ProfileMenuRow(
                 icon: "person.crop.circle",
                 title: "profile.menu.profile".localized(using: localizationManager),
                 color: .primaryOrange,
                 action: {
-                    navigateToProfileDetails = true // Navigate to Profile Details
+                    navigateToProfileDetails = true
                 }
             )
             
@@ -417,7 +504,7 @@ struct ProfileView: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Logout Confirmation Overlay (Same as before)
+    // MARK: - Logout Confirmation Overlay
     private var logoutConfirmationOverlay: some View {
         Color.black.opacity(0.4)
             .ignoresSafeArea()
@@ -518,7 +605,7 @@ struct ProfileView: View {
             )
     }
     
-    // MARK: - Logout Loading Overlay (Same as before)
+    // MARK: - Logout Loading Overlay
     private var logoutLoadingOverlay: some View {
         ZStack {
             Color.gray
@@ -549,16 +636,39 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - Helper Methods
-    private func getCurrentUsername() -> String {
+    // MARK: - ENHANCED Helper Methods
+    private func getDisplayUsername() -> String {
+        if let profile = profileViewModel.profileDetails {
+            return profile.username
+        }
+        
+        // Fallback to UserDefaults
         if let username = UserDefaults.standard.string(forKey: "username"), !username.isEmpty {
             return username
         }
+        
         return "profile.user.name".localized(using: localizationManager)
+    }
+    
+    private func getDisplayFullName() -> String? {
+        guard let profile = profileViewModel.profileDetails else { return nil }
+        
+        let firstName = profile.firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let lastName = profile.lastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        if firstName.isEmpty && lastName.isEmpty {
+            return nil // Don't show anything if both are empty
+        } else if firstName.isEmpty {
+            return lastName
+        } else if lastName.isEmpty {
+            return firstName
+        } else {
+            return "\(firstName) \(lastName)"
+        }
     }
 }
 
-// MARK: - Supporting Views (Same as before)
+// MARK: - Supporting Views
 
 // MARK: - Custom Photo Selection Sheet
 struct CustomPhotoSelectionSheet: View {
@@ -789,4 +899,11 @@ struct ProfileMenuDivider: View {
             .padding(.leading, 72)
             .background(Color.formBorder.opacity(0.2))
     }
+}
+
+// MARK: - Preview
+#Preview {
+    ProfileView()
+        .environmentObject(AuthenticationViewModel())
+        .environmentObject(LocalizationManager())
 }

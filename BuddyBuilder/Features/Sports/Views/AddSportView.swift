@@ -288,10 +288,6 @@ struct AddSportView: View {
             .foregroundColor(.primaryOrange)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.primaryOrange.opacity(0.1))
-            )
         }
     }
     

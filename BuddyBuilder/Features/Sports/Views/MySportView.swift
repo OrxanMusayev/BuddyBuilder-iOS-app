@@ -172,16 +172,12 @@ struct MySportsView: View {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 16, weight: .medium))
-                Text("Back")
+                Text("")
                     .font(.system(size: 16, weight: .medium))
             }
             .foregroundColor(.primaryOrange)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.primaryOrange.opacity(0.1))
-            )
         }
     }
     

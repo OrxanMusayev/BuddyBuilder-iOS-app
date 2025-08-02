@@ -238,22 +238,30 @@ struct AddSportView: View {
         }
     }
     
-    // MARK: - Custom Header (With Back Button to My Sports)
+    // MARK: - Custom Header (Fixed Width Layout for Perfect Centering)
     private var customHeader: some View {
         VStack(spacing: 16) {
             HStack {
-                backButton
+                // Back button area - Fixed width container (80px)
+                HStack {
+                    backButton
+                    Spacer()
+                }
+                .frame(width: 80, alignment: .leading)
+                
+                // Title - Centered and flexible
                 Spacer()
                 headerTitle
                 Spacer()
-                // Save button (only visible when sports are selected)
-                if !viewModel.selectedSports.isEmpty {
-                    saveButton
-                } else {
-                    // Invisible spacer to maintain layout balance
-                    Color.clear
-                        .frame(width: 80, height: 44)
+                
+                // Save button area - Fixed width container (80px)
+                HStack {
+                    Spacer()
+                    if !viewModel.selectedSports.isEmpty {
+                        saveButton
+                    }
                 }
+                .frame(width: 80, alignment: .trailing)
             }
             
             // Progress indicator
@@ -281,13 +289,11 @@ struct AddSportView: View {
     
     private var backButton: some View {
         Button(action: { dismiss() }) {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 16, weight: .medium))
-            }
-            .foregroundColor(.primaryOrange)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            Image(systemName: "arrow.left")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.primaryOrange)
+                .frame(width: 44, height: 44)
+                .background(Color.clear)
         }
     }
     
@@ -306,29 +312,31 @@ struct AddSportView: View {
                 }
             }
         }) {
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 if viewModel.isSaving {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.8)
+                        .scaleEffect(0.7)
                 } else {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                 }
                 
                 Text(viewModel.isSaving ? "Saving..." : "Save")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
             }
             .foregroundColor(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(viewModel.canSave ? Color.primaryOrange : Color.gray)
             )
             .shadow(color: viewModel.canSave ? .primaryOrange.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
         }
         .disabled(!viewModel.canSave)
+        .transition(.scale.combined(with: .opacity))
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: !viewModel.selectedSports.isEmpty)
     }
     
     // MARK: - Search Section

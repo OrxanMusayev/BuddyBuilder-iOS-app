@@ -1,15 +1,21 @@
-// BuddyBuilder/Features/Sports/Views/MySportsView.swift - COMPLETE FILE
+// BuddyBuilder/Features/Sports/Views/MySportsView.swift - NAVIGATION ALERT BUG FIXED
 
 import SwiftUI
 import Combine
 
-// MARK: - My Sports View Model
+// MARK: - My Sports View Model - ENHANCED WITH ALERT MANAGEMENT
 class MySportsViewModel: ObservableObject {
     @Published var userSports: [UserSport] = []
     @Published var isLoading = false
     @Published var errorMessage: String = ""
     @Published var showError = false
     @Published var isUpdating = false
+    
+    // 🔴 FIX: Centralized alert management in ViewModel
+    @Published var showDeleteConfirmation = false
+    @Published var sportToDelete: UserSport?
+    @Published var showLevelPicker = false
+    @Published var sportToEditLevel: UserSport?
     
     private let mySportsService: MySportsServiceProtocol
     private let profileService: ProfileServiceProtocol
@@ -43,10 +49,28 @@ class MySportsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func removeSport(_ userSport: UserSport) {
-        print(userSport.id)
+    // 🔴 FIX: Centralized delete confirmation method
+    func requestDeleteSport(_ userSport: UserSport) {
+        print("🗑️ Requesting delete confirmation for: \(userSport.name)")
+        sportToDelete = userSport
+        showDeleteConfirmation = true
+    }
+    
+    // 🔴 FIX: Actual delete method
+    func confirmDeleteSport() {
+        guard let sportToDelete = sportToDelete else {
+            print("❌ No sport to delete")
+            return
+        }
+        
+        print("🗑️ Confirming delete for sport: \(sportToDelete.name) with ID: \(sportToDelete.id)")
+        
+        // Clear the pending delete state immediately
+        self.sportToDelete = nil
+        showDeleteConfirmation = false
+        
         // Use ProfileService for deleting sport
-        profileService.deleteSport(sportId: userSport.id)
+        profileService.deleteSport(sportId: sportToDelete.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -67,12 +91,38 @@ class MySportsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func updateSportExperience(_ userSport: UserSport, newLevel: ExperienceLevel) {
+    // 🔴 FIX: Cancel delete method
+    func cancelDeleteSport() {
+        print("❌ Delete cancelled")
+        sportToDelete = nil
+        showDeleteConfirmation = false
+    }
+    
+    // 🔴 FIX: Centralized level picker management
+    func requestEditLevel(_ userSport: UserSport) {
+        print("✏️ Requesting level edit for: \(userSport.name)")
+        sportToEditLevel = userSport
+        showLevelPicker = true
+    }
+    
+    // 🔴 FIX: Update sport experience method
+    func updateSportExperience(newLevel: ExperienceLevel) {
+        guard let sportToEdit = sportToEditLevel else {
+            print("❌ No sport to edit level")
+            return
+        }
+        
+        print("📊 Updating experience level for: \(sportToEdit.name) to: \(newLevel.displayName)")
+        
+        // Clear the pending edit state
+        sportToEditLevel = nil
+        showLevelPicker = false
+        
         isUpdating = true
         
         // Use ProfileService for updating experience level
         profileService.updateSportExperience(
-            sportId: userSport.id,
+            sportId: sportToEdit.id,
             experienceLevel: newLevel.rawValue
         )
         .receive(on: DispatchQueue.main)
@@ -86,8 +136,7 @@ class MySportsViewModel: ObservableObject {
             receiveValue: { [weak self] success in
                 if success {
                     print("✅ Sport experience updated successfully via Profile API")
-                    // UI will be updated when MySports is refreshed
-                    // For immediate UI feedback, we could reload MySports:
+                    // Reload data to reflect changes
                     self?.loadMySports()
                 } else {
                     self?.handleError("Failed to update sport experience")
@@ -97,6 +146,13 @@ class MySportsViewModel: ObservableObject {
         .store(in: &cancellables)
     }
     
+    // 🔴 FIX: Cancel level edit method
+    func cancelEditLevel() {
+        print("❌ Level edit cancelled")
+        sportToEditLevel = nil
+        showLevelPicker = false
+    }
+    
     private func handleError(_ message: String) {
         errorMessage = message
         showError = true
@@ -104,12 +160,12 @@ class MySportsViewModel: ObservableObject {
     }
 }
 
-// MARK: - My Sports View
+// MARK: - My Sports View - CENTRALIZED ALERT MANAGEMENT
 struct MySportsView: View {
     @StateObject private var viewModel = MySportsViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.dismiss) var dismiss
-    @State private var navigateToAddSport = false // For animated navigation
+    @State private var navigateToAddSport = false
     
     var body: some View {
         mainContent
@@ -122,10 +178,44 @@ struct MySportsView: View {
                 .environmentObject(localizationManager)
             }
             .navigationBarHidden(true)
+            // 🔴 FIX: Centralized alerts at view level
             .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK") { }
             } message: {
                 Text(viewModel.errorMessage)
+            }
+            // 🔴 FIX: Simple delete confirmation overlay
+            .overlay(
+                Group {
+                    if viewModel.showDeleteConfirmation {
+                        CustomDeleteConfirmationOverlay(
+                            sport: viewModel.sportToDelete,
+                            onConfirm: {
+                                viewModel.confirmDeleteSport()
+                            },
+                            onCancel: {
+                                viewModel.cancelDeleteSport()
+                            }
+                        )
+                        .transition(.opacity.combined(with: .scale))
+                        .zIndex(1000)
+                    }
+                }
+            )
+            // 🔴 FIX: Custom level picker sheet at view level
+            .fullScreenCover(isPresented: $viewModel.showLevelPicker) {
+                if let sport = viewModel.sportToEditLevel {
+                    CustomExperienceLevelPicker(
+                        currentLevel: sport.experienceLevelEnum ?? .beginner,
+                        sportName: sport.name,
+                        onLevelSelected: { newLevel in
+                            viewModel.updateSportExperience(newLevel: newLevel)
+                        },
+                        onCancel: {
+                            viewModel.cancelEditLevel()
+                        }
+                    )
+                }
             }
     }
     
@@ -282,26 +372,28 @@ struct MySportsView: View {
     }
     
     private func sportCardView(for userSport: UserSport) -> some View {
-        EnhancedMySportCard(
+        CleanMySportCard(
             userSport: userSport,
             isUpdating: viewModel.isUpdating,
-            onRemove: { viewModel.removeSport(userSport) },
-            onUpdateExperience: { newLevel in
-                viewModel.updateSportExperience(userSport, newLevel: newLevel)
+            onRemove: {
+                // 🔴 FIX: Direct call to ViewModel method
+                viewModel.requestDeleteSport(userSport)
+            },
+            onEditLevel: {
+                // 🔴 FIX: Direct call to ViewModel method
+                viewModel.requestEditLevel(userSport)
             }
         )
     }
 }
 
-// MARK: - Enhanced My Sport Card
-struct EnhancedMySportCard: View {
+// MARK: - Clean My Sport Card - NO INTERNAL ALERTS
+struct CleanMySportCard: View {
     let userSport: UserSport
     let isUpdating: Bool
     let onRemove: () -> Void
-    let onUpdateExperience: (ExperienceLevel) -> Void
+    let onEditLevel: () -> Void
     
-    @State private var showRemoveConfirmation = false
-    @State private var showLevelPicker = false
     @State private var imageLoadError = false
     
     var body: some View {
@@ -315,19 +407,7 @@ struct EnhancedMySportCard: View {
         .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 6)
         .opacity(isUpdating ? 0.7 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isUpdating)
-        .confirmationDialog("Remove Sport", isPresented: $showRemoveConfirmation) {
-            Button("Remove", role: .destructive) { onRemove() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Are you sure you want to remove \(userSport.name) from your sports?")
-        }
-        .sheet(isPresented: $showLevelPicker) {
-            ExperienceLevelPickerSheet(
-                currentLevel: userSport.experienceLevelEnum ?? .beginner,
-                sportName: userSport.name,
-                onLevelSelected: onUpdateExperience
-            )
-        }
+        // 🔴 FIX: No alerts at card level - all managed by parent view
     }
     
     private var backgroundOverlay: some View {
@@ -388,7 +468,11 @@ struct EnhancedMySportCard: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white.opacity(0.8))
             
-            Button(action: { showLevelPicker = true }) {
+            Button(action: {
+                // 🔴 FIX: Simple callback, no internal state
+                print("🎯 Level edit requested for: \(userSport.name)")
+                onEditLevel()
+            }) {
                 experienceLevelContent
             }
             .disabled(isUpdating)
@@ -420,76 +504,14 @@ struct EnhancedMySportCard: View {
         }
     }
     
-    private var bottomRow: some View {
-        HStack(alignment: .bottom) {
-            descriptionSection
-            Spacer(minLength: 24)
-            actionButtons
-        }
-    }
-    
-    private var actionButtons: some View {
-        HStack(spacing: 16) {
-            if isUpdating {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(0.9)
-                    .frame(width: 44, height: 44)
-            }
-            
-            Button(action: { showRemoveConfirmation = true }) {
-                ZStack {
-                    // Modern glassmorphism background
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.ultraThinMaterial)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.red.opacity(0.15))
-                        )
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                        )
-                    
-                    // Modern trash icon
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.red.opacity(0.9), .red],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-                .scaleEffect(isUpdating ? 0.8 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isUpdating)
-                .shadow(color: .red.opacity(0.2), radius: 8, x: 0, y: 4)
-            }
-            .disabled(isUpdating)
-            .buttonStyle(ModernButtonStyle())
-        }
-    }
-    
-    private var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if !userSport.description.isEmpty {
-                Text(userSport.description)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white.opacity(0.8))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text("Added \(userSport.formattedAddedDate)")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.white.opacity(0.6))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    
     private var deleteButton: some View {
-        Button(action: { showRemoveConfirmation = true }) {
+        Button(action: {
+            // 🔴 FIX: Simple callback with haptic feedback, no internal state
+            print("🗑️ Delete requested for: \(userSport.name)")
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            onRemove()
+        }) {
             if isUpdating {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -596,73 +618,289 @@ struct EnhancedMySportCard: View {
     }
 }
 
-// MARK: - Experience Level Picker Sheet
-struct ExperienceLevelPickerSheet: View {
+// MARK: - Custom Experience Level Picker - MODERN FULL SCREEN
+struct CustomExperienceLevelPicker: View {
     let currentLevel: ExperienceLevel
     let sportName: String
     let onLevelSelected: (ExperienceLevel) -> Void
-    @Environment(\.dismiss) var dismiss
+    let onCancel: () -> Void
+    @State private var selectedLevel: ExperienceLevel
+    @State private var isAnimating = false
+    
+    init(currentLevel: ExperienceLevel, sportName: String, onLevelSelected: @escaping (ExperienceLevel) -> Void, onCancel: @escaping () -> Void) {
+        self.currentLevel = currentLevel
+        self.sportName = sportName
+        self.onLevelSelected = onLevelSelected
+        self.onCancel = onCancel
+        self._selectedLevel = State(initialValue: currentLevel)
+    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            sheetHeader
-            levelOptionsSection
-            cancelButton
+        ZStack {
+            // Background
+            LinearGradient(
+                colors: [
+                    Color.primaryOrange.opacity(0.1),
+                    Color.blue.opacity(0.1),
+                    Color.purple.opacity(0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Custom header
+                customHeader
+                
+                // Main content
+                Spacer()
+                levelSelectionContent
+                Spacer()
+                
+                // Action buttons
+                actionButtons
+            }
         }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(400)])
-        .presentationDragIndicator(.hidden)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                isAnimating = true
+            }
+        }
     }
     
-    private var sheetHeader: some View {
-        VStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 40, height: 5)
-                .padding(.top, 8)
-            
-            Text("Experience Level")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.textPrimary)
-            
-            Text("Select your experience level for \(sportName)")
-                .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.bottom, 24)
-    }
-    
-    private var levelOptionsSection: some View {
-        VStack(spacing: 12) {
-            ForEach(ExperienceLevel.allCases, id: \.self) { level in
-                ExperienceLevelRow(
-                    level: level,
-                    isSelected: level == currentLevel,
-                    onSelect: {
-                        onLevelSelected(level)
-                        dismiss()
+    private var customHeader: some View {
+        VStack(spacing: 16) {
+            HStack {
+                // Close button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        onCancel()
                     }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(.ultraThinMaterial))
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                }
+                
+                Spacer()
+                
+                // Save button (only if level changed)
+                if selectedLevel != currentLevel {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            onLevelSelected(selectedLevel)
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Save")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(Color.primaryOrange)
+                                .shadow(color: .primaryOrange.opacity(0.3), radius: 8, x: 0, y: 4)
+                        )
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            
+            // Title section
+            VStack(spacing: 8) {
+                Text("Experience Level")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Text("Select your experience level for \(sportName)")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 32)
+    }
+    
+    private var levelSelectionContent: some View {
+        VStack(spacing: 24) {
+            ForEach(ExperienceLevel.allCases, id: \.self) { level in
+                ModernLevelCard(
+                    level: level,
+                    isSelected: selectedLevel == level,
+                    onSelect: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            selectedLevel = level
+                        }
+                    }
+                )
+                .scaleEffect(isAnimating ? 1.0 : 0.8)
+                .opacity(isAnimating ? 1.0 : 0.0)
+                .animation(
+                    .spring(response: 0.5, dampingFraction: 0.8)
+                        .delay(Double(level.rawValue - 1) * 0.1),
+                    value: isAnimating
                 )
             }
         }
         .padding(.horizontal, 20)
     }
     
-    private var cancelButton: some View {
-        Button(action: { dismiss() }) {
-            Text("Cancel")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(Color.formBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
+    private var actionButtons: some View {
+        VStack(spacing: 16) {
+            if selectedLevel != currentLevel {
+                // Confirm button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        onLevelSelected(selectedLevel)
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                        Text("Update Experience Level")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        LinearGradient(
+                            colors: [.primaryOrange, .primaryOrange.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                    .shadow(color: .primaryOrange.opacity(0.3), radius: 12, x: 0, y: 6)
+                }
+            }
+            
+            // Cancel button
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    onCancel()
+                }
+            }) {
+                Text("Cancel")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 28)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+            }
         }
         .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 20)
+        .padding(.bottom, 40)
+    }
+}
+
+// MARK: - Modern Level Card
+struct ModernLevelCard: View {
+    let level: ExperienceLevel
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 20) {
+                // Level indicator
+                levelIndicator
+                
+                // Level info
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(level.displayName)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(isSelected ? .white : .primary)
+                    
+                }
+                
+                Spacer()
+                
+                // Selection indicator
+                selectionIndicator
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .background(cardBackground)
+            .overlay(cardBorder)
+            .shadow(color: isSelected ? .primaryOrange.opacity(0.2) : .black.opacity(0.05), radius: isSelected ? 12 : 6, x: 0, y: isSelected ? 6 : 3)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+    
+    private var levelIndicator: some View {
+        VStack(spacing: 8) {
+            // Level dots
+            HStack(spacing: 6) {
+                ForEach(1...4, id: \.self) { dot in
+                    Circle()
+                        .fill(dot <= level.rawValue ?
+                              (isSelected ? Color.white : Color.primaryOrange) :
+                              (isSelected ? Color.white.opacity(0.3) : Color.gray.opacity(0.3)))
+                        .frame(width: 12, height: 12)
+                }
+            }
+            
+            // Level number
+            Text("\(level.rawValue)")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(isSelected ? .white : .primaryOrange)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(isSelected ? Color.white.opacity(0.2) : Color.primaryOrange.opacity(0.1))
+                        .overlay(
+                            Circle()
+                                .stroke(isSelected ? Color.white.opacity(0.4) : Color.primaryOrange.opacity(0.3), lineWidth: 2)
+                        )
+                )
+        }
+    }
+    
+    private var selectionIndicator: some View {
+        Group {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundColor(.white)
+                    .scaleEffect(1.2)
+            } else {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 2)
+                    .frame(width: 24, height: 24)
+            }
+        }
+    }
+    
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 20)
+            .fill(isSelected ?
+                  LinearGradient(colors: [.primaryOrange, .primaryOrange.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                  LinearGradient(colors: [.white, .white], startPoint: .topLeading, endPoint: .bottomTrailing))
+    }
+    
+    private var cardBorder: some View {
+        RoundedRectangle(cornerRadius: 20)
+            .stroke(isSelected ? Color.primaryOrange : Color.secondary.opacity(0.1), lineWidth: isSelected ? 2 : 1)
     }
 }
 
@@ -729,13 +967,78 @@ struct ExperienceLevelRow: View {
     }
 }
 
-// MARK: - Modern Button Style
-struct ModernButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+// MARK: - Simple Delete Confirmation Overlay
+struct CustomDeleteConfirmationOverlay: View {
+    let sport: UserSport?
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+    @State private var isAnimating = false
+    
+    var body: some View {
+        ZStack {
+            // Background blur
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onCancel()
+                }
+            
+            // Simple confirmation card
+            VStack(spacing: 20) {
+                // Icon and question
+                VStack(spacing: 12) {
+                    Image(systemName: "trash.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.red)
+                    
+                    if let sport = sport {
+                        Text("Remove \(sport.name)?")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                
+                // Action buttons
+                HStack(spacing: 12) {
+                    // Cancel button
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+                    
+                    // Remove button
+                    Button("Remove") {
+                        onConfirm()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color.red)
+                    .clipShape(Capsule())
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .shadow(radius: 15)
+            )
+            .frame(maxWidth: 240)
+            .scaleEffect(isAnimating ? 1.0 : 0.9)
+            .opacity(isAnimating ? 1.0 : 0.0)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.2)) {
+                isAnimating = true
+            }
+        }
     }
 }
 

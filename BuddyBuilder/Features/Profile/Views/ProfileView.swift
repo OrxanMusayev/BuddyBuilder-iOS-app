@@ -447,17 +447,6 @@ struct ProfileView: View {
             ProfileMenuDivider()
             
             ProfileMenuRow(
-                icon: "trophy.circle",
-                title: "profile.menu.achievements".localized(using: localizationManager),
-                color: .primaryOrange,
-                action: {
-                    // TODO: Navigate to achievements
-                }
-            )
-            
-            ProfileMenuDivider()
-            
-            ProfileMenuRow(
                 icon: "gearshape.circle",
                 title: "profile.menu.settings".localized(using: localizationManager),
                 color: .gray,

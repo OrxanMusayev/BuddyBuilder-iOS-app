@@ -379,6 +379,43 @@ struct NotificationSettings: Codable {
     let newParticipants: Bool
     let invitations: Bool
     let reminderHours: [Int] // Hours before event to remind (e.g., [24, 2])
+    var pushNotificationsEnabled: Bool
+    var eventRemindersEnabled: Bool
+    var messagingEnabled: Bool
+    var marketingEnabled: Bool
+    
+    // Custom initializer for default values
+    init(
+        pushNotifications: Bool = true,
+        emailNotifications: Bool = true,
+        smsNotifications: Bool = false,
+        eventReminders: Bool = true,
+        registrationDeadlines: Bool = true,
+        eventUpdates: Bool = true,
+        newParticipants: Bool = false,
+        invitations: Bool = true,
+        reminderHours: [Int] = [24, 2],
+        pushNotificationsEnabled: Bool = true,
+        eventRemindersEnabled: Bool = true,
+        messagingEnabled: Bool = true,
+        marketingEnabled: Bool = false
+    ) {
+        self.pushNotifications = pushNotifications
+        self.emailNotifications = emailNotifications
+        self.smsNotifications = smsNotifications
+        self.eventReminders = eventReminders
+        self.registrationDeadlines = registrationDeadlines
+        self.eventUpdates = eventUpdates
+        self.newParticipants = newParticipants
+        self.invitations = invitations
+        self.reminderHours = reminderHours
+        self.pushNotificationsEnabled = pushNotificationsEnabled
+        self.eventRemindersEnabled = eventRemindersEnabled
+        self.messagingEnabled = messagingEnabled
+        self.marketingEnabled = marketingEnabled
+    }
+    
+    static let `default` = NotificationSettings()
 }
 
 import SwiftUI

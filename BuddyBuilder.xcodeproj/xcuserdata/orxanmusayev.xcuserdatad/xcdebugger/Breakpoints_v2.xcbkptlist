@@ -248,7 +248,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "434100BA-E92B-4BE6-B4C5-22B3F6AE005E"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "BuddyBuilder/Core/Network/NetworkManager.swift"
@@ -401,22 +401,6 @@
             startingLineNumber = "83"
             endingLineNumber = "83"
             landmarkName = "updateSportExperience(sportId:experienceLevel:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "64BDFAFF-7407-40AB-93D6-917112C4289B"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "BuddyBuilder/Features/Sports/Views/MySportView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "47"
-            endingLineNumber = "47"
-            landmarkName = "removeSport(_:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

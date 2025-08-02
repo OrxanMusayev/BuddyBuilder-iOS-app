@@ -68,6 +68,25 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // 🆕 YENİ: Sadece user details için güncelleme (photo yenileme yok)
+    func refreshUserDetailsOnly() {
+        profileDetailsService.fetchProfileDetailsWithAutoRefresh()
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    if case .failure(let error) = completion {
+                        print("❌ Failed to refresh user details: \(error)")
+                    }
+                },
+                receiveValue: { [weak self] profile in
+                    // Sadece kullanıcı bilgilerini güncelle, photo'yu yenileme
+                    self?.profileDetails = profile
+                    print("✅ User details refreshed (name, username, bio only)")
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
     func uploadProfilePhoto(_ imageData: Data) {
         isLoadingPhoto = true
         
@@ -131,6 +150,7 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
     @State private var navigateToProfileDetails = false
+    @State private var navigateToSettings = false // 🆕 Settings navigation
     
     var body: some View {
         NavigationStack {
@@ -176,12 +196,15 @@ struct ProfileView: View {
                 ProfileDetailsView()
                     .environmentObject(localizationManager)
                     .onDisappear {
-                        // 🔴 SMOOTH REFRESH with animation when returning from ProfileDetailsView
+                        // 🔄 SADECE USER DETAILS için smooth refresh (photo yenileme yok)
                         withAnimation(.easeInOut(duration: 0.5)) {
-                            profileViewModel.loadProfileDetails()
-                            profileViewModel.loadProfilePhoto()
+                            profileViewModel.refreshUserDetailsOnly()
                         }
                     }
+            }
+            .navigationDestination(isPresented: $navigateToSettings) {
+                SettingsView()
+                    .environmentObject(localizationManager)
             }
         }
         .photosPicker(isPresented: $profileViewModel.showImagePicker, selection: $selectedPhoto, matching: .images)
@@ -373,6 +396,7 @@ struct ProfileView: View {
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
+                    // 🎯 SADECE USER DETAILS için animasyon (menüler etkilenmiyor)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.username)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.firstName)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.lastName)
@@ -415,7 +439,7 @@ struct ProfileView: View {
                 color: .primaryOrange
             )
         }
-        .padding(20)
+        .padding(10)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 25))
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
@@ -451,7 +475,7 @@ struct ProfileView: View {
                 title: "profile.menu.settings".localized(using: localizationManager),
                 color: .gray,
                 action: {
-                    // TODO: Show settings submenu
+                    navigateToSettings = true // 🆕 Settings navigation
                 }
             )
             

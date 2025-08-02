@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Sports/Views/MySportsView.swift - NAVIGATION ALERT BUG FIXED
+// BuddyBuilder/Features/Sports/Views/MySportsView.swift - UPDATED WITH ExperienceLevelPickerSheet
 
 import SwiftUI
 import Combine
@@ -160,7 +160,7 @@ class MySportsViewModel: ObservableObject {
     }
 }
 
-// MARK: - My Sports View - CENTRALIZED ALERT MANAGEMENT
+// MARK: - My Sports View - WITH ExperienceLevelPickerSheet
 struct MySportsView: View {
     @StateObject private var viewModel = MySportsViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -202,17 +202,14 @@ struct MySportsView: View {
                     }
                 }
             )
-            // 🔴 FIX: Custom level picker sheet at view level
-            .fullScreenCover(isPresented: $viewModel.showLevelPicker) {
+            // 🔄 UPDATED: Use ExperienceLevelPickerSheet instead of custom picker
+            .sheet(isPresented: $viewModel.showLevelPicker) {
                 if let sport = viewModel.sportToEditLevel {
-                    CustomExperienceLevelPicker(
+                    ExperienceLevelPickerSheet(
                         currentLevel: sport.experienceLevelEnum ?? .beginner,
                         sportName: sport.name,
                         onLevelSelected: { newLevel in
                             viewModel.updateSportExperience(newLevel: newLevel)
-                        },
-                        onCancel: {
-                            viewModel.cancelEditLevel()
                         }
                     )
                 }
@@ -618,293 +615,77 @@ struct CleanMySportCard: View {
     }
 }
 
-// MARK: - Custom Experience Level Picker - MODERN FULL SCREEN
-struct CustomExperienceLevelPicker: View {
+// MARK: - Experience Level Picker Sheet (FROM YOUR FIRST DOCUMENT)
+struct ExperienceLevelPickerSheet: View {
     let currentLevel: ExperienceLevel
     let sportName: String
     let onLevelSelected: (ExperienceLevel) -> Void
-    let onCancel: () -> Void
-    @State private var selectedLevel: ExperienceLevel
-    @State private var isAnimating = false
-    
-    init(currentLevel: ExperienceLevel, sportName: String, onLevelSelected: @escaping (ExperienceLevel) -> Void, onCancel: @escaping () -> Void) {
-        self.currentLevel = currentLevel
-        self.sportName = sportName
-        self.onLevelSelected = onLevelSelected
-        self.onCancel = onCancel
-        self._selectedLevel = State(initialValue: currentLevel)
-    }
+    @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        ZStack {
-            // Background
-            LinearGradient(
-                colors: [
-                    Color.primaryOrange.opacity(0.1),
-                    Color.blue.opacity(0.1),
-                    Color.purple.opacity(0.1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Custom header
-                customHeader
-                
-                // Main content
-                Spacer()
-                levelSelectionContent
-                Spacer()
-                
-                // Action buttons
-                actionButtons
-            }
+        VStack(spacing: 0) {
+            sheetHeader
+            levelOptionsSection
+            cancelButton
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                isAnimating = true
-            }
-        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .presentationDetents([.height(400)])
+        .presentationDragIndicator(.hidden)
     }
     
-    private var customHeader: some View {
-        VStack(spacing: 16) {
-            HStack {
-                // Close button
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        onCancel()
-                    }
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(.ultraThinMaterial))
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                }
-                
-                Spacer()
-                
-                // Save button (only if level changed)
-                if selectedLevel != currentLevel {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            onLevelSelected(selectedLevel)
-                        }
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Save")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule()
-                                .fill(Color.primaryOrange)
-                                .shadow(color: .primaryOrange.opacity(0.3), radius: 8, x: 0, y: 4)
-                        )
-                    }
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
+    private var sheetHeader: some View {
+        VStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 5)
+                .padding(.top, 8)
             
-            // Title section
-            VStack(spacing: 8) {
-                Text("Experience Level")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-                
-                Text("Select your experience level for \(sportName)")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+            Text("Experience Level")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.textPrimary)
+            
+            Text("Select your experience level for \(sportName)")
+                .font(.system(size: 14))
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.bottom, 24)
+    }
+    
+    private var levelOptionsSection: some View {
+        VStack(spacing: 12) {
+            ForEach(ExperienceLevel.allCases, id: \.self) { level in
+                ExperienceLevelRow(
+                    level: level,
+                    isSelected: level == currentLevel,
+                    onSelect: {
+                        onLevelSelected(level)
+                        dismiss()
+                    }
+                )
             }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    private var cancelButton: some View {
+        Button(action: { dismiss() }) {
+            Text("Cancel")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(Color.formBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
-        .padding(.bottom, 32)
-    }
-    
-    private var levelSelectionContent: some View {
-        VStack(spacing: 24) {
-            ForEach(ExperienceLevel.allCases, id: \.self) { level in
-                ModernLevelCard(
-                    level: level,
-                    isSelected: selectedLevel == level,
-                    onSelect: {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            selectedLevel = level
-                        }
-                    }
-                )
-                .scaleEffect(isAnimating ? 1.0 : 0.8)
-                .opacity(isAnimating ? 1.0 : 0.0)
-                .animation(
-                    .spring(response: 0.5, dampingFraction: 0.8)
-                        .delay(Double(level.rawValue - 1) * 0.1),
-                    value: isAnimating
-                )
-            }
-        }
-        .padding(.horizontal, 20)
-    }
-    
-    private var actionButtons: some View {
-        VStack(spacing: 16) {
-            if selectedLevel != currentLevel {
-                // Confirm button
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        onLevelSelected(selectedLevel)
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18))
-                        Text("Update Experience Level")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        LinearGradient(
-                            colors: [.primaryOrange, .primaryOrange.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .shadow(color: .primaryOrange.opacity(0.3), radius: 12, x: 0, y: 6)
-                }
-            }
-            
-            // Cancel button
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    onCancel()
-                }
-            }) {
-                Text("Cancel")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        RoundedRectangle(cornerRadius: 28)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                            )
-                    )
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 40)
+        .padding(.bottom, 20)
     }
 }
 
-// MARK: - Modern Level Card
-struct ModernLevelCard: View {
-    let level: ExperienceLevel
-    let isSelected: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 20) {
-                // Level indicator
-                levelIndicator
-                
-                // Level info
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(level.displayName)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(isSelected ? .white : .primary)
-                    
-                }
-                
-                Spacer()
-                
-                // Selection indicator
-                selectionIndicator
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-            .background(cardBackground)
-            .overlay(cardBorder)
-            .shadow(color: isSelected ? .primaryOrange.opacity(0.2) : .black.opacity(0.05), radius: isSelected ? 12 : 6, x: 0, y: isSelected ? 6 : 3)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-    }
-    
-    private var levelIndicator: some View {
-        VStack(spacing: 8) {
-            // Level dots
-            HStack(spacing: 6) {
-                ForEach(1...4, id: \.self) { dot in
-                    Circle()
-                        .fill(dot <= level.rawValue ?
-                              (isSelected ? Color.white : Color.primaryOrange) :
-                              (isSelected ? Color.white.opacity(0.3) : Color.gray.opacity(0.3)))
-                        .frame(width: 12, height: 12)
-                }
-            }
-            
-            // Level number
-            Text("\(level.rawValue)")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(isSelected ? .white : .primaryOrange)
-                .frame(width: 32, height: 32)
-                .background(
-                    Circle()
-                        .fill(isSelected ? Color.white.opacity(0.2) : Color.primaryOrange.opacity(0.1))
-                        .overlay(
-                            Circle()
-                                .stroke(isSelected ? Color.white.opacity(0.4) : Color.primaryOrange.opacity(0.3), lineWidth: 2)
-                        )
-                )
-        }
-    }
-    
-    private var selectionIndicator: some View {
-        Group {
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 24, weight: .medium))
-                    .foregroundColor(.white)
-                    .scaleEffect(1.2)
-            } else {
-                Circle()
-                    .stroke(Color.secondary.opacity(0.3), lineWidth: 2)
-                    .frame(width: 24, height: 24)
-            }
-        }
-    }
-    
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .fill(isSelected ?
-                  LinearGradient(colors: [.primaryOrange, .primaryOrange.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing) :
-                  LinearGradient(colors: [.white, .white], startPoint: .topLeading, endPoint: .bottomTrailing))
-    }
-    
-    private var cardBorder: some View {
-        RoundedRectangle(cornerRadius: 20)
-            .stroke(isSelected ? Color.primaryOrange : Color.secondary.opacity(0.1), lineWidth: isSelected ? 2 : 1)
-    }
-}
-
-// MARK: - Experience Level Row
+// MARK: - Experience Level Row (FROM YOUR FIRST DOCUMENT)
 struct ExperienceLevelRow: View {
     let level: ExperienceLevel
     let isSelected: Bool

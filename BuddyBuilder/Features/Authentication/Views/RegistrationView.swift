@@ -13,17 +13,43 @@ struct RegistrationView: View {
             ZStack {
                 // Background
                 LoginBackgroundView()
+                    .ignoresSafeArea(.all)
                 
-                // Main Content - NO ScrollView, fixed height
+                // Main Content - Full Screen Layout (No Card)
                 VStack(spacing: 0) {
-                    Spacer(minLength: 80)
-                    
-                    // Registration Card - Takes most space
-                    registrationCard
-                        .frame(maxHeight: .infinity)
+                    // Header Section - Top of screen
+                    headerSection
                         .padding(.horizontal, 20)
+                        .padding(.top, 60) // Safe area top padding
                     
-                    Spacer(minLength: 50)
+                    // Custom Step Icon/Visual
+                    customStepVisual
+                        .padding(.bottom, 20)
+                    
+                    // Step Content - Scrollable if needed
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            Group {
+                                switch viewModel.currentStep {
+                                case .basicInfo:
+                                    CompactBasicInfoStepView(viewModel: viewModel)
+                                        .environmentObject(localizationManager)
+                                    
+                                case .sportsPreferences:
+                                    CompactSportsPreferencesStepView(viewModel: viewModel)
+                                        .environmentObject(localizationManager)
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                    .frame(maxHeight: .infinity)
+                    
+                    // Navigation Buttons - Bottom of screen
+                    navigationButtonsSection
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40) // Safe area bottom padding
                 }
                 .opacity(showOverlays ? 0.3 : 1.0)
                 .disabled(showOverlays)
@@ -82,71 +108,20 @@ struct RegistrationView: View {
         viewModel.isLoading || viewModel.registrationCompleted || viewModel.showError
     }
     
-    // MARK: - Main Registration Card
-    private var registrationCard: some View {
-        VStack(spacing: 0) {
-            // Header Section - Inside Card
-            cardHeader
-                .padding(.bottom, 24)
-            
-            // Custom Step Icon/Visual
-            customStepVisual
-                .padding(.bottom, 20)
-            
-            // Step Content
-            VStack(spacing: 16) {
-                Group {
-                    switch viewModel.currentStep {
-                    case .basicInfo:
-                        CompactBasicInfoStepView(viewModel: viewModel)
-                            .environmentObject(localizationManager)
-                        
-                    case .sportsPreferences:
-                        CompactSportsPreferencesStepView(viewModel: viewModel)
-                            .environmentObject(localizationManager)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
-            }
-            .frame(maxHeight: .infinity)
-            
-            // Navigation Buttons
-            navigationButtonsSection
-                .padding(.top, 20)
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 5)
-        )
-    }
-    
-    // MARK: - Card Header
-    private var cardHeader: some View {
+    // MARK: - Header Section (No Card Background)
+    private var headerSection: some View {
         VStack(spacing: 16) {
             // Top row: Back button and Language picker
             HStack {
-                // Back Button
+                // Back Button - Simple orange arrow (no background)
                 Button(action: {
                     if !viewModel.isLoading {
                         dismiss()
                     }
                 }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.left")
-                            .font(.system(size: 14, weight: .medium))
-                        
-                        Text("Back")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .foregroundColor(.primaryOrange)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.primaryOrange.opacity(0.1))
-                    )
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(.primaryOrange)
                 }
                 .disabled(viewModel.isLoading)
                 
@@ -163,14 +138,14 @@ struct RegistrationView: View {
                 ZStack(alignment: .leading) {
                     // Background line
                     RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(Color.white.opacity(0.4))
                         .frame(height: 4)
                     
                     // Progress line with gradient
                     RoundedRectangle(cornerRadius: 2)
                         .fill(
                             LinearGradient(
-                                colors: [.primaryOrange, .primaryOrange.opacity(0.7)],
+                                colors: [.primaryOrange, .primaryOrange.opacity(0.8)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -184,13 +159,18 @@ struct RegistrationView: View {
                 HStack {
                     Text("Step \(viewModel.currentStep.rawValue + 1) of \(RegistrationStep.allCases.count)")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        
                     
                     Spacer()
                     
                     Text(viewModel.currentStep.title.localized(using: localizationManager))
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primaryOrange)
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                 }
             }
         }
@@ -265,7 +245,13 @@ struct RegistrationView: View {
                         Text("Previous")
                             .font(.system(size: 14, weight: .medium))
                     }
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.white.opacity(0.2))
+                    )
                 }
                 .disabled(viewModel.isLoading)
             }
@@ -296,12 +282,12 @@ struct RegistrationView: View {
                 
                 VStack(spacing: 12) {
                     Text("Welcome to BuddyBuilder!")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                     
                     Text("Your account has been created successfully")
-                        .font(.system(size: 16))
+                        .font(.system(size: 14))
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                 }
@@ -415,7 +401,7 @@ struct UserCreationVisual: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [.primaryOrange.opacity(0.2), .primaryOrange.opacity(0.05)],
+                        colors: [.primaryOrange.opacity(0.3), .primaryOrange.opacity(0.1)],
                         center: .center,
                         startRadius: 10,
                         endRadius: 40
@@ -475,7 +461,7 @@ struct SportsVisual: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [.primaryOrange.opacity(0.2), .primaryOrange.opacity(0.05)],
+                        colors: [.primaryOrange.opacity(0.3), .primaryOrange.opacity(0.1)],
                         center: .center,
                         startRadius: 10,
                         endRadius: 40
@@ -622,24 +608,3 @@ struct SuccessVisualModern: View {
         }
     }
 }
-
-// MARK: - Usage in RegistrationView.swift
-/*
-RegistrationView.swift dosyasındaki registrationSuccessOverlay kısmında kullanılıyor:
-
-private var registrationSuccessOverlay: some View {
-    ZStack {
-        Color.black.opacity(0.8)
-            .ignoresSafeArea()
-        
-        VStack(spacing: 24) {
-            SuccessVisual()                    // Orijinal animasyonlu
-            // SuccessVisualStatic()          // Sabit versiyon
-            // SuccessVisualModern()          // Modern tasarım
-                .scaleEffect(1.5)
-            
-            // ... rest of the overlay content
-        }
-    }
-}
-*/

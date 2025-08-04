@@ -28,7 +28,7 @@ protocol ProfilePhotoServiceProtocol {
 // MARK: - Profile Photo Service Implementation
 class ProfilePhotoService: ProfilePhotoServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://localhost:5206/api/ProfilePhoto"
+    private let baseURL = "http://192.168.100.74:5206/api/ProfilePhoto"
     
     // MARK: - Get Profile Photo URL (with auto-refresh)
     func fetchProfilePhotoURL() -> AnyPublisher<String?, Error> {

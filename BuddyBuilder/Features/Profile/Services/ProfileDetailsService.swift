@@ -14,7 +14,7 @@ protocol ProfileDetailsServiceProtocol {
 // MARK: - Profile Details Service Implementation
 class ProfileDetailsService: ProfileDetailsServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://localhost:5206/api/Profile"
+    private let baseURL = "http://192.168.100.74:5206/api/Profile"
     
     // MARK: - Fetch Profile Details (with auto-refresh)
     func fetchProfileDetailsWithAutoRefresh() -> AnyPublisher<ProfileDetails, Error> {

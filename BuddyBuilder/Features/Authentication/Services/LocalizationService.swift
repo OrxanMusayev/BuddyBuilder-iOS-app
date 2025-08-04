@@ -9,7 +9,7 @@ protocol LocalizationServiceProtocol {
 
 // MARK: - Localization Service Implementation
 class LocalizationService: LocalizationServiceProtocol {
-    private let baseURL = "http://localhost:5206/api/Localization"
+    private let baseURL = "http://192.168.100.74:5206/api/Localization"
     private let session = URLSession.shared
     
     // MARK: - Fetch Available Languages

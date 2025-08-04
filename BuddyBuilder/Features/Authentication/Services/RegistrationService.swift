@@ -16,9 +16,9 @@ protocol RegistrationServiceProtocol {
 // MARK: - Registration Service Implementation
 class RegistrationService: RegistrationServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://localhost:5206/api/Auth"
-    private let locationURL = "http://localhost:5206/api/Location"
-    private let sportsURL = "http://localhost:5206/api/Sports"
+    private let baseURL = "http://192.168.100.74:5206/api/Auth"
+    private let locationURL = "http://192.168.100.74:5206/api/Location"
+    private let sportsURL = "http://192.168.100.74:5206/api/Sports"
     
     // MARK: - Registration
     func register(_ request: RegistrationRequest) -> AnyPublisher<RegistrationResponse, Error> {

@@ -1,10 +1,62 @@
-// BuddyBuilder/Features/Profile/Services/ProfilePictureService.swift - FIXED
+// BuddyBuilder/Features/Profile/Services/ProfilePictureService.swift - IMAGE CACHING
 
 import Foundation
 import Combine
 import UIKit
 
-// MARK: - Profile Photo Models - CORRECTED TO MATCH API
+// MARK: - Profile Photo Cache Manager
+class ProfilePhotoCache {
+    static let shared = ProfilePhotoCache()
+    private let imageKey = "cached_profile_photo_image"
+    private let urlKey = "cached_profile_photo_url"
+    private let dateKey = "cached_profile_photo_date"
+    
+    private init() {}
+    
+    // Save image data and URL to cache
+    func savePhoto(imageData: Data, url: String) {
+        UserDefaults.standard.set(imageData, forKey: imageKey)
+        UserDefaults.standard.set(url, forKey: urlKey)
+        UserDefaults.standard.set(Date(), forKey: dateKey)
+        print("💾 Cached profile photo: \(imageData.count) bytes")
+    }
+    
+    // Get cached image data
+    func getCachedImage() -> Data? {
+        return UserDefaults.standard.data(forKey: imageKey)
+    }
+    
+    // Get cached URL
+    func getCachedURL() -> String? {
+        return UserDefaults.standard.string(forKey: urlKey)
+    }
+    
+    // Clear all cache
+    func clearCache() {
+        UserDefaults.standard.removeObject(forKey: imageKey)
+        UserDefaults.standard.removeObject(forKey: urlKey)
+        UserDefaults.standard.removeObject(forKey: dateKey)
+        print("🗑️ Cleared profile photo cache")
+    }
+    
+    // Check if cache exists
+    var hasCache: Bool {
+        return getCachedImage() != nil && getCachedURL() != nil
+    }
+}
+
+// MARK: - Profile Photo Result
+struct ProfilePhotoResult {
+    let imageData: Data?
+    let url: String?
+    
+    init(imageData: Data? = nil, url: String? = nil) {
+        self.imageData = imageData
+        self.url = url
+    }
+}
+
+// MARK: - Profile Photo Models
 struct ProfilePhotoData: Codable {
     let photoUrl: String?
     let uploadDate: String?
@@ -27,33 +79,53 @@ struct ProfilePhotoUploadResponse: Codable {
     let timestamp: String
 }
 
-// MARK: - Delete Photo Response (different structure)
 struct ProfilePhotoDeleteResponse: Codable {
     let success: Bool
     let message: String?
-    let data: String?  // Delete API returns "Deleted" as string
+    let data: String?
     let errors: [String]?
     let timestamp: String
 }
 
-// MARK: - Profile Photo Service Protocol
+// MARK: - Profile Photo Service Protocol (Updated)
 protocol ProfilePhotoServiceProtocol {
-    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error>
-    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error>
-    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error>
+    func fetchProfilePhoto() -> AnyPublisher<ProfilePhotoResult, Error>
+    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error>
+    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error>
     func deleteProfilePhoto() -> AnyPublisher<Bool, Error>
+    func refreshProfilePhotoFromAPI() -> AnyPublisher<ProfilePhotoResult, Error>
+    
+    // Legacy methods for compatibility
+    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error>
 }
 
 // MARK: - Profile Photo Service Implementation
 class ProfilePhotoService: ProfilePhotoServiceProtocol {
     private let networkManager = NetworkManager.shared
     private let baseURL = "http://192.168.100.74:5206/api/ProfilePhoto"
+    private let cache = ProfilePhotoCache.shared
     
-    // MARK: - Get Profile Photo URL (with auto-refresh) - FIXED
-    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error> {
+    // MARK: - Fetch Profile Photo (Image Data + URL) - CACHE FIRST
+    func fetchProfilePhoto() -> AnyPublisher<ProfilePhotoResult, Error> {
+        // 1. First check cache for image data
+        if let cachedImageData = cache.getCachedImage(),
+           let cachedURL = cache.getCachedURL() {
+            print("📱 Using cached profile photo: \(cachedImageData.count) bytes")
+            return Just(ProfilePhotoResult(imageData: cachedImageData, url: cachedURL))
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        }
+        
+        // 2. If no cache, fetch from API ONCE
+        print("📱 No cached photo found, fetching from API for the first time...")
+        return refreshProfilePhotoFromAPI()
+    }
+    
+    // MARK: - Force Refresh from API (downloads actual image)
+    func refreshProfilePhotoFromAPI() -> AnyPublisher<ProfilePhotoResult, Error> {
         let headers = getAuthHeaders()
         
-        print("🌐 Fetching profile photo URL from: \(baseURL)/url")
+        print("🌐 Fetching profile photo URL from API: \(baseURL)/url")
         
         return networkManager.requestWithAutoRefresh(
             endpoint: "\(baseURL)/url",
@@ -61,58 +133,98 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
             headers: headers,
             type: ProfilePhotoResponse.self
         )
-        .map { response in
-            print("📥 Profile photo response:")
-            print("   Success: \(response.success)")
-            print("   Message: \(response.message ?? "nil")")
-            print("   Photo URL: \(response.data?.photoUrl ?? "nil")")
-            print("   Upload Date: \(response.data?.uploadDate ?? "nil")")
-            
-            if response.success, let photoUrl = response.data?.photoUrl, !photoUrl.isEmpty {
-                print("✅ Profile photo URL extracted: \(photoUrl)")
-                return photoUrl
+        .flatMap { response -> AnyPublisher<ProfilePhotoResult, Error> in
+            if response.success,
+               let photoUrl = response.data?.photoUrl,
+               !photoUrl.isEmpty {
+                print("✅ Got photo URL from API: \(photoUrl)")
+                // Now download the actual image
+                return self.downloadImage(from: photoUrl)
             } else {
-                print("⚠️ No valid photo URL found in response")
-                return nil
+                print("ℹ️ User has no profile photo")
+                self.cache.clearCache()
+                return Just(ProfilePhotoResult())
+                    .setFailureType(to: Error.self)
+                    .eraseToAnyPublisher()
             }
         }
-        .handleEvents(
-            receiveOutput: { url in
-                print("✅ Final profile photo URL: \(url ?? "nil")")
-            },
-            receiveCompletion: { completion in
-                if case .failure(let error) = completion {
-                    print("❌ Failed to fetch profile photo URL: \(error)")
-                    Task { @MainActor in
-                        AuthErrorHandler.shared.handleAuthError(error)
-                    }
-                }
-            }
-        )
+        .catch { error -> AnyPublisher<ProfilePhotoResult, Error> in
+            print("❌ Error fetching photo: \(error)")
+            return Just(ProfilePhotoResult())
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        }
         .eraseToAnyPublisher()
     }
     
-    // MARK: - Upload Profile Photo (with auto-refresh) - FIXED
-    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error> {
-        print("📤 Uploading new profile photo...")
+    // MARK: - Download Image from URL
+    private func downloadImage(from urlString: String) -> AnyPublisher<ProfilePhotoResult, Error> {
+        guard let url = URL(string: urlString) else {
+            return Fail(error: NetworkError.invalidURL)
+                .eraseToAnyPublisher()
+        }
+        
+        print("📥 Downloading image from: \(urlString)")
+        
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .map { data, response -> ProfilePhotoResult in
+                print("✅ Downloaded image: \(data.count) bytes")
+                // Cache the downloaded image
+                self.cache.savePhoto(imageData: data, url: urlString)
+                return ProfilePhotoResult(imageData: data, url: urlString)
+            }
+            .catch { error -> AnyPublisher<ProfilePhotoResult, Error> in
+                print("❌ Failed to download image: \(error)")
+                return Just(ProfilePhotoResult(url: urlString))
+                    .setFailureType(to: Error.self)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Upload Profile Photo - UPDATES CACHE WITH IMAGE DATA
+    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error> {
+        print("📤 Uploading new profile photo: \(imageData.count) bytes")
+        
         return createMultipartRequestWithAutoRefresh(
             imageData: imageData,
             endpoint: "\(baseURL)/upload",
             method: .POST
         )
+        .map { url in
+            if let url = url {
+                print("✅ Upload successful, caching image data and URL")
+                // Cache the uploaded image data immediately
+                self.cache.savePhoto(imageData: imageData, url: url)
+                return ProfilePhotoResult(imageData: imageData, url: url)
+            }
+            return ProfilePhotoResult()
+        }
+        .eraseToAnyPublisher()
     }
     
-    // MARK: - Update Profile Photo (with auto-refresh) - FIXED
-    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error> {
-        print("📤 Updating existing profile photo...")
+    // MARK: - Update Profile Photo - UPDATES CACHE WITH IMAGE DATA
+    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error> {
+        print("📤 Updating profile photo: \(imageData.count) bytes")
+        
         return createMultipartRequestWithAutoRefresh(
             imageData: imageData,
             endpoint: "\(baseURL)/update",
             method: .PUT
         )
+        .map { url in
+            if let url = url {
+                print("✅ Update successful, caching new image data and URL")
+                // Cache the updated image data immediately
+                self.cache.savePhoto(imageData: imageData, url: url)
+                return ProfilePhotoResult(imageData: imageData, url: url)
+            }
+            return ProfilePhotoResult()
+        }
+        .eraseToAnyPublisher()
     }
     
-    // MARK: - Delete Profile Photo (with auto-refresh) - FIXED
+    // MARK: - Delete Profile Photo - CLEARS CACHE
     func deleteProfilePhoto() -> AnyPublisher<Bool, Error> {
         let headers = getAuthHeaders()
         
@@ -122,33 +234,32 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
             endpoint: "\(baseURL)/delete",
             method: .DELETE,
             headers: headers,
-            type: ProfilePhotoDeleteResponse.self  // Use correct delete response model
+            type: ProfilePhotoDeleteResponse.self
         )
         .map { response in
-            print("📥 Delete photo response:")
-            print("   Success: \(response.success)")
-            print("   Message: \(response.message ?? "nil")")
-            print("   Data: \(response.data ?? "nil")")
-            
             if response.success {
-                print("✅ Profile photo deleted successfully")
+                print("✅ Profile photo deleted - clearing cache")
+                self.cache.clearCache()
                 return true
             } else {
                 print("❌ Profile photo deletion failed")
                 return false
             }
         }
-        .handleEvents(
-            receiveCompletion: { completion in
-                if case .failure(let error) = completion {
-                    print("❌ Delete profile photo error: \(error)")
-                    Task { @MainActor in
-                        AuthErrorHandler.shared.handleAuthError(error)
-                    }
-                }
-            }
-        )
+        .catch { error in
+            print("❌ Delete error: \(error)")
+            return Just(false)
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        }
         .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Legacy method for compatibility
+    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error> {
+        return fetchProfilePhoto()
+            .map { $0.url }
+            .eraseToAnyPublisher()
     }
     
     // MARK: - Helper Methods
@@ -158,12 +269,10 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
             return [:]
         }
         
-        return [
-            "Authorization": "Bearer \(token)"
-        ]
+        return ["Authorization": "Bearer \(token)"]
     }
     
-    // MARK: - Multipart Request with Auto-Refresh - FIXED RESPONSE PARSING
+    // MARK: - Multipart Request with Auto-Refresh
     private func createMultipartRequestWithAutoRefresh(
         imageData: Data,
         endpoint: String,
@@ -171,7 +280,6 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
     ) -> AnyPublisher<String?, Error> {
         
         return Future<String?, Error> { promise in
-            // First try with current token
             let headers = self.getAuthHeaders()
             
             self.performMultipartUpload(
@@ -185,7 +293,6 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
                     promise(.success(url))
                     
                 case .failure(let error):
-                    // Check if it's 401 error
                     if case NetworkError.unauthorized = error {
                         print("🔐 Photo upload received 401, attempting token refresh...")
                         
@@ -194,7 +301,6 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
                             
                             if refreshSuccess {
                                 print("✅ Token refreshed, retrying photo upload...")
-                                // Retry with new token
                                 let newHeaders = self.getAuthHeaders()
                                 
                                 self.performMultipartUpload(
@@ -206,10 +312,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
                                     promise(retryResult)
                                 }
                             } else {
-                                print("❌ Token refresh failed for photo upload")
-                                await MainActor.run {
-                                    AuthErrorHandler.shared.handleAuthError(error)
-                                }
+                                print("❌ Token refresh failed")
                                 promise(.failure(NetworkError.unauthorized))
                             }
                         }
@@ -222,7 +325,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         .eraseToAnyPublisher()
     }
     
-    // MARK: - Perform Multipart Upload Helper - FIXED RESPONSE PARSING
+    // MARK: - Perform Multipart Upload
     private func performMultipartUpload(
         imageData: Data,
         endpoint: String,
@@ -239,19 +342,14 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         request.httpMethod = method.rawValue
         request.timeoutInterval = 30
         
-        // Create multipart boundary
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         
-        // Add auth headers
         for (key, value) in headers {
             request.addValue(value, forHTTPHeaderField: key)
         }
         
-        // Create multipart body
         var body = Data()
-        
-        // Add image data
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"profile-photo.jpg\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
@@ -262,91 +360,101 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         request.httpBody = body
         
         print("🌐 \(method.rawValue) request to: \(endpoint)")
-        print("📦 Image data size: \(imageData.count) bytes")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("❌ Network error: \(error)")
                 completion(.failure(error))
                 return
             }
             
-            // Check for 401 status
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
-                print("🔐 Received 401 for photo upload")
                 completion(.failure(NetworkError.unauthorized))
                 return
             }
             
             guard let data = data else {
-                print("❌ No data received")
                 completion(.failure(NetworkError.noData))
                 return
             }
             
-            // FIXED: Parse the correct response structure
             do {
-                // First, let's see what we actually received
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("📥 Raw response JSON: \(jsonString)")
-                }
-                
                 let uploadResponse = try JSONDecoder().decode(ProfilePhotoUploadResponse.self, from: data)
-                
-                print("📥 Parsed upload response:")
-                print("   Success: \(uploadResponse.success)")
-                print("   Message: \(uploadResponse.message ?? "nil")")
-                print("   Photo URL: \(uploadResponse.data?.photoUrl ?? "nil")")
-                print("   Upload Date: \(uploadResponse.data?.uploadDate ?? "nil")")
                 
                 if uploadResponse.success {
                     let photoUrl = uploadResponse.data?.photoUrl
-                    print("✅ Photo upload successful with URL: \(photoUrl ?? "nil")")
+                    print("✅ Upload response URL: \(photoUrl ?? "nil")")
                     completion(.success(photoUrl))
                 } else {
-                    let errorMsg = uploadResponse.message ?? "unknown error"
-                    print("❌ Photo upload failed: \(errorMsg)")
                     completion(.failure(NetworkError.serverError(400)))
                 }
             } catch {
-                print("❌ JSON decode error: \(error)")
-                // Try to print raw response for debugging
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("📥 Failed to decode response: \(jsonString)")
-                }
                 completion(.failure(error))
             }
         }.resume()
     }
 }
 
-// MARK: - Mock Profile Photo Service (for testing) - UPDATED
+// MARK: - Mock Profile Photo Service
 class MockProfilePhotoService: ProfilePhotoServiceProtocol {
-    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error> {
-        return Just("https://via.placeholder.com/150x150/FF6B35/FFFFFF?text=User")
+    private let cache = ProfilePhotoCache.shared
+    
+    func fetchProfilePhoto() -> AnyPublisher<ProfilePhotoResult, Error> {
+        if let cachedImage = cache.getCachedImage(),
+           let cachedURL = cache.getCachedURL() {
+            return Just(ProfilePhotoResult(imageData: cachedImage, url: cachedURL))
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        }
+        
+        // Create mock image data
+        let mockImage = UIImage(systemName: "person.circle.fill")!
+        let mockData = mockImage.jpegData(compressionQuality: 0.8)!
+        let mockUrl = "https://mock.url/photo.jpg"
+        
+        cache.savePhoto(imageData: mockData, url: mockUrl)
+        
+        return Just(ProfilePhotoResult(imageData: mockData, url: mockUrl))
             .setFailureType(to: Error.self)
             .delay(for: .seconds(1), scheduler: RunLoop.main)
             .eraseToAnyPublisher()
     }
     
-    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error> {
-        return Just("https://via.placeholder.com/150x150/FF6B35/FFFFFF?text=NEW")
+    func refreshProfilePhotoFromAPI() -> AnyPublisher<ProfilePhotoResult, Error> {
+        return fetchProfilePhoto()
+    }
+    
+    func uploadProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error> {
+        let newUrl = "https://mock.url/new-photo.jpg"
+        cache.savePhoto(imageData: imageData, url: newUrl)
+        
+        return Just(ProfilePhotoResult(imageData: imageData, url: newUrl))
             .setFailureType(to: Error.self)
-            .delay(for: .seconds(2), scheduler: RunLoop.main)
+            .delay(for: .seconds(1), scheduler: RunLoop.main)
             .eraseToAnyPublisher()
     }
     
-    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<String?, Error> {
-        return Just("https://via.placeholder.com/150x150/FF6B35/FFFFFF?text=UPD")
+    func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error> {
+        let newUrl = "https://mock.url/updated-photo.jpg"
+        cache.savePhoto(imageData: imageData, url: newUrl)
+        
+        return Just(ProfilePhotoResult(imageData: imageData, url: newUrl))
             .setFailureType(to: Error.self)
-            .delay(for: .seconds(2), scheduler: RunLoop.main)
+            .delay(for: .seconds(1), scheduler: RunLoop.main)
             .eraseToAnyPublisher()
     }
     
     func deleteProfilePhoto() -> AnyPublisher<Bool, Error> {
+        cache.clearCache()
+        
         return Just(true)
             .setFailureType(to: Error.self)
             .delay(for: .seconds(1), scheduler: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+    
+    func fetchProfilePhotoURL() -> AnyPublisher<String?, Error> {
+        return fetchProfilePhoto()
+            .map { $0.url }
             .eraseToAnyPublisher()
     }
 }

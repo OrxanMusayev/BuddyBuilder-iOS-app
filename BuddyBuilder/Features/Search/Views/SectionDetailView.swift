@@ -72,6 +72,10 @@ struct SectionDetailView: View {
             Spacer()
             
             VStack(spacing: 4) {
+                Image(systemName: section.icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.gray.opacity(0.8))
+                
                 Text(section.title)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.primary)
@@ -116,12 +120,12 @@ struct DetailUserCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 10) {
-            // Profile Image - Larger size
+        VStack(spacing: 12) {
+            // Profile Image - Standardized
             ZStack {
                 Circle()
                     .fill(Color.gray.opacity(0.12))
-                    .frame(width: 80, height: 80) // Increased from 70 to 80
+                    .frame(width: 70, height: 70)
                 
                 if let imageUrl = user.profileImageUrl {
                     AsyncImage(url: URL(string: imageUrl)) { image in
@@ -130,14 +134,14 @@ struct DetailUserCard: View {
                             .aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 65)) // Increased from 55 to 65
+                            .font(.system(size: 90))
                             .foregroundColor(.gray.opacity(0.5))
                     }
-                    .frame(width: 80, height: 80) // Increased from 70 to 80
+                    .frame(width: 90, height: 90)
                     .clipShape(Circle())
                 } else {
                     Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 65)) // Increased from 55 to 65
+                        .font(.system(size: 90))
                         .foregroundColor(.gray.opacity(0.5))
                 }
                 
@@ -148,8 +152,8 @@ struct DetailUserCard: View {
                             Spacer()
                             Circle()
                                 .fill(Color.red)
-                                .frame(width: 16, height: 16) // Slightly larger for bigger profile image
-                                .offset(x: 8, y: -8)
+                                .frame(width: 14, height: 14)
+                                .offset(x: 5, y: -5)
                         }
                         Spacer()
                     }
@@ -160,44 +164,44 @@ struct DetailUserCard: View {
                             Spacer()
                             Circle()
                                 .fill(Color.green)
-                                .frame(width: 16, height: 16) // Slightly larger for bigger profile image
-                                .offset(x: 8, y: 8)
+                                .frame(width: 14, height: 14)
+                                .offset(x: 5, y: 5)
                         }
                     }
                 }
             }
             
-            // User Info - Reduced spacing and heights
-            VStack(spacing: 4) {
+            // User Info - Fixed Heights
+            VStack(spacing: 6) {
                 Text(user.name)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
-                    .frame(height: 16) // Reduced from 18
+                    .frame(height: 18) // Fixed height
                 
                 Text("@\(user.username)")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.textSecondary)
                     .lineLimit(1)
-                    .frame(height: 14) // Reduced from 16
+                    .frame(height: 16) // Fixed height
                 
                 Text(user.bio)
                     .font(.system(size: 11))
                     .foregroundColor(.textSecondary)
-                    .lineLimit(2) // Reduced from 3 lines to 2
+                    .lineLimit(3)
                     .multilineTextAlignment(.center)
-                    .frame(height: 28) // Reduced from 42 to 28
+                    .frame(height: 42) // Fixed height for 3 lines
                 
                 Text(user.location)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.primaryOrange)
+                    .foregroundColor(.gray.opacity(0.8))
                     .lineLimit(1)
-                    .frame(height: 12) // Reduced from 14
+                    .frame(height: 14) // Fixed height
             }
             
             Spacer() // Push button to bottom
             
-            // Action Button - Reduced height
+            // Action Button - Fixed Height
             Button(action: {
                 print("Action for \(user.name)")
             }) {
@@ -210,17 +214,17 @@ struct DetailUserCard: View {
                 }
                 .foregroundColor(getButtonColor())
                 .frame(maxWidth: .infinity)
-                .frame(height: 28) // Reduced from 32 to 28
+                .frame(height: 32) // Fixed button height
                 .background(Color.clear)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 16)
                         .stroke(getButtonColor(), lineWidth: 1.5)
                 )
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
-        .frame(maxWidth: .infinity, minHeight: 240, maxHeight: 240) // Reduced from 280 to 240
-        .padding(14) // Reduced from 16 to 14
+        .frame(maxWidth: .infinity, minHeight: 280, maxHeight: 280) // Fixed card size
+        .padding(16)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
@@ -272,11 +276,11 @@ struct DetailTrainerCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             ZStack {
                 Circle()
                     .fill(Color.gray.opacity(0.12))
-                    .frame(width: 80, height: 80) // Increased from 70 to 80
+                    .frame(width: 90, height: 90)
                 
                 if let imageUrl = trainer.profileImageUrl {
                     AsyncImage(url: URL(string: imageUrl)) { image in
@@ -285,14 +289,14 @@ struct DetailTrainerCard: View {
                             .aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Image(systemName: "person.crop.circle.badge.checkmark.fill")
-                            .font(.system(size: 65)) // Increased from 55 to 65
+                            .font(.system(size: 55))
                             .foregroundColor(.gray.opacity(0.5))
                     }
-                    .frame(width: 80, height: 80) // Increased from 70 to 80
+                    .frame(width: 90, height: 90)
                     .clipShape(Circle())
                 } else {
                     Image(systemName: "person.crop.circle.badge.checkmark.fill")
-                        .font(.system(size: 65)) // Increased from 55 to 65
+                        .font(.system(size: 55))
                         .foregroundColor(.gray.opacity(0.5))
                 }
                 
@@ -302,33 +306,33 @@ struct DetailTrainerCard: View {
                     HStack {
                         Spacer()
                         Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 18)) // Slightly larger for bigger profile image
+                            .font(.system(size: 16))
                             .foregroundColor(.blue)
-                            .offset(x: 8, y: 8)
+                            .offset(x: 5, y: 5)
                     }
                 }
             }
             
-            // Trainer Info - Reduced spacing and heights
-            VStack(spacing: 4) {
+            // Trainer Info - Fixed Heights
+            VStack(spacing: 6) {
                 Text(trainer.name)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
-                    .frame(height: 16) // Reduced from 18
+                    .frame(height: 18) // Fixed height
                 
                 Text(trainer.specialty)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.purple)
                     .lineLimit(1)
-                    .frame(height: 14) // Reduced from 16
+                    .frame(height: 16) // Fixed height
                 
                 Text(trainer.gym)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(height: 24) // Reduced from 28
+                    .frame(height: 28) // Fixed height for 2 lines
                 
                 HStack(spacing: 4) {
                     Image(systemName: "star.fill")
@@ -343,12 +347,12 @@ struct DetailTrainerCard: View {
                         .font(.system(size: 10))
                         .foregroundColor(.textSecondary)
                 }
-                .frame(height: 24) // Reduced from 28
+                .frame(height: 28) // Fixed height
             }
             
             Spacer() // Push buttons to bottom
             
-            // Action Buttons - Reduced height
+            // Action Buttons - Fixed Heights
             VStack(spacing: 8) {
                 Button(action: {
                     print("View events for \(trainer.name)")
@@ -361,17 +365,17 @@ struct DetailTrainerCard: View {
                     }
                     .foregroundColor(.purple)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 28) // Reduced from 32 to 28
+                    .frame(height: 32) // Fixed button height
                     .background(Color.clear)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14)
+                        RoundedRectangle(cornerRadius: 16)
                             .stroke(Color.purple, lineWidth: 1.5)
                     )
                 }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 240, maxHeight: 240) // Reduced from 280 to 240
-        .padding(14) // Reduced from 16 to 14
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260) // Same as user cards
+        .padding(16)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)

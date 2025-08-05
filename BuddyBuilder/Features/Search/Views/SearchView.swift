@@ -616,33 +616,20 @@ struct RealUserCard: View {
         VStack(spacing: 12) {
             // Profile Image with Indicators
             ZStack {
-                // Profile Image
-                ZStack {
+                // Profile Image using cached system
+                SearchAsyncImage(
+                    url: user.profileImageUrl,
+                    placeholder: "person.crop.circle.fill"
+                )
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
+                .overlay(
                     Circle()
-                        .fill(Color.gray.opacity(0.12))
-                        .frame(width: 70, height: 70)
-                    
-                    if let imageUrl = user.profileImageUrl {
-                        AsyncImage(url: URL(string: imageUrl)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 55))
-                                .foregroundColor(.gray.opacity(0.5))
-                        }
-                        .frame(width: 70, height: 70)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 55))
-                            .foregroundColor(.gray.opacity(0.5))
-                    }
-                }
+                        .stroke(Color.gray.opacity(0.1), lineWidth: 0.5)
+                )
                 
                 // New Badge
-                if showNewBadge {
+                if showNewBadge || user.isNew {
                     VStack {
                         HStack {
                             Spacer()
@@ -653,7 +640,7 @@ struct RealUserCard: View {
                                 .padding(.vertical, 2)
                                 .background(Color.red)
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
-                                .offset(x: 10, y: -10)
+                                .offset(x: 10, y: -5)
                         }
                         Spacer()
                     }
@@ -677,7 +664,7 @@ struct RealUserCard: View {
                     }
                 }
             }
-            .frame(height: 70) // Fixed height for profile section
+            .frame(height: 100)
             
             // User Info
             VStack(spacing: 6) {
@@ -685,30 +672,30 @@ struct RealUserCard: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
-                    .frame(height: 18) // Fixed height
+                    .frame(height: 18)
                 
                 Text("@\(user.username)")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.textSecondary)
                     .lineLimit(1)
-                    .frame(height: 16) // Fixed height
+                    .frame(height: 16)
                 
                 Text(user.bio)
                     .font(.system(size: 11))
                     .foregroundColor(.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(height: 28) // Fixed height for 2 lines
+                    .frame(height: 28)
                 
                 Text(user.location)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.primaryOrange)
                     .lineLimit(1)
-                    .frame(height: 14) // Fixed height
+                    .frame(height: 14)
             }
-            .frame(height: 76) // Fixed height for user info section
+            .frame(height: 80)
             
-            Spacer() // Push button to bottom
+            Spacer()
             
             // Action Button
             Button(action: {
@@ -729,11 +716,11 @@ struct RealUserCard: View {
                         .stroke(buttonColor, lineWidth: 1.5)
                 )
             }
-            .frame(height: 32) // Fixed button height
+            .frame(height: 32)
             .scaleEffect(isPressed ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
-        .frame(width: 140, height: 220) // Fixed card dimensions
+        .frame(width: 140, height: 240)
         .padding(16)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 16))

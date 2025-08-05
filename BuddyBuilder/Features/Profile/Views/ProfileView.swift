@@ -3,13 +3,19 @@
 import SwiftUI
 import PhotosUI
 import Combine
+// Updated ProfileViewModel in ProfileView.swift
 
-// MARK: - Profile View Model - ENHANCED WITH USER DETAILS
+import SwiftUI
+import PhotosUI
+import Combine
+
+// MARK: - Profile View Model - ENHANCED WITH IMAGE CACHING
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
-    @Published var profileDetails: ProfileDetails? // Store full profile details
+    @Published var profilePhotoImage: UIImage? // New: Store actual image
+    @Published var profileDetails: ProfileDetails?
     @Published var isLoadingPhoto = false
-    @Published var isLoadingProfile = false // Loading state for profile details
+    @Published var isLoadingProfile = false
     @Published var showImagePicker = false
     @Published var showCamera = false
     @Published var showPhotoOptions = false
@@ -17,7 +23,7 @@ class ProfileViewModel: ObservableObject {
     @Published var showError = false
     
     private let profilePhotoService: ProfilePhotoServiceProtocol
-    private let profileDetailsService: ProfileDetailsServiceProtocol // Profile details service
+    private let profileDetailsService: ProfileDetailsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService(),
@@ -25,13 +31,14 @@ class ProfileViewModel: ObservableObject {
         self.profilePhotoService = profilePhotoService
         self.profileDetailsService = profileDetailsService
         loadProfilePhoto()
-        loadProfileDetails() // Load profile details
+        loadProfileDetails()
     }
     
+    // MARK: - Load Profile Photo (Image Data)
     func loadProfilePhoto() {
         isLoadingPhoto = true
         
-        profilePhotoService.fetchProfilePhotoURL()
+        profilePhotoService.fetchProfilePhoto()
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -40,14 +47,22 @@ class ProfileViewModel: ObservableObject {
                         print("❌ Failed to load profile photo: \(error)")
                     }
                 },
-                receiveValue: { [weak self] url in
-                    self?.profilePhotoURL = url
+                receiveValue: { [weak self] result in
+                    self?.profilePhotoURL = result.url
+                    
+                    // Convert image data to UIImage
+                    if let imageData = result.imageData {
+                        self?.profilePhotoImage = UIImage(data: imageData)
+                        print("✅ Loaded cached profile image: \(imageData.count) bytes")
+                    } else {
+                        self?.profilePhotoImage = nil
+                    }
                 }
             )
             .store(in: &cancellables)
     }
     
-    // Load Profile Details
+    // MARK: - Load Profile Details
     func loadProfileDetails() {
         isLoadingProfile = true
         
@@ -68,25 +83,25 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // 🆕 YENİ: Sadece user details için güncelleme (photo yenileme yok)
+    // MARK: - Refresh User Details Only
     func refreshUserDetailsOnly() {
         profileDetailsService.fetchProfileDetailsWithAutoRefresh()
             .receive(on: DispatchQueue.main)
             .sink(
-                receiveCompletion: { [weak self] completion in
+                receiveCompletion: { completion in
                     if case .failure(let error) = completion {
                         print("❌ Failed to refresh user details: \(error)")
                     }
                 },
                 receiveValue: { [weak self] profile in
-                    // Sadece kullanıcı bilgilerini güncelle, photo'yu yenileme
                     self?.profileDetails = profile
-                    print("✅ User details refreshed (name, username, bio only)")
+                    print("✅ User details refreshed")
                 }
             )
             .store(in: &cancellables)
     }
     
+    // MARK: - Upload Profile Photo (with image caching)
     func uploadProfilePhoto(_ imageData: Data) {
         isLoadingPhoto = true
         
@@ -103,14 +118,20 @@ class ProfileViewModel: ObservableObject {
                         self?.handleError("Failed to upload photo: \(error.localizedDescription)")
                     }
                 },
-                receiveValue: { [weak self] url in
-                    self?.profilePhotoURL = url
-                    print("✅ Profile photo updated successfully")
+                receiveValue: { [weak self] result in
+                    self?.profilePhotoURL = result.url
+                    
+                    // Update UI with new image immediately (already cached)
+                    if let imageData = result.imageData {
+                        self?.profilePhotoImage = UIImage(data: imageData)
+                        print("✅ Profile photo updated and cached")
+                    }
                 }
             )
             .store(in: &cancellables)
     }
     
+    // MARK: - Delete Profile Photo
     func deleteProfilePhoto() {
         isLoadingPhoto = true
         
@@ -126,7 +147,8 @@ class ProfileViewModel: ObservableObject {
                 receiveValue: { [weak self] success in
                     if success {
                         self?.profilePhotoURL = nil
-                        print("✅ Profile photo deleted successfully")
+                        self?.profilePhotoImage = nil // Clear image from memory
+                        print("✅ Profile photo deleted and cache cleared")
                     }
                 }
             )
@@ -260,7 +282,7 @@ struct ProfileView: View {
     // MARK: - ENHANCED Profile Header Section - BIGGER & BETTER USER INFO
     private var enhancedProfileHeaderSection: some View {
         VStack(spacing: 24) {
-            // Profile Image with Upload Functionality (Slightly bigger)
+            // Profile Image with Upload Functionality
             Button(action: {
                 profileViewModel.showPhotoOptions = true
             }) {
@@ -269,27 +291,18 @@ struct ProfileView: View {
                         // Loading state
                         Circle()
                             .fill(Color.gray.opacity(0.1))
-                            .frame(width: 110, height: 110) // Slightly bigger
+                            .frame(width: 110, height: 110)
                             .overlay(
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                             )
-                    } else if let photoURL = profileViewModel.profilePhotoURL, !photoURL.isEmpty {
-                        // Profile photo from API
-                        AsyncImage(url: URL(string: photoURL)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .fill(Color.gray.opacity(0.1))
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                                )
-                        }
-                        .frame(width: 110, height: 110)
-                        .clipShape(Circle())
+                    } else if let profileImage = profileViewModel.profilePhotoImage {
+                        // Display cached image directly - NO NETWORK CALL
+                        Image(uiImage: profileImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 110, height: 110)
+                            .clipShape(Circle())
                         
                         // Camera edit icon for existing photo
                         Circle()
@@ -303,7 +316,7 @@ struct ProfileView: View {
                             .offset(x: 38, y: 38)
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     } else {
-                        // Modern default profile icon - SUBTLE & SOFT
+                        // Modern default profile icon
                         ZStack {
                             // Soft background circle
                             Circle()
@@ -327,7 +340,7 @@ struct ProfileView: View {
                                 )
                                 .frame(width: 110, height: 110)
                             
-                            // Modern person icon - very subtle
+                            // Modern person icon
                             Image(systemName: "person.crop.circle")
                                 .font(.system(size: 50, weight: .ultraLight))
                                 .foregroundColor(.gray.opacity(0.3))
@@ -350,9 +363,9 @@ struct ProfileView: View {
             }
             .disabled(profileViewModel.isLoadingPhoto)
             
-            // ENHANCED User Info - BIGGER AND MORE PROMINENT
+            // User Info Section
             VStack(spacing: 12) {
-                // Username - Large and Bold
+                // Username
                 if profileViewModel.isLoadingProfile {
                     HStack(spacing: 8) {
                         ProgressView()
@@ -366,23 +379,23 @@ struct ProfileView: View {
                 } else {
                     VStack(spacing: 12) {
                         Text(getDisplayUsername())
-                            .font(.system(size: 28, weight: .bold, design: .rounded)) // Bigger font
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundColor(.textPrimary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                             .transition(.opacity.combined(with: .scale))
                         
-                        // Full Name - Prominent but smaller than username
+                        // Full Name
                         if let fullName = getDisplayFullName(), !fullName.isEmpty {
                             Text(fullName)
-                                .font(.system(size: 20, weight: .semibold, design: .rounded)) // New: Full name display
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
                                 .foregroundColor(.textSecondary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.9)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                         
-                        // Optional: Bio preview (first line only)
+                        // Bio preview
                         if let bio = profileViewModel.profileDetails?.bio,
                            !bio.isEmpty,
                            bio.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 {
@@ -396,7 +409,6 @@ struct ProfileView: View {
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
-                    // 🎯 SADECE USER DETAILS için animasyon (menüler etkilenmiyor)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.username)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.firstName)
                     .animation(.easeInOut(duration: 0.4), value: profileViewModel.profileDetails?.lastName)

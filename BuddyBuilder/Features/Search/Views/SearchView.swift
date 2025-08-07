@@ -440,7 +440,7 @@ struct SearchView: View {
             )
             
             if viewModel.isLoadingPopular && viewModel.popularUsers.isEmpty {
-                loadingView
+                SkeletonLoadingGrid(count: 6)
             } else if viewModel.popularUsers.isEmpty {
                 emptyStateView(message: "No popular users found")
             } else {
@@ -460,29 +460,12 @@ struct SearchView: View {
             )
             
             if viewModel.isLoadingNew && viewModel.newJoiners.isEmpty {
-                loadingView
+                SkeletonLoadingGrid(count: 6)
             } else if viewModel.newJoiners.isEmpty {
                 emptyStateView(message: "No new joiners found")
             } else {
                 usersGrid(users: Array(viewModel.newJoiners.prefix(6)), section: .newJoiners)
             }
-        }
-    }
-    
-    // MARK: - Helper Views
-    private var loadingView: some View {
-        HStack {
-            Spacer()
-            VStack(spacing: 12) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                    .scaleEffect(1.2)
-                Text("Loading...")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
-            }
-            .padding(40)
-            Spacer()
         }
     }
     
@@ -691,6 +674,136 @@ struct UserCard: View {
         }
     }
 }
+// MARK: - Skeleton User Card Component
+struct SkeletonUserCard: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Profile Image Skeleton
+            ZStack {
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 90, height: 90)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 45)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                
+                // Shimmer effect
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color.white.opacity(0.3),
+                                Color.clear
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 90, height: 90)
+                    .offset(x: isAnimating ? 90 : -90)
+                    .animation(
+                        Animation.linear(duration: 1.5)
+                            .repeatForever(autoreverses: false),
+                        value: isAnimating
+                    )
+            }
+            .frame(height: 100)
+            
+            // User Info Skeleton
+            VStack(spacing: 6) {
+                // Name skeleton
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 80, height: 14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                    )
+                
+                // Username skeleton
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.15))
+                    .frame(width: 60, height: 12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                    )
+                
+                // Bio skeleton (2 lines)
+                VStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 100, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 70, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                }
+                
+                // Location skeleton
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 50, height: 10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
+                    )
+            }
+            .frame(height: 80)
+            
+            Spacer()
+            
+            // Button skeleton
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 32)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .frame(width: 140, height: 240)
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
+// MARK: - Skeleton Loading Grid
+struct SkeletonLoadingGrid: View {
+    let count: Int
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+            
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(0..<count, id: \.self) { _ in
+                    SkeletonUserCard()
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+// ... existing code ...
 
 // MARK: - Notification Extensions
 extension Notification.Name {

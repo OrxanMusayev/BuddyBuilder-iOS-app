@@ -25,25 +25,36 @@ struct SectionDetailView: View {
                     // Content
                     ScrollView {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
-                            if section == .topTrainers {
-                                ForEach(trainers) { trainer in
-                                    DetailTrainerCard(trainer: trainer)
+                            if isLoading && users.isEmpty && trainers.isEmpty {
+                                // Show skeleton cards while loading
+                                ForEach(0..<6, id: \.self) { _ in
+                                    if section == .topTrainers {
+                                        SkeletonDetailTrainerCard()
+                                    } else {
+                                        SkeletonDetailUserCard()
+                                    }
                                 }
                             } else {
-                                ForEach(users) { user in
-                                    DetailUserCard(
-                                        user: user,
-                                        section: section
-                                    )
-                                }
-                            }
-                            
-                            // Load more indicator
-                            if hasMorePages {
-                                loadMoreSection
-                                    .onAppear {
-                                        onLoadMore()
+                                if section == .topTrainers {
+                                    ForEach(trainers) { trainer in
+                                        DetailTrainerCard(trainer: trainer)
                                     }
+                                } else {
+                                    ForEach(users) { user in
+                                        DetailUserCard(
+                                            user: user,
+                                            section: section
+                                        )
+                                    }
+                                }
+                                
+                                // Load more indicator
+                                if hasMorePages {
+                                    loadMoreSection
+                                        .onAppear {
+                                            onLoadMore()
+                                        }
+                                }
                             }
                         }
                         .padding(.horizontal, 20)
@@ -101,16 +112,17 @@ struct SectionDetailView: View {
     private var loadMoreSection: some View {
         VStack(spacing: 12) {
             if isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                    .scaleEffect(1.2)
-                
-                Text("Loading more...")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        if section == .topTrainers {
+                            SkeletonDetailTrainerCard()
+                        } else {
+                            SkeletonDetailUserCard()
+                        }
+                    }
+                }
             }
         }
-        .frame(height: 80)
         .frame(maxWidth: .infinity)
         .gridCellColumns(2) // Span both columns
     }
@@ -190,7 +202,8 @@ struct DetailUserCard: View {
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundColor(getButtonColor())
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 .frame(height: 32) // Fixed button height
                 .background(Color.clear)
                 .overlay(
@@ -378,6 +391,252 @@ extension View {
                     )
             )
             .clipped()
+    }
+}
+
+// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH SearchAsyncImage
+import SwiftUI
+
+// MARK: - Skeleton Detail Card Components
+struct SkeletonDetailUserCard: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Profile Image Skeleton
+            ZStack {
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 90, height: 90)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 45)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                
+                // Shimmer effect
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color.white.opacity(0.3),
+                                Color.clear
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 90, height: 90)
+                    .offset(x: isAnimating ? 90 : -90)
+                    .animation(
+                        Animation.linear(duration: 1.5)
+                            .repeatForever(autoreverses: false),
+                        value: isAnimating
+                    )
+            }
+            
+            // User Info Skeleton
+            VStack(spacing: 6) {
+                // Name skeleton
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 80, height: 14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                    )
+                
+                // Username skeleton
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.15))
+                    .frame(width: 60, height: 12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                    )
+                
+                // Bio skeleton (3 lines)
+                VStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 100, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 80, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 60, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                }
+                
+                // Location skeleton
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.1))
+                    .frame(width: 50, height: 10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
+                    )
+            }
+            
+            Spacer()
+            
+            // Button skeleton
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 32)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
+        .padding(16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
+struct SkeletonDetailTrainerCard: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Profile Image Skeleton with badge
+            ZStack {
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 90, height: 90)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 45)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                
+                // Shimmer effect
+                RoundedRectangle(cornerRadius: 45)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color.white.opacity(0.3),
+                                Color.clear
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 90, height: 90)
+                    .offset(x: isAnimating ? 90 : -90)
+                    .animation(
+                        Animation.linear(duration: 1.5)
+                            .repeatForever(autoreverses: false),
+                        value: isAnimating
+                    )
+                
+                // Badge skeleton
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 16, height: 16)
+                            .offset(x: 5, y: 5)
+                    }
+                }
+            }
+            
+            // Trainer Info Skeleton
+            VStack(spacing: 6) {
+                // Name skeleton
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 80, height: 14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                    )
+                
+                // Specialty skeleton
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.15))
+                    .frame(width: 70, height: 12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                    )
+                
+                // Gym skeleton (2 lines)
+                VStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 90, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 60, height: 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
+                        )
+                }
+                
+                // Rating skeleton
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 12, height: 12)
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(width: 30, height: 12)
+                    
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(width: 40, height: 10)
+                }
+            }
+            
+            Spacer()
+            
+            // Button skeleton
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 32)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
+        .padding(16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .onAppear {
+            isAnimating = true
+        }
     }
 }
 

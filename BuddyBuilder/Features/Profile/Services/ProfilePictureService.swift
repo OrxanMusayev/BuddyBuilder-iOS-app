@@ -1,47 +1,84 @@
-// BuddyBuilder/Features/Profile/Services/ProfilePictureService.swift - IMAGE CACHING
+// BuddyBuilder/Features/Profile/Services/ProfilePhotoService.swift - FIXED MODELS
 
 import Foundation
 import Combine
 import UIKit
 
-// MARK: - Profile Photo Cache Manager
+// MARK: - Profile Photo Cache Manager - FIXED WITH UNIQUE CACHE KEYS
 class ProfilePhotoCache {
     static let shared = ProfilePhotoCache()
-    private let imageKey = "cached_profile_photo_image"
-    private let urlKey = "cached_profile_photo_url"
-    private let dateKey = "cached_profile_photo_date"
+    
+    // FIXED: Unique cache keys for different contexts
+    private let profileImageKey = "cached_profile_photo_image"
+    private let profileUrlKey = "cached_profile_photo_url"
+    private let profileDateKey = "cached_profile_photo_date"
+    private let currentUserIdKey = "cached_profile_user_id"
     
     private init() {}
     
-    // Save image data and URL to cache
+    // FIXED: Save with current user ID for validation
     func savePhoto(imageData: Data, url: String) {
-        UserDefaults.standard.set(imageData, forKey: imageKey)
-        UserDefaults.standard.set(url, forKey: urlKey)
-        UserDefaults.standard.set(Date(), forKey: dateKey)
-        print("💾 Cached profile photo: \(imageData.count) bytes")
+        let currentUserId = getCurrentUserId()
+        UserDefaults.standard.set(imageData, forKey: profileImageKey)
+        UserDefaults.standard.set(url, forKey: profileUrlKey)
+        UserDefaults.standard.set(Date(), forKey: profileDateKey)
+        UserDefaults.standard.set(currentUserId, forKey: currentUserIdKey)
+        print("💾 Cached profile photo for user \(currentUserId): \(imageData.count) bytes")
     }
     
-    // Get cached image data
+    // FIXED: Get cached image only if it belongs to current user
     func getCachedImage() -> Data? {
-        return UserDefaults.standard.data(forKey: imageKey)
+        let currentUserId = getCurrentUserId()
+        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        
+        // Only return cache if it belongs to current user
+        if currentUserId == cachedUserId && currentUserId > 0 {
+            return UserDefaults.standard.data(forKey: profileImageKey)
+        } else {
+            print("🗑️ Cache belongs to different user (\(cachedUserId) vs \(currentUserId)), clearing...")
+            clearCache()
+            return nil
+        }
     }
     
-    // Get cached URL
+    // FIXED: Get cached URL only if it belongs to current user
     func getCachedURL() -> String? {
-        return UserDefaults.standard.string(forKey: urlKey)
+        let currentUserId = getCurrentUserId()
+        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        
+        if currentUserId == cachedUserId && currentUserId > 0 {
+            return UserDefaults.standard.string(forKey: profileUrlKey)
+        } else {
+            clearCache()
+            return nil
+        }
     }
     
     // Clear all cache
     func clearCache() {
-        UserDefaults.standard.removeObject(forKey: imageKey)
-        UserDefaults.standard.removeObject(forKey: urlKey)
-        UserDefaults.standard.removeObject(forKey: dateKey)
+        UserDefaults.standard.removeObject(forKey: profileImageKey)
+        UserDefaults.standard.removeObject(forKey: profileUrlKey)
+        UserDefaults.standard.removeObject(forKey: profileDateKey)
+        UserDefaults.standard.removeObject(forKey: currentUserIdKey)
         print("🗑️ Cleared profile photo cache")
     }
     
-    // Check if cache exists
+    // FIXED: Clear cache when user changes
+    func clearCacheForUserChange() {
+        clearCache()
+        print("🔄 Cleared profile cache due to user change")
+    }
+    
+    // Check if cache exists and belongs to current user
     var hasCache: Bool {
-        return getCachedImage() != nil && getCachedURL() != nil
+        let currentUserId = getCurrentUserId()
+        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        return getCachedImage() != nil && getCachedURL() != nil && currentUserId == cachedUserId
+    }
+    
+    // FIXED: Helper to get current user ID
+    private func getCurrentUserId() -> Int {
+        return UserDefaults.standard.integer(forKey: "user_id")
     }
 }
 
@@ -56,17 +93,12 @@ struct ProfilePhotoResult {
     }
 }
 
-// MARK: - Profile Photo Models
-struct ProfilePhotoData: Codable {
-    let photoUrl: String?
-    let uploadDate: String?
-    let message: String?
-}
-
+// MARK: - FIXED: Profile Photo Models for API Response
+// API döndürdüğü format: { "success": true, "data": "https://testimage.jpg", "message": "Profile Picture received." }
 struct ProfilePhotoResponse: Codable {
     let success: Bool
     let message: String?
-    let data: ProfilePhotoData?
+    let data: String? // FIXED: String instead of ProfilePhotoData object
     let errors: [String]?
     let timestamp: String
 }
@@ -74,9 +106,16 @@ struct ProfilePhotoResponse: Codable {
 struct ProfilePhotoUploadResponse: Codable {
     let success: Bool
     let message: String?
-    let data: ProfilePhotoData?
+    let data: ProfilePhotoUploadData? // Different structure for upload response
     let errors: [String]?
     let timestamp: String
+}
+
+// For upload responses, if API returns different structure
+struct ProfilePhotoUploadData: Codable {
+    let photoUrl: String?
+    let uploadDate: String?
+    let message: String?
 }
 
 struct ProfilePhotoDeleteResponse: Codable {
@@ -94,20 +133,26 @@ protocol ProfilePhotoServiceProtocol {
     func updateProfilePhoto(_ imageData: Data) -> AnyPublisher<ProfilePhotoResult, Error>
     func deleteProfilePhoto() -> AnyPublisher<Bool, Error>
     func refreshProfilePhotoFromAPI() -> AnyPublisher<ProfilePhotoResult, Error>
+    func clearCacheOnUserChange() // NEW: Clear cache method
     
     // Legacy methods for compatibility
     func fetchProfilePhotoURL() -> AnyPublisher<String?, Error>
 }
 
-// MARK: - Profile Photo Service Implementation
+// MARK: - Profile Photo Service Implementation - FIXED FOR NEW API FORMAT
 class ProfilePhotoService: ProfilePhotoServiceProtocol {
     private let networkManager = NetworkManager.shared
     private let baseURL = "http://192.168.100.74:5206/api/ProfilePhoto"
     private let cache = ProfilePhotoCache.shared
     
+    // MARK: - NEW: Clear cache on user change
+    func clearCacheOnUserChange() {
+        cache.clearCacheForUserChange()
+    }
+    
     // MARK: - Fetch Profile Photo (Image Data + URL) - CACHE FIRST
     func fetchProfilePhoto() -> AnyPublisher<ProfilePhotoResult, Error> {
-        // 1. First check cache for image data
+        // 1. First check cache for image data (with user validation)
         if let cachedImageData = cache.getCachedImage(),
            let cachedURL = cache.getCachedURL() {
             print("📱 Using cached profile photo: \(cachedImageData.count) bytes")
@@ -121,7 +166,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         return refreshProfilePhotoFromAPI()
     }
     
-    // MARK: - Force Refresh from API (downloads actual image)
+    // MARK: - Force Refresh from API (downloads actual image) - FIXED FOR NEW RESPONSE FORMAT
     func refreshProfilePhotoFromAPI() -> AnyPublisher<ProfilePhotoResult, Error> {
         let headers = getAuthHeaders()
         
@@ -135,7 +180,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         )
         .flatMap { response -> AnyPublisher<ProfilePhotoResult, Error> in
             if response.success,
-               let photoUrl = response.data?.photoUrl,
+               let photoUrl = response.data, // FIXED: Direct string access
                !photoUrl.isEmpty {
                 print("✅ Got photo URL from API: \(photoUrl)")
                 // Now download the actual image
@@ -272,7 +317,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         return ["Authorization": "Bearer \(token)"]
     }
     
-    // MARK: - Multipart Request with Auto-Refresh
+    // MARK: - Multipart Request with Auto-Refresh - UPDATED FOR NEW RESPONSE FORMAT
     private func createMultipartRequestWithAutoRefresh(
         imageData: Data,
         endpoint: String,
@@ -325,7 +370,7 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
         .eraseToAnyPublisher()
     }
     
-    // MARK: - Perform Multipart Upload
+    // MARK: - Perform Multipart Upload - UPDATED FOR NEW RESPONSE FORMAT
     private func performMultipartUpload(
         imageData: Data,
         endpoint: String,
@@ -378,16 +423,30 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
             }
             
             do {
-                let uploadResponse = try JSONDecoder().decode(ProfilePhotoUploadResponse.self, from: data)
-                
-                if uploadResponse.success {
-                    let photoUrl = uploadResponse.data?.photoUrl
-                    print("✅ Upload response URL: \(photoUrl ?? "nil")")
-                    completion(.success(photoUrl))
+                // FIXED: Try both response formats
+                if let simpleResponse = try? JSONDecoder().decode(ProfilePhotoResponse.self, from: data) {
+                    // Simple string response format
+                    if simpleResponse.success {
+                        let photoUrl = simpleResponse.data
+                        print("✅ Upload response URL (simple): \(photoUrl ?? "nil")")
+                        completion(.success(photoUrl))
+                    } else {
+                        completion(.failure(NetworkError.serverError(400)))
+                    }
                 } else {
-                    completion(.failure(NetworkError.serverError(400)))
+                    // Complex object response format
+                    let uploadResponse = try JSONDecoder().decode(ProfilePhotoUploadResponse.self, from: data)
+                    
+                    if uploadResponse.success {
+                        let photoUrl = uploadResponse.data?.photoUrl
+                        print("✅ Upload response URL (complex): \(photoUrl ?? "nil")")
+                        completion(.success(photoUrl))
+                    } else {
+                        completion(.failure(NetworkError.serverError(400)))
+                    }
                 }
             } catch {
+                print("❌ Upload response decode error: \(error)")
                 completion(.failure(error))
             }
         }.resume()
@@ -397,6 +456,10 @@ class ProfilePhotoService: ProfilePhotoServiceProtocol {
 // MARK: - Mock Profile Photo Service
 class MockProfilePhotoService: ProfilePhotoServiceProtocol {
     private let cache = ProfilePhotoCache.shared
+    
+    func clearCacheOnUserChange() {
+        cache.clearCacheForUserChange()
+    }
     
     func fetchProfilePhoto() -> AnyPublisher<ProfilePhotoResult, Error> {
         if let cachedImage = cache.getCachedImage(),

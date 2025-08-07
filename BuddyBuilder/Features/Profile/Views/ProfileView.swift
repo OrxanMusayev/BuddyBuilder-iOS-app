@@ -1,18 +1,13 @@
-// BuddyBuilder/Features/Profile/Views/ProfileView.swift - COMPLETE VERSION WITH ENHANCED HEADER
-
-import SwiftUI
-import PhotosUI
-import Combine
-// Updated ProfileViewModel in ProfileView.swift
+// BuddyBuilder/Features/Profile/Views/ProfileView.swift - UPDATED ProfileViewModel with Cache Management
 
 import SwiftUI
 import PhotosUI
 import Combine
 
-// MARK: - Profile View Model - ENHANCED WITH IMAGE CACHING
+// MARK: - Profile View Model - ENHANCED WITH IMAGE CACHING AND USER CHANGE DETECTION
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
-    @Published var profilePhotoImage: UIImage? // New: Store actual image
+    @Published var profilePhotoImage: UIImage? // Store actual image
     @Published var profileDetails: ProfileDetails?
     @Published var isLoadingPhoto = false
     @Published var isLoadingProfile = false
@@ -26,16 +21,50 @@ class ProfileViewModel: ObservableObject {
     private let profileDetailsService: ProfileDetailsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
+    // NEW: Track current user to detect user changes
+    private var currentUserId: Int = 0
+    
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService(),
          profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService()) {
         self.profilePhotoService = profilePhotoService
         self.profileDetailsService = profileDetailsService
+        
+        // Set current user ID
+        currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        
         loadProfilePhoto()
         loadProfileDetails()
     }
     
+    // MARK: - NEW: Check for User Change and Clear Cache if Needed
+    func checkForUserChange() {
+        let newUserId = UserDefaults.standard.integer(forKey: "user_id")
+        
+        if newUserId != currentUserId && newUserId > 0 {
+            print("🔄 User changed from \(currentUserId) to \(newUserId), clearing caches...")
+            
+            // Clear photo cache
+            profilePhotoService.clearCacheOnUserChange()
+            
+            // Reset UI state
+            profilePhotoURL = nil
+            profilePhotoImage = nil
+            profileDetails = nil
+            
+            // Update current user ID
+            currentUserId = newUserId
+            
+            // Reload data for new user
+            loadProfilePhoto()
+            loadProfileDetails()
+        }
+    }
+    
     // MARK: - Load Profile Photo (Image Data)
     func loadProfilePhoto() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         isLoadingPhoto = true
         
         profilePhotoService.fetchProfilePhoto()
@@ -64,6 +93,9 @@ class ProfileViewModel: ObservableObject {
     
     // MARK: - Load Profile Details
     func loadProfileDetails() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         isLoadingProfile = true
         
         profileDetailsService.fetchProfileDetailsWithAutoRefresh()
@@ -161,7 +193,7 @@ class ProfileViewModel: ObservableObject {
     }
 }
 
-// MARK: - Profile View - ENHANCED USER INFO DISPLAY
+// MARK: - Profile View - UPDATED WITH USER CHANGE DETECTION
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -172,7 +204,7 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
     @State private var navigateToProfileDetails = false
-    @State private var navigateToSettings = false // 🆕 Settings navigation
+    @State private var navigateToSettings = false
     
     var body: some View {
         NavigationStack {
@@ -273,7 +305,8 @@ struct ProfileView: View {
             Text(profileViewModel.errorMessage)
         }
         .onAppear {
-            // 🔴 REFRESH profile data when view appears
+            // 🔴 CHECK for user changes and refresh profile data when view appears
+            profileViewModel.checkForUserChange()
             profileViewModel.loadProfileDetails()
             profileViewModel.loadProfilePhoto()
         }
@@ -487,7 +520,7 @@ struct ProfileView: View {
                 title: "profile.menu.settings".localized(using: localizationManager),
                 color: .gray,
                 action: {
-                    navigateToSettings = true // 🆕 Settings navigation
+                    navigateToSettings = true
                 }
             )
             

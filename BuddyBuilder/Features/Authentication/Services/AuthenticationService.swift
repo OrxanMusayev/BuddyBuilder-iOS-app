@@ -35,7 +35,7 @@ class AuthenticationService {
     
     func logout(refreshToken: String, accessToken: String) -> AnyPublisher<Void, Error> {
         let logoutURL = "\(baseURL)/logout?refreshToken=\(refreshToken)"
-                
+        
                 // Access token'ı header olarak ekle
                 let headers = [
                     "Authorization": "Bearer \(accessToken)"
@@ -64,6 +64,11 @@ class AuthenticationService {
                     return Fail(error: error)
                         .eraseToAnyPublisher()
                 }
+                .handleEvents(receiveOutput: { _ in
+                        // ✅ İşte burada cache temizliği yapılır
+                        CentralCacheManager.shared.clearUserData()
+                        print("🧹 Cleared user-related cache on logout")
+                    })
                 .map { _ in () }
                 .eraseToAnyPublisher()
     }

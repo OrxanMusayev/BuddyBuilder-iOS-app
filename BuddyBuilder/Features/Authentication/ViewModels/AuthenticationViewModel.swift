@@ -164,8 +164,13 @@ class AuthenticationViewModel: ObservableObject {
         UserDefaults.standard.set(loginData.email, forKey: "user_email")
         UserDefaults.standard.set(loginData.refreshToken, forKey: "refresh_token")
         print("💾 User info saved successfully")
+        
+        // SEND LOGIN NOTIFICATION
+        NotificationCenter.default.post(name: .userDidLogin, object: nil)
+        print("📢 Sent user login notification")
     }
     
+    // UPDATED: Logout with comprehensive cache clearing
     func logout() {
         print("👋 Logging out user...")
         print("Current isAuthenticated: \(isAuthenticated)")
@@ -183,7 +188,7 @@ class AuthenticationViewModel: ObservableObject {
                         print("❌ Logout hatası: \(error)")
                     }
                 },
-                receiveValue: {
+                receiveValue: { [weak self] _ in
                     DispatchQueue.main.async { [weak self] in
                         self?.isAuthenticated = false
                         self?.performLocalLogout()
@@ -192,10 +197,6 @@ class AuthenticationViewModel: ObservableObject {
             )
             .store(in: &cancellables)
         
-       
-        
-        // Authentication state'i değiştir
-
         print("✅ User logged out and data cleared")
     }
     
@@ -208,16 +209,16 @@ class AuthenticationViewModel: ObservableObject {
         return true
     }
     
+    // UPDATED: Enhanced local logout with cache clearing
     private func performLocalLogout() {
-        print("🧹 Performing local logout...")
+        print("🧹 Performing local logout with comprehensive cache clearing...")
         
-        // UserDefaults'tan tüm kullanıcı verilerini temizle
-        UserDefaults.standard.removeObject(forKey: "auth_token")
-        UserDefaults.standard.removeObject(forKey: "refresh_token")
-        UserDefaults.standard.removeObject(forKey: "user_id")
-        UserDefaults.standard.removeObject(forKey: "username")
-        UserDefaults.standard.removeObject(forKey: "user_email")
-        UserDefaults.standard.removeObject(forKey: "is_profile_complete")
+        // SEND LOGOUT NOTIFICATION BEFORE CLEARING DATA
+        NotificationCenter.default.post(name: .userDidLogout, object: nil)
+        print("📢 Sent user logout notification")
+        
+        // FIXED: Clear all user data and caches
+        clearAllUserDataAndCaches()
         
         // Form alanlarını temizle
         username = ""
@@ -234,17 +235,80 @@ class AuthenticationViewModel: ObservableObject {
         isAuthenticated = false
         
         print("🔄 Setting isAuthenticated to false...")
-            print("Current thread: \(Thread.isMainThread ? "Main" : "Background")")
-            isAuthenticated = false
-            print("✅ isAuthenticated set to: \(isAuthenticated)")
-            
-            print("✅ Local logout completed, should redirect to LoginView")
-        
-        print("✅ Local logout completed, redirecting to LoginView")
+        print("Current thread: \(Thread.isMainThread ? "Main" : "Background")")
+        print("✅ isAuthenticated set to: \(isAuthenticated)")
+        print("✅ Local logout completed, should redirect to LoginView")
         print("New isAuthenticated: \(isAuthenticated)")
     }
+    
+    // MARK: - NEW: Clear All User Data and Caches
+    private func clearAllUserDataAndCaches() {
+        print("🧹 Clearing all user data and caches...")
+        
+        // Clear user preferences from UserDefaults
+        let userKeys = [
+            "auth_token",
+            "refresh_token",
+            "user_id",
+            "username",
+            "user_email",
+            "is_profile_complete",
+            // Profile photo cache keys
+            "cached_profile_photo_image",
+            "cached_profile_photo_url",
+            "cached_profile_photo_date",
+            "cached_profile_user_id"
+        ]
+        
+        for key in userKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        // Clear profile photo cache
+        clearProfilePhotoCache()
+        
+        // Clear search image cache
+        SearchImageCacheManager.shared.forceClearAllCache()
+        
+        // Log cache status for debugging
+        SearchImageCacheManager.shared.logCacheStatus()
+        
+        CentralCacheManager.shared.clearUserData()
+               print("🧹 Cleared user-related cache on logout")
+        
+        print("✅ All user data and caches cleared")
+    }
+    
+    // MARK: - NEW: Clear Profile Photo Cache
+    private func clearProfilePhotoCache() {
+        // Since we don't have direct access to ProfilePhotoService here,
+        // we'll clear the cache keys manually and let the service handle it
+        let profileCacheKeys = [
+            "cached_profile_photo_image",
+            "cached_profile_photo_url",
+            "cached_profile_photo_date",
+            "cached_profile_user_id"
+        ]
+        
+        for key in profileCacheKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        // If we can create a ProfilePhotoService instance, clear it properly
+        if let profilePhotoService = createProfilePhotoService() {
+            profilePhotoService.clearCacheOnUserChange()
+        }
+        
+        print("🗑️ Profile photo cache cleared")
+    }
+    
+    // MARK: - NEW: Helper to create ProfilePhotoService
+    private func createProfilePhotoService() -> ProfilePhotoServiceProtocol? {
+        // This is a workaround since we don't have dependency injection
+        // Return actual service instance if available
+        return ProfilePhotoService()
+    }
 }
-
 
 // BU KODLARI AuthenticationViewModel.swift DOSYASININ SONUNA EKLEYİN
 

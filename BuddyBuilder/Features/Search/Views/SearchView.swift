@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Search/Views/SearchView.swift - UPDATED WITH REAL API
+// BuddyBuilder/Features/Search/Views/SearchView.swift - FIXED WITH USER CHANGE DETECTION
 
 import SwiftUI
 import Combine
@@ -29,7 +29,7 @@ enum SectionType {
     }
 }
 
-// MARK: - Search View Model (Updated with Real API)
+// MARK: - Search View Model - FIXED WITH USER CHANGE DETECTION AND CACHE CLEARING
 class SearchViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var searchSuggestions: [String] = []
@@ -58,14 +58,75 @@ class SearchViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let debounceInterval: TimeInterval = 0.3
     
+    // MARK: - NEW: User change detection
+    private var currentUserId: Int = 0
+    private var hasInitialLoad = false
+    
     // User location for API calls
     private let userLocation = "" // Empty string instead of "Baku"
     
     init(searchService: SearchServiceProtocol = SearchService()) {
         self.searchService = searchService
+        self.currentUserId = UserDefaults.standard.integer(forKey: "user_id")
         setupSearchSuggestions()
         
+        print("🔍 SearchViewModel initialized for user ID: \(currentUserId)")
+        
         // Load initial data with delays for performance
+        loadInitialData()
+    }
+    
+    // MARK: - NEW: Check for user change and clear data if needed
+    func checkForUserChange() {
+        let newUserId = UserDefaults.standard.integer(forKey: "user_id")
+        
+        if newUserId != currentUserId && newUserId > 0 {
+            print("🔄 Search: User changed from \(currentUserId) to \(newUserId), clearing all data...")
+            
+            // Clear all data
+            clearAllData()
+            
+            // Update current user ID
+            currentUserId = newUserId
+            hasInitialLoad = false
+            
+            // Reload data for new user
+            loadInitialData()
+        } else if newUserId == 0 && currentUserId > 0 {
+            // User logged out
+            print("👋 Search: User logged out, clearing all data...")
+            clearAllData()
+            currentUserId = 0
+            hasInitialLoad = false
+        }
+    }
+    
+    // MARK: - NEW: Clear all search data
+    func clearAllData() {
+        CentralCacheManager.shared.clearUserData();
+        popularUsers.removeAll()
+        newJoiners.removeAll()
+        sectionUsers.removeAll()
+        sectionTrainers.removeAll()
+        
+        // Reset states
+        isLoadingPopular = false
+        isLoadingNew = false
+        isSectionLoading = false
+        showSectionDetail = false
+        currentSection = nil
+        
+        // Clear image cache for search
+        SearchImageCacheManager.shared.forceClearAllCache()
+        
+        print("🧹 Cleared all search data and cache")
+    }
+    
+    // MARK: - NEW: Force refresh for new user
+    func forceRefreshForNewUser() {
+        print("🔄 Force refreshing search data for new user...")
+        clearAllData()
+        currentUserId = UserDefaults.standard.integer(forKey: "user_id")
         loadInitialData()
     }
     
@@ -80,8 +141,18 @@ class SearchViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    // MARK: - Load Initial Data with Delays
+    // MARK: - Load Initial Data with User Change Check
     private func loadInitialData() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
+        // Only load if we have a valid user ID
+        let userId = UserDefaults.standard.integer(forKey: "user_id")
+        guard userId > 0 else {
+            print("⚠️ No valid user ID, skipping search data load")
+            return
+        }
+        
         // Load popular users immediately
         loadPopularUsers()
         
@@ -89,17 +160,28 @@ class SearchViewModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.loadNewJoiners()
         }
+        
+        hasInitialLoad = true
     }
     
-    // MARK: - Load Popular Users
+    // MARK: - Load Popular Users - ENHANCED WITH USER VALIDATION
     private func loadPopularUsers() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         guard !isLoadingPopular else { return }
+        guard currentUserId > 0 else {
+            print("⚠️ No valid user ID for popular users load")
+            return
+        }
         
         isLoadingPopular = true
         
+        print("🔥 Loading popular users for user ID: \(currentUserId)")
+        
         searchService.fetchPopularUsers(
             location: userLocation.isEmpty ? nil : userLocation,
-            sportId: nil, // Can be updated based on user filter
+            sportId: nil,
             page: 1,
             pageSize: 10
         )
@@ -109,22 +191,43 @@ class SearchViewModel: ObservableObject {
                 self?.isLoadingPopular = false
                 if case .failure(let error) = completion {
                     print("❌ Failed to load popular users: \(error)")
-                    // Handle error - could show error state
                 }
             },
             receiveValue: { [weak self] data in
-                self?.popularUsers = data.items
-                print("✅ Loaded \(data.items.count) popular users")
+                // Double check user ID hasn't changed during request
+                guard let self = self,
+                      self.currentUserId > 0,
+                      self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
+                    print("🚫 User changed during popular users load, ignoring result")
+                    return
+                }
+                
+                self.popularUsers = data.items
+                print("✅ Loaded \(data.items.count) popular users for user \(self.currentUserId)")
+                
+                // Debug: Print user IDs to verify filtering
+                let userIds = data.items.map { $0.id }
+                print("👥 Popular user IDs: \(userIds)")
+                print("🔍 Current user ID: \(self.currentUserId)")
             }
         )
         .store(in: &cancellables)
     }
     
-    // MARK: - Load New Joiners
+    // MARK: - Load New Joiners - ENHANCED WITH USER VALIDATION
     private func loadNewJoiners() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         guard !isLoadingNew else { return }
+        guard currentUserId > 0 else {
+            print("⚠️ No valid user ID for new joiners load")
+            return
+        }
         
         isLoadingNew = true
+        
+        print("🆕 Loading new joiners for user ID: \(currentUserId)")
         
         searchService.fetchNewUsers(
             location: userLocation.isEmpty ? nil : userLocation,
@@ -141,15 +244,31 @@ class SearchViewModel: ObservableObject {
                 }
             },
             receiveValue: { [weak self] data in
-                self?.newJoiners = data.items
-                print("✅ Loaded \(data.items.count) new joiners")
+                // Double check user ID hasn't changed during request
+                guard let self = self,
+                      self.currentUserId > 0,
+                      self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
+                    print("🚫 User changed during new joiners load, ignoring result")
+                    return
+                }
+                
+                self.newJoiners = data.items
+                print("✅ Loaded \(data.items.count) new joiners for user \(self.currentUserId)")
+                
+                // Debug: Print user IDs to verify filtering
+                let userIds = data.items.map { $0.id }
+                print("👥 New joiner IDs: \(userIds)")
+                print("🔍 Current user ID: \(self.currentUserId)")
             }
         )
         .store(in: &cancellables)
     }
     
-    // MARK: - Section Detail Methods
+    // MARK: - Section Detail Methods - UPDATED WITH USER VALIDATION
     func showSection(_ section: SectionType) {
+        // Check for user changes
+        checkForUserChange()
+        
         currentSection = section
         sectionCurrentPage = 1
         sectionUsers.removeAll()
@@ -162,6 +281,7 @@ class SearchViewModel: ObservableObject {
     
     func loadSectionData(section: SectionType, page: Int) {
         guard !isSectionLoading else { return }
+        guard currentUserId > 0 else { return }
         
         isSectionLoading = true
         
@@ -238,13 +358,20 @@ class SearchViewModel: ObservableObject {
                     }
                 },
                 receiveValue: { [weak self] data in
-                    if page == 1 {
-                        self?.sectionUsers = data.items
-                    } else {
-                        self?.sectionUsers.append(contentsOf: data.items)
+                    guard let self = self,
+                          self.currentUserId > 0,
+                          self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
+                        print("🚫 User changed during section load, ignoring result")
+                        return
                     }
-                    self?.sectionCurrentPage = data.page
-                    self?.sectionHasMorePages = data.hasNextPage
+                    
+                    if page == 1 {
+                        self.sectionUsers = data.items
+                    } else {
+                        self.sectionUsers.append(contentsOf: data.items)
+                    }
+                    self.sectionCurrentPage = data.page
+                    self.sectionHasMorePages = data.hasNextPage
                     print("✅ Loaded \(data.items.count) section users (page \(page))")
                 }
             )
@@ -276,8 +403,14 @@ class SearchViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Refresh Methods
+    // MARK: - Refresh Methods - UPDATED WITH USER VALIDATION
     func refreshAllData() {
+        print("🔄 Refreshing all search data...")
+        
+        // Check for user changes first
+        checkForUserChange()
+        
+        // Clear and reload
         popularUsers.removeAll()
         newJoiners.removeAll()
         
@@ -285,7 +418,7 @@ class SearchViewModel: ObservableObject {
     }
 }
 
-// MARK: - Main Search View (Updated)
+// MARK: - Main Search View - UPDATED WITH USER CHANGE DETECTION
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -326,6 +459,21 @@ struct SearchView: View {
             }
         }
         .navigationBarHidden(true)
+        .onAppear {
+            // CRITICAL: Check for user changes when view appears
+            print("🔍 SearchView appeared, checking for user changes...")
+            viewModel.checkForUserChange()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidLogin)) { _ in
+            // Force refresh when user logs in
+            print("🔔 User login notification received in SearchView")
+            viewModel.forceRefreshForNewUser()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .userDidLogout)) { _ in
+            // Clear data when user logs out
+            print("🔔 User logout notification received in SearchView")
+            viewModel.clearAllData()
+        }
         .fullScreenCover(isPresented: $viewModel.showSectionDetail) {
             if let section = viewModel.currentSection {
                 SectionDetailView(
@@ -739,4 +887,10 @@ struct RealUserCard: View {
             print("👤 Tapped on user: \(user.name)")
         }
     }
+}
+
+// MARK: - Notification Extensions for User Login/Logout
+extension Notification.Name {
+    static let userDidLogin = Notification.Name("userDidLogin")
+    static let userDidLogout = Notification.Name("userDidLogout")
 }

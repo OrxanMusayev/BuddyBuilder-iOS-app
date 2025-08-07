@@ -19,8 +19,8 @@ struct CustomTabBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 34) // Safe area + extra padding
+        .padding(.top, 6)
+        .padding(.bottom, 30) // Safe area + extra padding
         .background(
             Rectangle()
                 .fill(Color.white)

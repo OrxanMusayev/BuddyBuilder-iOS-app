@@ -1,4 +1,4 @@
-// MARK: - Updated Section Detail View with Pagination
+// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH SearchAsyncImage
 import SwiftUI
 
 struct SectionDetailView: View {
@@ -72,9 +72,12 @@ struct SectionDetailView: View {
             Spacer()
             
             VStack(spacing: 4) {
-                Image(systemName: section.icon)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.gray.opacity(0.8))
+                // Icon removed for New Joiners, kept for others
+                if section != .newJoiners {
+                    Image(systemName: section.icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.gray.opacity(0.8))
+                }
                 
                 Text(section.title)
                     .font(.system(size: 18, weight: .semibold))
@@ -113,7 +116,7 @@ struct SectionDetailView: View {
     }
 }
 
-// MARK: - Detail User Card (Updated for SearchUser)
+// MARK: - Detail User Card - UPDATED WITH SearchAsyncImage
 struct DetailUserCard: View {
     let user: SearchUser
     let section: SectionType
@@ -121,43 +124,17 @@ struct DetailUserCard: View {
     
     var body: some View {
         VStack(spacing: 12) {
-            // Profile Image - Standardized
+            // Profile Image - Same as SearchView UserCard
             ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.12))
-                    .frame(width: 70, height: 70)
+                SearchAsyncImage(
+                    url: user.profileImageUrl,
+                    placeholder: "person.crop.circle.fill"
+                )
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
                 
-                if let imageUrl = user.profileImageUrl {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 90))
-                            .foregroundColor(.gray.opacity(0.5))
-                    }
-                    .frame(width: 90, height: 90)
-                    .clipShape(Circle())
-                } else {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 90))
-                        .foregroundColor(.gray.opacity(0.5))
-                }
-                
-                // Status indicators - NO STROKE
-                if section == .newJoiners {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 14, height: 14)
-                                .offset(x: 5, y: -5)
-                        }
-                        Spacer()
-                    }
-                } else if section == .activeUsers && user.isOnline {
+                // Status indicators - REMOVED RED DOT
+                if section == .activeUsers && user.isOnline {
                     VStack {
                         Spacer()
                         HStack {
@@ -194,7 +171,7 @@ struct DetailUserCard: View {
                 
                 Text(user.location)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.gray.opacity(0.8))
+                    .foregroundColor(.primaryOrange)
                     .lineLimit(1)
                     .frame(height: 14) // Fixed height
             }
@@ -223,7 +200,7 @@ struct DetailUserCard: View {
             }
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
-        .frame(maxWidth: .infinity, minHeight: 280, maxHeight: 280) // Fixed card size
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260) // Reduced card height
         .padding(16)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -244,8 +221,8 @@ struct DetailUserCard: View {
     
     private func getButtonColor() -> Color {
         switch section {
-        case .popularUsers: return Color.red
-        case .newJoiners: return Color.green
+        case .popularUsers: return Color.primaryOrange
+        case .newJoiners: return Color.primaryOrange
         case .activeUsers: return Color.blue
         case .topTrainers: return Color.purple
         }
@@ -254,7 +231,7 @@ struct DetailUserCard: View {
     private func getButtonIcon() -> String {
         switch section {
         case .popularUsers: return "plus.circle.fill"
-        case .newJoiners: return "hand.wave.fill"
+        case .newJoiners: return "plus.circle.fill"
         case .activeUsers: return "message.circle.fill"
         case .topTrainers: return "person.fill"
         }
@@ -263,14 +240,14 @@ struct DetailUserCard: View {
     private func getButtonTitle() -> String {
         switch section {
         case .popularUsers: return "Match"
-        case .newJoiners: return "Welcome"
+        case .newJoiners: return "Match"
         case .activeUsers: return "Message"
         case .topTrainers: return "Contact"
         }
     }
 }
 
-// MARK: - Detail Trainer Card (Updated for SearchTrainer)
+// MARK: - Detail Trainer Card - UPDATED WITH SearchAsyncImage
 struct DetailTrainerCard: View {
     let trainer: SearchTrainer
     @State private var isPressed = false
@@ -278,29 +255,14 @@ struct DetailTrainerCard: View {
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.12))
-                    .frame(width: 90, height: 90)
+                SearchAsyncImage(
+                    url: trainer.profileImageUrl,
+                    placeholder: "person.crop.circle.badge.checkmark.fill"
+                )
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
                 
-                if let imageUrl = trainer.profileImageUrl {
-                    AsyncImage(url: URL(string: imageUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Image(systemName: "person.crop.circle.badge.checkmark.fill")
-                            .font(.system(size: 55))
-                            .foregroundColor(.gray.opacity(0.5))
-                    }
-                    .frame(width: 90, height: 90)
-                    .clipShape(Circle())
-                } else {
-                    Image(systemName: "person.crop.circle.badge.checkmark.fill")
-                        .font(.system(size: 55))
-                        .foregroundColor(.gray.opacity(0.5))
-                }
-                
-                // Verified badge - NO STROKE
+                // Verified badge
                 VStack {
                     Spacer()
                     HStack {

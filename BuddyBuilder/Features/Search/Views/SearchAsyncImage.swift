@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Search/Views/SearchAsyncImage.swift - SIMPLIFIED
+// BuddyBuilder/Features/Search/Views/SearchAsyncImage.swift - FINAL VERSION (ONLY IMAGE CACHE)
 
 import SwiftUI
 import Combine
@@ -10,29 +10,30 @@ struct SearchAsyncImage: View {
     @State private var isLoading = true
     @State private var cancellables = Set<AnyCancellable>()
     
+    // Use CentralCacheManager for image caching only
     private let cacheManager = CentralCacheManager.shared
     
     var body: some View {
-        Group {
+        ZStack {
             if let image = loadedImage {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .transition(.opacity)
             } else if isLoading {
-                ZStack {
-                    Circle()
-                        .fill(Color.gray.opacity(0.1))
-                    
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .gray))
-                        .scaleEffect(0.6)
-                }
+                // Loading state - light gray background with spinner
+                Color.gray.opacity(0.15)
+                
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(0.8)
             } else {
-                // Fallback placeholder
+                // Fallback placeholder - icon with lighter gray color for better visibility
                 Image(systemName: placeholder)
-                    .font(.system(size: 35))
-                    .foregroundColor(.gray.opacity(0.4))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundColor(.gray.opacity(0.35))
+                    .background(Color.white.opacity(0.85))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: loadedImage)
@@ -44,6 +45,7 @@ struct SearchAsyncImage: View {
             cancellables.removeAll()
             // Reset state
             loadedImage = nil
+            isLoading = true
             // Load new image
             loadImage()
         }
@@ -56,12 +58,10 @@ struct SearchAsyncImage: View {
             return
         }
         
-        // Check for user changes
+        // Check user changes in cache manager
         cacheManager.checkUserChange()
         
-        self.isLoading = true
-        
-        // Check cache first
+        // Check search image cache first
         if let cachedImage = cacheManager.getSearchImage(for: url) {
             self.loadedImage = cachedImage
             self.isLoading = false
@@ -74,13 +74,11 @@ struct SearchAsyncImage: View {
             return
         }
         
-        print("📥 Downloading search image from: \(url)")
-        
         URLSession.shared.dataTaskPublisher(for: imageURL)
             .map { data, _ -> UIImage? in
                 guard let image = UIImage(data: data) else { return nil }
                 
-                // Cache the downloaded image
+                // Cache the downloaded image using CentralCacheManager
                 self.cacheManager.saveSearchImage(image, for: url)
                 return image
             }

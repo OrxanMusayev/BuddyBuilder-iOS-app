@@ -1,328 +1,216 @@
-// BuddyBuilder/Core/Cache/CentralCacheManager.swift
+// BuddyBuilder/Core/Managers/CentralCacheManager.swift - UPDATED: ONLY IMAGE CACHING
 
 import Foundation
 import UIKit
 
-// MARK: - Central Cache Manager - Single Source of Truth
-public class CentralCacheManager {
+// MARK: - Image Cache Entry (Only for images)
+struct ImageCacheEntry {
+    let image: UIImage
+    let timestamp: Date
+    let userId: Int // Track which user this image belongs to
+    
+    var isExpired: Bool {
+        Date().timeIntervalSince(timestamp) > CentralCacheManager.cacheExpirationInterval
+    }
+    
+    var belongsToCurrentUser: Bool {
+        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        return userId == currentUserId && currentUserId > 0
+    }
+}
+
+// MARK: - Central Cache Manager - ONLY FOR IMAGES (NO USER DATA)
+class CentralCacheManager {
     static let shared = CentralCacheManager()
     
-    // MARK: - Cache Types
-    enum CacheType: String, CaseIterable {
-        case profilePhoto = "profile_photo"
-        case searchImages = "search_images"
-        case popularUsers = "popular_users"
-        case newUsers = "new_users"
-        case searchUsers = "search_users"
-        
-        var keyPrefix: String {
-            return "cache_\(self.rawValue)_"
-        }
-    }
+    // Cache expiration time: 10 minutes for profile images, 5 minutes for search images
+    static let cacheExpirationInterval: TimeInterval = 600 // 10 minutes for profile images
+    static let searchCacheExpirationInterval: TimeInterval = 300 // 5 minutes for search images
     
-    // MARK: - Current user tracking
-    private var currentUserId: Int = 0
-    private let userIdKey = "user_id"
+    // ONLY image caches - NO USER DATA CACHE
+    private var profileImageCache: [String: ImageCacheEntry] = [:]
+    private var searchImageCache: [String: ImageCacheEntry] = [:]
+    
+    private let cacheQueue = DispatchQueue(label: "com.buddybuilder.imagecache", attributes: .concurrent)
+    
+    // Track current user for cache validation
+    private var lastKnownUserId: Int = 0
     
     private init() {
-        currentUserId = UserDefaults.standard.integer(forKey: userIdKey)
-        print("🏗️ CentralCacheManager initialized for user: \(currentUserId)")
+        lastKnownUserId = UserDefaults.standard.integer(forKey: "user_id")
+        startCleanupTimer()
     }
     
-    // MARK: - User Change Detection
-    func checkUserChange() -> Bool {
-        let newUserId = UserDefaults.standard.integer(forKey: userIdKey)
+    // MARK: - User Change Detection (Only for images)
+    func checkUserChange() {
+        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
         
-        if newUserId != currentUserId {
-            print("🔄 User changed from \(currentUserId) to \(newUserId)")
-            
-            if newUserId == 0 {
-                // User logged out
-                print("👋 User logged out, clearing all caches")
-                clearAllCaches()
-            } else if currentUserId != 0 {
-                // User switched
-                print("🔄 User switched, clearing all caches")
-                clearAllCaches()
+        if currentUserId != lastKnownUserId {
+            print("🔄 CentralCache: User changed from \(lastKnownUserId) to \(currentUserId), clearing IMAGE caches...")
+            clearAllImageCaches()
+            lastKnownUserId = currentUserId
+        }
+    }
+    
+    // MARK: - Profile Image Cache Methods
+    func getProfileImage(for url: String) -> UIImage? {
+        checkUserChange()
+        
+        return cacheQueue.sync {
+            if let entry = profileImageCache[url] {
+                if !entry.isExpired && entry.belongsToCurrentUser {
+                    print("✅ Profile image cache hit: \(url)")
+                    return entry.image
+                } else {
+                    if entry.isExpired {
+                        print("⏰ Profile image cache expired: \(url)")
+                    } else {
+                        print("👤 Profile image cache belongs to different user: \(url)")
+                    }
+                    profileImageCache.removeValue(forKey: url)
+                }
             }
-            
-            currentUserId = newUserId
-            return true
+            return nil
         }
-        
-        return false
     }
     
-    // MARK: - Profile Photo Cache
-    func saveProfilePhoto(imageData: Data, url: String) {
-        guard currentUserId > 0 else { return }
+    func saveProfileImage(_ image: UIImage, for url: String) {
+        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
         
-        let imageKey = CacheType.profilePhoto.keyPrefix + "image"
-        let urlKey = CacheType.profilePhoto.keyPrefix + "url"
-        let userKey = CacheType.profilePhoto.keyPrefix + "user_id"
-        let dateKey = CacheType.profilePhoto.keyPrefix + "date"
-        
-        UserDefaults.standard.set(imageData, forKey: imageKey)
-        UserDefaults.standard.set(url, forKey: urlKey)
-        UserDefaults.standard.set(currentUserId, forKey: userKey)
-        UserDefaults.standard.set(Date(), forKey: dateKey)
-        
-        print("💾 Saved profile photo for user \(currentUserId): \(imageData.count) bytes")
+        cacheQueue.async(flags: .barrier) {
+            self.profileImageCache[url] = ImageCacheEntry(
+                image: image,
+                timestamp: Date(),
+                userId: currentUserId
+            )
+            print("💾 Profile image cached for user \(currentUserId): \(url)")
+        }
     }
     
-    func getProfilePhoto() -> (imageData: Data?, url: String?) {
-        guard currentUserId > 0 else { return (nil, nil) }
+    // MARK: - Search Image Cache Methods
+    func getSearchImage(for url: String) -> UIImage? {
+        checkUserChange()
         
-        let imageKey = CacheType.profilePhoto.keyPrefix + "image"
-        let urlKey = CacheType.profilePhoto.keyPrefix + "url"
-        let userKey = CacheType.profilePhoto.keyPrefix + "user_id"
-        
-        let cachedUserId = UserDefaults.standard.integer(forKey: userKey)
-        
-        if cachedUserId == currentUserId {
-            let imageData = UserDefaults.standard.data(forKey: imageKey)
-            let url = UserDefaults.standard.string(forKey: urlKey)
-            
-            if imageData != nil {
-                print("📱 Retrieved cached profile photo for user \(currentUserId)")
+        return cacheQueue.sync {
+            if let entry = searchImageCache[url] {
+                // Use shorter expiration for search images
+                let isExpired = Date().timeIntervalSince(entry.timestamp) > Self.searchCacheExpirationInterval
+                
+                if !isExpired && entry.belongsToCurrentUser {
+                    print("✅ Search image cache hit: \(url)")
+                    return entry.image
+                } else {
+                    if isExpired {
+                        print("⏰ Search image cache expired: \(url)")
+                    } else {
+                        print("👤 Search image cache belongs to different user: \(url)")
+                    }
+                    searchImageCache.removeValue(forKey: url)
+                }
             }
-            
-            return (imageData, url)
-        }
-        
-        return (nil, nil)
-    }
-    
-    // MARK: - Search Image Cache
-    private var searchImageCache: [String: SearchImageEntry] = [:]
-    
-    struct SearchImageEntry {
-        let image: UIImage
-        let timestamp: Date
-        let userId: Int
-        
-        var isExpired: Bool {
-            Date().timeIntervalSince(timestamp) > 300 // 5 minutes
-        }
-        
-        var isValidForCurrentUser: Bool {
-            return userId == CentralCacheManager.shared.currentUserId
+            return nil
         }
     }
     
     func saveSearchImage(_ image: UIImage, for url: String) {
-        guard currentUserId > 0 else { return }
+        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
         
-        let entry = SearchImageEntry(
-            image: image,
-            timestamp: Date(),
-            userId: currentUserId
-        )
-        
-        searchImageCache[url] = entry
-        print("💾 Cached search image for user \(currentUserId): \(url)")
-    }
-    
-    func getSearchImage(for url: String) -> UIImage? {
-        guard let entry = searchImageCache[url] else { return nil }
-        
-        if entry.isValidForCurrentUser && !entry.isExpired {
-            print("📱 Retrieved cached search image: \(url)")
-            return entry.image
+        cacheQueue.async(flags: .barrier) {
+            self.searchImageCache[url] = ImageCacheEntry(
+                image: image,
+                timestamp: Date(),
+                userId: currentUserId
+            )
+            print("💾 Search image cached for user \(currentUserId): \(url)")
         }
-        
-        // Remove invalid/expired entry
-        searchImageCache.removeValue(forKey: url)
-        return nil
     }
     
-    // MARK: - User Data Cache (In-Memory)
-    private var userDataCache: [String: Any] = [:]
-    
-    func saveUserData<T: Codable>(_ data: [T], for type: CacheType) {
-        guard currentUserId > 0 else { return }
-        
-        let key = "\(type.rawValue)_\(currentUserId)"
-        userDataCache[key] = data
-        
-        print("💾 Cached \(data.count) items for \(type.rawValue) - user \(currentUserId)")
-    }
-    
-    func getUserData<T: Codable>(for type: CacheType, as: T.Type) -> [T]? {
-        guard currentUserId > 0 else { return nil }
-        
-        let key = "\(type.rawValue)_\(currentUserId)"
-        
-        if let data = userDataCache[key] as? [T] {
-            print("📱 Retrieved cached \(type.rawValue) for user \(currentUserId)")
-            return data
-        }
-        
-        return nil
-    }
-    
-    // MARK: - Cache Clearing Methods
-    func clearCache(for type: CacheType) {
-        print("cache type to clean: ", type)
-        switch type {
-        case .profilePhoto:
-            clearProfilePhotoCache()
-        case .searchImages:
-            clearSearchImageCache()
-        case .popularUsers, .newUsers, .searchUsers:
-            clearUserDataCache(for: type)
-        }
-        
-        print("🧹 Cleared \(type.rawValue) cache")
-    }
-    
-    func clearAllCaches() {
-        print("🧹 Clearing ALL caches...")
-        
-        // Clear UserDefaults cache keys
-        let allKeys = UserDefaults.standard.dictionaryRepresentation().keys
-        
-        for cacheType in CacheType.allCases {
-            let prefix = cacheType.keyPrefix
-            let keysToRemove = allKeys.filter { $0.hasPrefix(prefix) }
+    // MARK: - Clear Methods (Only images)
+    func clearAllImageCaches() {
+        cacheQueue.async(flags: .barrier) {
+            let profileCount = self.profileImageCache.count
+            let searchCount = self.searchImageCache.count
             
-            for key in keysToRemove {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        
-        // Clear in-memory caches
-        searchImageCache.removeAll()
-        userDataCache.removeAll()
-        
-        print("✅ All caches cleared")
-    }
-    
-    private func clearProfilePhotoCache() {
-        let keys = [
-            CacheType.profilePhoto.keyPrefix + "image",
-            CacheType.profilePhoto.keyPrefix + "url",
-            CacheType.profilePhoto.keyPrefix + "user_id",
-            CacheType.profilePhoto.keyPrefix + "date"
-        ]
-        
-        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
-    }
-    
-    private func clearSearchImageCache() {
-        searchImageCache.removeAll()
-    }
-    
-    private func clearUserDataCache(for type: CacheType) {
-        print("User cached data cleared");
-        let keysToRemove = userDataCache.keys.filter { $0.hasPrefix(type.rawValue) }
-        print(userDataCache.keys);
-        keysToRemove.forEach { userDataCache.removeValue(forKey: $0) }
-    }
-    
-    // MARK: - Cache Statistics
-    func getCacheStats() -> String {
-        let profilePhotoSize = getProfilePhoto().imageData?.count ?? 0
-        let searchImageCount = searchImageCache.count
-        let userDataCount = userDataCache.count
-        
-        return """
-        📊 Cache Stats for User \(currentUserId):
-        - Profile Photo: \(profilePhotoSize) bytes
-        - Search Images: \(searchImageCount) items
-        - User Data: \(userDataCount) collections
-        """
-    }
-    
-    func printCacheStats() {
-        print(getCacheStats())
-    }
-    
-    // MARK: - Cleanup expired entries
-    func cleanupExpiredEntries() {
-        let before = searchImageCache.count
-        searchImageCache = searchImageCache.filter { !$0.value.isExpired && $0.value.isValidForCurrentUser }
-        let after = searchImageCache.count
-        
-        if before > after {
-            print("🧹 Cleaned up \(before - after) expired search image entries")
+            self.profileImageCache.removeAll()
+            self.searchImageCache.removeAll()
+            
+            print("🗑️ Cleared all image caches: \(profileCount) profile images, \(searchCount) search images")
         }
     }
-}
-
-// MARK: - Cache Manager Extensions for specific use cases
-extension CentralCacheManager {
     
-    // MARK: - Profile Photo Helpers
-    func hasValidProfilePhoto() -> Bool {
-        let (imageData, _) = getProfilePhoto()
-        return imageData != nil
+    func clearProfileImageCache() {
+        cacheQueue.async(flags: .barrier) {
+            let count = self.profileImageCache.count
+            self.profileImageCache.removeAll()
+            print("🗑️ Cleared profile image cache: \(count) images")
+        }
     }
     
-    func clearProfilePhoto() {
-        clearCache(for: .profilePhoto)
+    func clearSearchImageCache() {
+        cacheQueue.async(flags: .barrier) {
+            let count = self.searchImageCache.count
+            self.searchImageCache.removeAll()
+            print("🗑️ Cleared search image cache: \(count) images")
+        }
     }
+    
+    // MARK: - User Data Management (REMOVED - NO MORE DATA CACHING)
+    // NOTE: All user data caching methods removed - data always comes fresh from API
     
     func clearUserData() {
-        clearCache(for: .popularUsers)
-        clearCache(for: .newUsers)
+        // Only clear image caches when user changes
+        clearAllImageCaches()
+        lastKnownUserId = 0
+        print("🧹 Cleared user data (images only) - user data now always fresh from API")
     }
     
-    // MARK: - Search Data Helpers
-    func savePopularUsers<T: Codable>(_ users: [T]) {
-        saveUserData(users, for: .popularUsers)
-    }
-    
-    func getPopularUsers<T: Codable>(as type: T.Type) -> [T]? {
-        return getUserData(for: .popularUsers, as: type)
-    }
-    
-    func saveNewUsers<T: Codable>(_ users: [T]) {
-        saveUserData(users, for: .newUsers)
-    }
-    
-    func getNewUsers<T: Codable>(as type: T.Type) -> [T]? {
-        return getUserData(for: .newUsers, as: type)
-    }
-    
-    // MARK: - Force refresh (clear and reload)
-    func forceRefreshUser() {
-        print("🔄 Force refreshing for user \(currentUserId)")
-        clearAllCaches()
-    }
-}
-
-// MARK: - Notification Support
-extension CentralCacheManager {
-    func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(userDidLogin),
-            name: .userDidLogin,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(userDidLogout),
-            name: .userDidLogout,
-            object: nil
-        )
-        
-        // Cleanup timer
+    // MARK: - Cleanup Timer (Only for images)
+    private func startCleanupTimer() {
         Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
-            self.cleanupExpiredEntries()
+            self.cleanupExpiredImages()
         }
     }
     
-    @objc private func userDidLogin() {
-        print("🔔 User login notification received in CacheManager")
-        checkUserChange()
+    private func cleanupExpiredImages() {
+        cacheQueue.async(flags: .barrier) {
+            let beforeProfile = self.profileImageCache.count
+            let beforeSearch = self.searchImageCache.count
+            
+            // Clean profile images
+            self.profileImageCache = self.profileImageCache.filter { entry in
+                !entry.value.isExpired && entry.value.belongsToCurrentUser
+            }
+            
+            // Clean search images (with shorter expiration)
+            self.searchImageCache = self.searchImageCache.filter { entry in
+                let isExpired = Date().timeIntervalSince(entry.value.timestamp) > Self.searchCacheExpirationInterval
+                return !isExpired && entry.value.belongsToCurrentUser
+            }
+            
+            let afterProfile = self.profileImageCache.count
+            let afterSearch = self.searchImageCache.count
+            
+            let cleanedProfile = beforeProfile - afterProfile
+            let cleanedSearch = beforeSearch - afterSearch
+            
+            if cleanedProfile > 0 || cleanedSearch > 0 {
+                print("🧹 Image cache cleanup: \(cleanedProfile) profile images, \(cleanedSearch) search images removed")
+            }
+        }
     }
     
-    @objc private func userDidLogout() {
-        print("🔔 User logout notification received in CacheManager")
-        clearAllCaches()
-        currentUserId = 0
+    // MARK: - Cache Statistics (Only images)
+    var cacheStats: String {
+        cacheQueue.sync {
+            let profileCount = profileImageCache.count
+            let searchCount = searchImageCache.count
+            let totalImages = profileCount + searchCount
+            
+            return "Cache Stats: \(totalImages) total images (\(profileCount) profile, \(searchCount) search) - NO USER DATA CACHED"
+        }
+    }
+    
+    func logCacheStatus() {
+        print("📊 \(cacheStats)")
     }
 }

@@ -1,9 +1,9 @@
-// BuddyBuilder/Features/Search/Views/SearchView.swift - FIXED WITH USER CHANGE DETECTION
+// BuddyBuilder/Features/Search/Views/SearchView.swift - CLEAN VERSION, ALWAYS API CALLS
 
 import SwiftUI
 import Combine
 
-// MARK: - Section Types (Updated)
+// MARK: - Section Types
 enum SectionType {
     case popularUsers
     case newJoiners
@@ -29,155 +29,51 @@ enum SectionType {
     }
 }
 
-// MARK: - Search View Model - FIXED WITH USER CHANGE DETECTION AND CACHE CLEARING
+// MARK: - Search View Model - ALWAYS API, NO USER DATA CACHE
 class SearchViewModel: ObservableObject {
     @Published var searchText: String = ""
-    @Published var searchSuggestions: [String] = []
     @Published var isSearching: Bool = false
     
-    // Real API data
+    // API data - NEVER CACHED, ALWAYS FROM API
     @Published var popularUsers: [SearchUser] = []
     @Published var newJoiners: [SearchUser] = []
     
-    // Loading states for each section
+    // Loading states
     @Published var isLoadingPopular = false
     @Published var isLoadingNew = false
     
-    // Section detail view states
+    // Section detail
     @Published var currentSection: SectionType? = nil
     @Published var showSectionDetail = false
-    
-    // Section detail pagination data
     @Published var sectionUsers: [SearchUser] = []
-    @Published var sectionTrainers: [SearchTrainer] = []
     @Published var sectionCurrentPage = 1
     @Published var sectionHasMorePages = false
     @Published var isSectionLoading = false
     
     private let searchService: SearchServiceProtocol
     private var cancellables = Set<AnyCancellable>()
-    private let debounceInterval: TimeInterval = 0.3
     
-    // MARK: - NEW: User change detection
-    private var currentUserId: Int = 0
-    private var hasInitialLoad = false
-    
-    // User location for API calls
-    private let userLocation = "" // Empty string instead of "Baku"
+    private let userLocation = ""
     
     init(searchService: SearchServiceProtocol = SearchService()) {
         self.searchService = searchService
-        self.currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        
+        // IMMEDIATE API CALLS ON INIT
+        loadDataFromAPI()
+        
         setupSearchSuggestions()
-        
-        print("🔍 SearchViewModel initialized for user ID: \(currentUserId)")
-        
-        // Load initial data with delays for performance
-        loadInitialData()
     }
     
-    // MARK: - NEW: Check for user change and clear data if needed
-    func checkForUserChange() {
-        let newUserId = UserDefaults.standard.integer(forKey: "user_id")
-        
-        if newUserId != currentUserId && newUserId > 0 {
-            print("🔄 Search: User changed from \(currentUserId) to \(newUserId), clearing all data...")
-            
-            // Clear all data
-            clearAllData()
-            
-            // Update current user ID
-            currentUserId = newUserId
-            hasInitialLoad = false
-            
-            // Reload data for new user
-            loadInitialData()
-        } else if newUserId == 0 && currentUserId > 0 {
-            // User logged out
-            print("👋 Search: User logged out, clearing all data...")
-            clearAllData()
-            currentUserId = 0
-            hasInitialLoad = false
-        }
+    // MARK: - ALWAYS LOAD FROM API (NO CACHE CHECKS)
+    private func loadDataFromAPI() {
+        // IMMEDIATE API calls - no delays, no cache checks
+        loadPopularUsersFromAPI()
+        loadNewJoinersFromAPI()
     }
     
-    // MARK: - NEW: Clear all search data
-    func clearAllData() {
-        CentralCacheManager.shared.clearUserData();
-        popularUsers.removeAll()
-        newJoiners.removeAll()
-        sectionUsers.removeAll()
-        sectionTrainers.removeAll()
-        
-        // Reset states
-        isLoadingPopular = false
-        isLoadingNew = false
-        isSectionLoading = false
-        showSectionDetail = false
-        currentSection = nil
-        
-        // Clear image cache for search
-        SearchImageCacheManager.shared.forceClearAllCache()
-        
-        print("🧹 Cleared all search data and cache")
-    }
-    
-    // MARK: - NEW: Force refresh for new user
-    func forceRefreshForNewUser() {
-        print("🔄 Force refreshing search data for new user...")
-        clearAllData()
-        currentUserId = UserDefaults.standard.integer(forKey: "user_id")
-        loadInitialData()
-    }
-    
-    private func setupSearchSuggestions() {
-        $searchText
-            .debounce(for: .seconds(debounceInterval), scheduler: RunLoop.main)
-            .sink { [weak self] searchText in
-                if !searchText.isEmpty {
-                    self?.performSearch()
-                }
-            }
-            .store(in: &cancellables)
-    }
-    
-    // MARK: - Load Initial Data with User Change Check
-    private func loadInitialData() {
-        // Check for user changes before loading
-        checkForUserChange()
-        
-        // Only load if we have a valid user ID
-        let userId = UserDefaults.standard.integer(forKey: "user_id")
-        guard userId > 0 else {
-            print("⚠️ No valid user ID, skipping search data load")
-            return
-        }
-        
-        // Load popular users immediately
-        loadPopularUsers()
-        
-        // Load new joiners after 0.5 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.loadNewJoiners()
-        }
-        
-        hasInitialLoad = true
-    }
-    
-    // MARK: - Load Popular Users - ENHANCED WITH USER VALIDATION
-    private func loadPopularUsers() {
-        // Check for user changes before loading
-        checkForUserChange()
-        
-        guard !isLoadingPopular else { return }
-        guard currentUserId > 0 else {
-            print("⚠️ No valid user ID for popular users load")
-            return
-        }
-        
+    // MARK: - Load Popular Users FROM API
+    private func loadPopularUsersFromAPI() {
         isLoadingPopular = true
-        
-        print("🔥 Loading popular users for user ID: \(currentUserId)")
         
         searchService.fetchPopularUsers(
             location: userLocation.isEmpty ? nil : userLocation,
@@ -194,40 +90,16 @@ class SearchViewModel: ObservableObject {
                 }
             },
             receiveValue: { [weak self] data in
-                // Double check user ID hasn't changed during request
-                guard let self = self,
-                      self.currentUserId > 0,
-                      self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
-                    print("🚫 User changed during popular users load, ignoring result")
-                    return
-                }
-                
-                self.popularUsers = data.items
-                print("✅ Loaded \(data.items.count) popular users for user \(self.currentUserId)")
-                
-                // Debug: Print user IDs to verify filtering
-                let userIds = data.items.map { $0.id }
-                print("👥 Popular user IDs: \(userIds)")
-                print("🔍 Current user ID: \(self.currentUserId)")
+                self?.popularUsers = data.items
+                print("✅ Loaded \(data.items.count) popular users FROM API")
             }
         )
         .store(in: &cancellables)
     }
     
-    // MARK: - Load New Joiners - ENHANCED WITH USER VALIDATION
-    private func loadNewJoiners() {
-        // Check for user changes before loading
-        checkForUserChange()
-        
-        guard !isLoadingNew else { return }
-        guard currentUserId > 0 else {
-            print("⚠️ No valid user ID for new joiners load")
-            return
-        }
-        
+    // MARK: - Load New Joiners FROM API
+    private func loadNewJoinersFromAPI() {
         isLoadingNew = true
-        
-        print("🆕 Loading new joiners for user ID: \(currentUserId)")
         
         searchService.fetchNewUsers(
             location: userLocation.isEmpty ? nil : userLocation,
@@ -244,108 +116,80 @@ class SearchViewModel: ObservableObject {
                 }
             },
             receiveValue: { [weak self] data in
-                // Double check user ID hasn't changed during request
-                guard let self = self,
-                      self.currentUserId > 0,
-                      self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
-                    print("🚫 User changed during new joiners load, ignoring result")
-                    return
-                }
-                
-                self.newJoiners = data.items
-                print("✅ Loaded \(data.items.count) new joiners for user \(self.currentUserId)")
-                
-                // Debug: Print user IDs to verify filtering
-                let userIds = data.items.map { $0.id }
-                print("👥 New joiner IDs: \(userIds)")
-                print("🔍 Current user ID: \(self.currentUserId)")
+                self?.newJoiners = data.items
+                print("✅ Loaded \(data.items.count) new joiners FROM API")
             }
         )
         .store(in: &cancellables)
     }
     
-    // MARK: - Section Detail Methods - UPDATED WITH USER VALIDATION
-    func showSection(_ section: SectionType) {
-        // Check for user changes
-        checkForUserChange()
+    // MARK: - Public Methods - ALWAYS API
+    func refreshAllData() {
+        print("🔄 Refreshing ALL data FROM API...")
         
+        // Clear existing data
+        popularUsers.removeAll()
+        newJoiners.removeAll()
+        
+        // Load fresh from API
+        loadDataFromAPI()
+    }
+    
+    func onViewAppear() {
+        print("👁️ SearchView appeared - Loading fresh data FROM API...")
+        refreshAllData()
+    }
+    
+    func onUserLogin() {
+        print("🔔 User login - Loading fresh data FROM API...")
+        refreshAllData()
+    }
+    
+    func onUserLogout() {
+        print("🔔 User logout - Clearing data...")
+        popularUsers.removeAll()
+        newJoiners.removeAll()
+        sectionUsers.removeAll()
+        
+        // Clear only image caches, not data
+        CentralCacheManager.shared.clearSearchImageCache()
+    }
+    
+    // MARK: - Section Methods
+    func showSection(_ section: SectionType) {
         currentSection = section
         sectionCurrentPage = 1
         sectionUsers.removeAll()
-        sectionTrainers.removeAll()
         
-        // Load first page of section data
-        loadSectionData(section: section, page: 1)
+        loadSectionDataFromAPI(section: section, page: 1)
         showSectionDetail = true
     }
     
-    func loadSectionData(section: SectionType, page: Int) {
+    func loadSectionDataFromAPI(section: SectionType, page: Int) {
         guard !isSectionLoading else { return }
-        guard currentUserId > 0 else { return }
         
         isSectionLoading = true
         
-        switch section {
-        case .popularUsers:
-            loadSectionUsers(endpoint: .popular, page: page)
-        case .newJoiners:
-            loadSectionUsers(endpoint: .new, page: page)
-        case .activeUsers, .topTrainers:
-            // These sections are removed but keep for compatibility
-            isSectionLoading = false
-        }
-    }
-    
-    func loadNextSectionPage() {
-        guard let section = currentSection, sectionHasMorePages, !isSectionLoading else { return }
-        loadSectionData(section: section, page: sectionCurrentPage + 1)
-    }
-    
-    func hideSectionDetail() {
-        showSectionDetail = false
-        currentSection = nil
-        sectionUsers.removeAll()
-        sectionTrainers.removeAll()
-    }
-    
-    func getUsersForSection(_ section: SectionType) -> [SearchUser] {
-        return sectionUsers
-    }
-    
-    func getTrainersForSection(_ section: SectionType) -> [SearchTrainer] {
-        return sectionTrainers
-    }
-    
-    private enum UserEndpoint {
-        case popular, new, active
-    }
-    
-    private func loadSectionUsers(endpoint: UserEndpoint, page: Int) {
         let publisher: AnyPublisher<SearchData<SearchUser>, Error>
         
-        switch endpoint {
-        case .popular:
+        switch section {
+        case .popularUsers:
             publisher = searchService.fetchPopularUsers(
                 location: userLocation.isEmpty ? nil : userLocation,
                 sportId: nil,
                 page: page,
                 pageSize: 20
             )
-        case .new:
+        case .newJoiners:
             publisher = searchService.fetchNewUsers(
                 location: userLocation.isEmpty ? nil : userLocation,
                 sportId: nil,
                 page: page,
                 pageSize: 20
             )
-        case .active:
-            // Not used anymore, but keep for compatibility
-            publisher = searchService.fetchPopularUsers(
-                location: userLocation.isEmpty ? nil : userLocation,
-                sportId: nil,
-                page: page,
-                pageSize: 20
-            )
+        case .activeUsers, .topTrainers:
+            isSectionLoading = false
+            return
         }
         
         publisher
@@ -354,35 +198,55 @@ class SearchViewModel: ObservableObject {
                 receiveCompletion: { [weak self] completion in
                     self?.isSectionLoading = false
                     if case .failure(let error) = completion {
-                        print("❌ Failed to load section users: \(error)")
+                        print("❌ Failed to load section data: \(error)")
                     }
                 },
                 receiveValue: { [weak self] data in
-                    guard let self = self,
-                          self.currentUserId > 0,
-                          self.currentUserId == UserDefaults.standard.integer(forKey: "user_id") else {
-                        print("🚫 User changed during section load, ignoring result")
-                        return
-                    }
-                    
                     if page == 1 {
-                        self.sectionUsers = data.items
+                        self?.sectionUsers = data.items
                     } else {
-                        self.sectionUsers.append(contentsOf: data.items)
+                        self?.sectionUsers.append(contentsOf: data.items)
                     }
-                    self.sectionCurrentPage = data.page
-                    self.sectionHasMorePages = data.hasNextPage
-                    print("✅ Loaded \(data.items.count) section users (page \(page))")
+                    self?.sectionCurrentPage = data.page
+                    self?.sectionHasMorePages = data.hasNextPage
                 }
             )
             .store(in: &cancellables)
     }
     
+    func loadNextSectionPage() {
+        guard let section = currentSection, sectionHasMorePages else { return }
+        loadSectionDataFromAPI(section: section, page: sectionCurrentPage + 1)
+    }
+    
+    func hideSectionDetail() {
+        showSectionDetail = false
+        currentSection = nil
+        sectionUsers.removeAll()
+    }
+    
+    func getUsersForSection(_ section: SectionType) -> [SearchUser] {
+        return sectionUsers
+    }
+    
+    func getTrainersForSection(_ section: SectionType) -> [SearchTrainer] {
+        return []
+    }
+    
     // MARK: - Search Methods
+    private func setupSearchSuggestions() {
+        $searchText
+            .debounce(for: .seconds(0.3), scheduler: RunLoop.main)
+            .sink { [weak self] searchText in
+                if !searchText.isEmpty {
+                    self?.performSearch()
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
     var filteredSuggestions: [String] {
-        if searchText.isEmpty {
-            return []
-        }
+        if searchText.isEmpty { return [] }
         let suggestions = ["Basketball", "Tennis", "Soccer", "Swimming", "Running", "Yoga", "Cycling", "Fitness"]
         return suggestions.filter { $0.localizedCaseInsensitiveContains(searchText) }.prefix(5).map { $0 }
     }
@@ -393,36 +257,17 @@ class SearchViewModel: ObservableObject {
     }
     
     func performSearch() {
-        print("🔍 Searching for: \(searchText)")
-        // Implement search functionality here
         isSearching = true
-        
-        // Simulate search delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.isSearching = false
         }
     }
-    
-    // MARK: - Refresh Methods - UPDATED WITH USER VALIDATION
-    func refreshAllData() {
-        print("🔄 Refreshing all search data...")
-        
-        // Check for user changes first
-        checkForUserChange()
-        
-        // Clear and reload
-        popularUsers.removeAll()
-        newJoiners.removeAll()
-        
-        loadInitialData()
-    }
 }
 
-// MARK: - Main Search View - UPDATED WITH USER CHANGE DETECTION
+// MARK: - Main Search View - CLEAN, ALWAYS API
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
-    @State private var isRefreshing = false
     
     var body: some View {
         NavigationStack {
@@ -431,16 +276,16 @@ struct SearchView: View {
                 LoginBackgroundView()
                 
                 VStack(spacing: 0) {
-                    // Sticky Search Bar
+                    // Search Bar
                     searchBarSection
                     
                     // Main Content
                     ScrollView {
                         LazyVStack(spacing: 32) {
-                            // Popular Users Section
+                            // Popular Users Section - ALWAYS FROM API
                             popularUsersSection
                             
-                            // New Joiners Section
+                            // New Joiners Section - ALWAYS FROM API
                             newJoinersSection
                             
                             Spacer(minLength: 100)
@@ -448,6 +293,7 @@ struct SearchView: View {
                         .padding(.top, 20)
                     }
                     .refreshable {
+                        // ALWAYS API REFRESH
                         viewModel.refreshAllData()
                     }
                 }
@@ -460,19 +306,14 @@ struct SearchView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            // CRITICAL: Check for user changes when view appears
-            print("🔍 SearchView appeared, checking for user changes...")
-            viewModel.checkForUserChange()
+            // ALWAYS LOAD FROM API ON APPEAR
+            viewModel.onViewAppear()
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidLogin)) { _ in
-            // Force refresh when user logs in
-            print("🔔 User login notification received in SearchView")
-            viewModel.forceRefreshForNewUser()
+            viewModel.onUserLogin()
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidLogout)) { _ in
-            // Clear data when user logs out
-            print("🔔 User logout notification received in SearchView")
-            viewModel.clearAllData()
+            viewModel.onUserLogout()
         }
         .fullScreenCover(isPresented: $viewModel.showSectionDetail) {
             if let section = viewModel.currentSection {
@@ -498,7 +339,6 @@ struct SearchView: View {
     private var searchBarSection: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                // Search TextField
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 16, weight: .medium))
@@ -514,9 +354,7 @@ struct SearchView: View {
                         }
                     
                     if !viewModel.searchText.isEmpty {
-                        Button(action: {
-                            viewModel.searchText = ""
-                        }) {
+                        Button(action: { viewModel.searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
                                 .foregroundColor(.textSecondary)
@@ -544,7 +382,7 @@ struct SearchView: View {
     // MARK: - Search Suggestions Overlay
     private var searchSuggestionsOverlay: some View {
         VStack {
-            Spacer(minLength: 80) // Account for search bar height
+            Spacer(minLength: 80)
             
             VStack(spacing: 0) {
                 ForEach(viewModel.filteredSuggestions, id: \.self) { suggestion in
@@ -591,7 +429,7 @@ struct SearchView: View {
         .zIndex(1000)
     }
     
-    // MARK: - Popular Users Section
+    // MARK: - Popular Users Section - FROM API
     private var popularUsersSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(
@@ -602,53 +440,16 @@ struct SearchView: View {
             )
             
             if viewModel.isLoadingPopular && viewModel.popularUsers.isEmpty {
-                sectionLoadingView
+                loadingView
+            } else if viewModel.popularUsers.isEmpty {
+                emptyStateView(message: "No popular users found")
             } else {
-                VStack(spacing: 16) {
-                    // Grid of cards (2 columns, max 6 cards)
-                    let usersToShow = Array(viewModel.popularUsers.prefix(6))
-                    let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
-                    
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(usersToShow) { user in
-                            RealUserCard(
-                                user: user,
-                                buttonTitle: "Match",
-                                buttonIcon: "plus.circle.fill",
-                                buttonColor: .primaryOrange,
-                                onButtonTap: {
-                                    print("👥 Match requested with \(user.name)")
-                                }
-                            )
-                        }
-                    }
-                    
-                    // See More button if there are more than 6 users
-                    if viewModel.popularUsers.count > 6 {
-                        Button(action: {
-                            viewModel.showSection(.popularUsers)
-                        }) {
-                            HStack(spacing: 4) {
-                                Text("See More")
-                                    .font(.system(size: 12, weight: .medium))
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10, weight: .medium))
-                            }
-                            .foregroundColor(.gray)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.gray.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .padding(.top, 6)
-                    }
-                }
-                .padding(.horizontal, 20)
+                usersGrid(users: Array(viewModel.popularUsers.prefix(6)), section: .popularUsers)
             }
         }
     }
     
-    // MARK: - New Joiners Section
+    // MARK: - New Joiners Section - FROM API
     private var newJoinersSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(
@@ -659,71 +460,90 @@ struct SearchView: View {
             )
             
             if viewModel.isLoadingNew && viewModel.newJoiners.isEmpty {
-                sectionLoadingView
+                loadingView
+            } else if viewModel.newJoiners.isEmpty {
+                emptyStateView(message: "No new joiners found")
             } else {
-                VStack(spacing: 16) {
-                    // Grid of cards (2 columns, max 6 cards)
-                    let usersToShow = Array(viewModel.newJoiners.prefix(6))
-                    let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
-                    
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(usersToShow) { user in
-                            RealUserCard(
-                                user: user,
-                                buttonTitle: "Welcome",
-                                buttonIcon: "hand.wave.fill",
-                                buttonColor: .green,
-                                showNewBadge: true,
-                                onButtonTap: {
-                                    print("👋 Welcome sent to \(user.name)")
-                                }
-                            )
-                        }
-                    }
-                    
-                    // See More button if there are more than 6 users
-                    if viewModel.newJoiners.count > 6 {
-                        Button(action: {
-                            viewModel.showSection(.newJoiners)
-                        }) {
-                            HStack(spacing: 4) {
-                                Text("See More")
-                                    .font(.system(size: 12, weight: .medium))
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10, weight: .medium))
-                            }
-                            .foregroundColor(.gray)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.gray.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .padding(.top, 6)
-                    }
-                }
-                .padding(.horizontal, 20)
+                usersGrid(users: Array(viewModel.newJoiners.prefix(6)), section: .newJoiners)
             }
         }
     }
     
-    // MARK: - Section Loading View
-    private var sectionLoadingView: some View {
+    // MARK: - Helper Views
+    private var loadingView: some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+                    .scaleEffect(1.2)
+                Text("Loading...")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.textSecondary)
+            }
+            .padding(40)
+            Spacer()
+        }
+    }
+    
+    private func emptyStateView(message: String) -> some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 12) {
+                Image(systemName: "person.3")
+                    .font(.system(size: 40))
+                    .foregroundColor(.gray.opacity(0.5))
+                Text(message)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.textSecondary)
+            }
+            .padding(40)
+            Spacer()
+        }
+    }
+    
+    private func usersGrid(users: [SearchUser], section: SectionType) -> some View {
         VStack(spacing: 16) {
             let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
             
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(0..<4, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: 140, height: 220)
-                        .shimmer()
+                ForEach(users) { user in
+                    UserCard(
+                        user: user,
+                        buttonTitle: "Match",
+                        buttonIcon: "plus.circle.fill",
+                        buttonColor: .primaryOrange,
+                        showNewBadge: section == .newJoiners,
+                        onButtonTap: {
+                            print("Action for \(user.name)")
+                        }
+                    )
                 }
+            }
+            
+            // See More button
+            if users.count >= 6 {
+                Button(action: {
+                    viewModel.showSection(section)
+                }) {
+                    HStack(spacing: 4) {
+                        Text("See More")
+                            .font(.system(size: 12, weight: .medium))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.gray.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(.top, 6)
             }
         }
         .padding(.horizontal, 20)
     }
     
-    // MARK: - Helper Methods
     private func sectionHeader(title: String, icon: String, color: Color, isLoading: Bool = false) -> some View {
         HStack(spacing: 12) {
             Text(title)
@@ -742,39 +562,43 @@ struct SearchView: View {
     }
     
     private func getSuggestionIcon(for suggestion: String) -> String {
-        let sportIcons = ["Basketball": "basketball.fill", "Tennis": "tennis.racket", "Soccer": "soccerball", "Swimming": "figure.pool.swim", "Running": "figure.run", "Yoga": "figure.yoga", "Cycling": "bicycle", "Fitness": "dumbbell.fill"]
+        let sportIcons = [
+            "Basketball": "basketball.fill",
+            "Tennis": "tennis.racket",
+            "Soccer": "soccerball",
+            "Swimming": "figure.pool.swim",
+            "Running": "figure.run",
+            "Yoga": "figure.yoga",
+            "Cycling": "bicycle",
+            "Fitness": "dumbbell.fill"
+        ]
         
         return sportIcons[suggestion] ?? "sportscourt.fill"
     }
 }
 
-// MARK: - Real User Card Component (Updated for SearchUser)
-struct RealUserCard: View {
+// MARK: - User Card Component - ONLY IMAGE CACHING
+struct UserCard: View {
     let user: SearchUser
     let buttonTitle: String
     let buttonIcon: String
     let buttonColor: Color
     var showNewBadge: Bool = false
-    var showOnlineIndicator: Bool = false
     let onButtonTap: () -> Void
     
     @State private var isPressed = false
     
     var body: some View {
         VStack(spacing: 12) {
-            // Profile Image with Indicators
+            // Profile Image - ONLY IMAGE CACHED
             ZStack {
-                // Profile Image using cached system
+                // Profile image or placeholder - fills the circle completely
                 SearchAsyncImage(
                     url: user.profileImageUrl,
                     placeholder: "person.crop.circle.fill"
                 )
                 .frame(width: 90, height: 90)
                 .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color.gray.opacity(0.1), lineWidth: 0.5)
-                )
                 
                 // New Badge
                 if showNewBadge || user.isNew {
@@ -793,28 +617,10 @@ struct RealUserCard: View {
                         Spacer()
                     }
                 }
-                
-                // Online Indicator
-                if showOnlineIndicator && user.isOnline {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 14, height: 14)
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 2)
-                                )
-                                .offset(x: 5, y: 5)
-                        }
-                    }
-                }
             }
             .frame(height: 100)
             
-            // User Info
+            // User Info - ALWAYS FRESH FROM API
             VStack(spacing: 6) {
                 Text(user.name)
                     .font(.system(size: 14, weight: .semibold))
@@ -846,9 +652,7 @@ struct RealUserCard: View {
             Spacer()
             
             // Action Button
-            Button(action: {
-                onButtonTap()
-            }) {
+            Button(action: onButtonTap) {
                 HStack(spacing: 6) {
                     Image(systemName: buttonIcon)
                         .font(.system(size: 12, weight: .medium))
@@ -884,13 +688,18 @@ struct RealUserCard: View {
                     isPressed = false
                 }
             }
-            print("👤 Tapped on user: \(user.name)")
         }
     }
 }
 
-// MARK: - Notification Extensions for User Login/Logout
+// MARK: - Notification Extensions
 extension Notification.Name {
     static let userDidLogin = Notification.Name("userDidLogin")
     static let userDidLogout = Notification.Name("userDidLogout")
+}
+
+// MARK: - Preview
+#Preview {
+    SearchView()
+        .environmentObject(LocalizationManager())
 }

@@ -31,6 +31,7 @@ struct ProfileDetails: Codable {
     let aboutMe: String?
     let createdAt: String
     let updatedAt: String?
+    let dateOfBirth: String?
     
     var genderEnum: GenderType? {
         guard let gender = gender else { return nil }

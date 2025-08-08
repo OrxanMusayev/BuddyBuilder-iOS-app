@@ -1,4 +1,5 @@
-// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH SearchAsyncImage
+// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH USER PROFILE NAVIGATION
+
 import SwiftUI
 
 struct SectionDetailView: View {
@@ -10,6 +11,10 @@ struct SectionDetailView: View {
     let onDismiss: () -> Void
     let onLoadMore: () -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
+    
+    // NAVIGATION: User Profile Navigation
+    @State private var selectedUserId: Int?
+    @State private var showUserProfile = false
     
     var body: some View {
         NavigationStack {
@@ -37,13 +42,23 @@ struct SectionDetailView: View {
                             } else {
                                 if section == .topTrainers {
                                     ForEach(trainers) { trainer in
-                                        DetailTrainerCard(trainer: trainer)
+                                        DetailTrainerCard(
+                                            trainer: trainer,
+                                            onCardTap: {
+                                                // NAVIGATION: Navigate to trainer profile (using trainer.id)
+                                                navigateToUserProfile(trainer.id)
+                                            }
+                                        )
                                     }
                                 } else {
                                     ForEach(users) { user in
                                         DetailUserCard(
                                             user: user,
-                                            section: section
+                                            section: section,
+                                            onCardTap: {
+                                                // NAVIGATION: Navigate to user profile
+                                                navigateToUserProfile(user.id)
+                                            }
                                         )
                                     }
                                 }
@@ -65,6 +80,20 @@ struct SectionDetailView: View {
             }
         }
         .navigationBarHidden(true)
+        // NAVIGATION: User Profile Navigation
+        .navigationDestination(isPresented: $showUserProfile) {
+            if let userId = selectedUserId {
+                UserProfileView(userId: userId)
+                    .environmentObject(localizationManager)
+            }
+        }
+    }
+    
+    // MARK: - NAVIGATION: Navigate to User Profile
+    private func navigateToUserProfile(_ userId: Int) {
+        selectedUserId = userId
+        showUserProfile = true
+        print("🚀 Navigating to user profile from section detail: \(userId)")
     }
     
     private var headerView: some View {
@@ -128,10 +157,11 @@ struct SectionDetailView: View {
     }
 }
 
-// MARK: - Detail User Card - UPDATED WITH SearchAsyncImage
+// MARK: - Detail User Card - UPDATED WITH NAVIGATION
 struct DetailUserCard: View {
     let user: SearchUser
     let section: SectionType
+    let onCardTap: () -> Void // NEW: Card tap action
     @State private var isPressed = false
     
     var body: some View {
@@ -221,15 +251,22 @@ struct DetailUserCard: View {
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
-            withAnimation {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation {
-                    isPressed = false
-                }
-            }
+            // NAVIGATION: Card tap navigates to user profile
+            onCardTap()
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation {
+                        isPressed = false
+                    }
+                }
+        )
     }
     
     private func getButtonColor() -> Color {
@@ -260,9 +297,10 @@ struct DetailUserCard: View {
     }
 }
 
-// MARK: - Detail Trainer Card - UPDATED WITH SearchAsyncImage
+// MARK: - Detail Trainer Card - UPDATED WITH NAVIGATION
 struct DetailTrainerCard: View {
     let trainer: SearchTrainer
+    let onCardTap: () -> Void // NEW: Card tap action
     @State private var isPressed = false
     
     var body: some View {
@@ -357,45 +395,24 @@ struct DetailTrainerCard: View {
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
-            withAnimation {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation {
-                    isPressed = false
-                }
-            }
+            // NAVIGATION: Card tap navigates to trainer profile
+            onCardTap()
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation {
+                        isPressed = false
+                    }
+                }
+        )
     }
 }
-
-// MARK: - Shimmer Effect Extension
-extension View {
-    func shimmer() -> some View {
-        self
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.clear, Color.white.opacity(0.6), Color.clear],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .rotationEffect(.degrees(30))
-                    .offset(x: -250)
-                    .animation(
-                        Animation.linear(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                        value: UUID()
-                    )
-            )
-            .clipped()
-    }
-}
-
-// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH SearchAsyncImage
-import SwiftUI
 
 // MARK: - Skeleton Detail Card Components
 struct SkeletonDetailUserCard: View {
@@ -441,55 +458,31 @@ struct SkeletonDetailUserCard: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 80, height: 14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
-                    )
                 
                 // Username skeleton
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.gray.opacity(0.15))
                     .frame(width: 60, height: 12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                    )
                 
                 // Bio skeleton (3 lines)
                 VStack(spacing: 3) {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.15))
                         .frame(width: 100, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
                     
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.15))
                         .frame(width: 80, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
                     
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.15))
                         .frame(width: 60, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
                 }
                 
                 // Location skeleton
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.gray.opacity(0.1))
                     .frame(width: 50, height: 10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
-                    )
             }
             
             Spacer()
@@ -498,10 +491,6 @@ struct SkeletonDetailUserCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.gray.opacity(0.1))
                 .frame(height: 32)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
         }
         .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
         .padding(16)
@@ -524,10 +513,6 @@ struct SkeletonDetailTrainerCard: View {
                 RoundedRectangle(cornerRadius: 45)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 90, height: 90)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 45)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
                 
                 // Shimmer effect
                 RoundedRectangle(cornerRadius: 45)
@@ -569,37 +554,21 @@ struct SkeletonDetailTrainerCard: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: 80, height: 14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
-                    )
                 
                 // Specialty skeleton
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color.gray.opacity(0.15))
                     .frame(width: 70, height: 12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                    )
                 
                 // Gym skeleton (2 lines)
                 VStack(spacing: 3) {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.15))
                         .frame(width: 90, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
                     
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.gray.opacity(0.15))
                         .frame(width: 60, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
                 }
                 
                 // Rating skeleton
@@ -624,10 +593,6 @@ struct SkeletonDetailTrainerCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.gray.opacity(0.1))
                 .frame(height: 32)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
         }
         .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
         .padding(16)
@@ -642,6 +607,16 @@ struct SkeletonDetailTrainerCard: View {
 
 // MARK: - Preview
 #Preview {
-    SearchView()
-        .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
+    NavigationStack {
+        SectionDetailView(
+            section: .popularUsers,
+            users: [],
+            trainers: [],
+            hasMorePages: false,
+            isLoading: false,
+            onDismiss: {},
+            onLoadMore: {}
+        )
+        .environmentObject(LocalizationManager())
+    }
 }

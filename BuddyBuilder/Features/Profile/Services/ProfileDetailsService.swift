@@ -154,7 +154,8 @@ class MockProfileDetailsService: ProfileDetailsServiceProtocol {
         ],
         aboutMe: "I'm a software developer who discovered my passion for sports later in life. Now I can't imagine my routine without regular physical activity!",
         createdAt: "2024-01-15T10:30:00Z",
-        updatedAt: "2024-07-20T14:45:00Z"
+        updatedAt: "2024-07-20T14:45:00Z",
+        dateOfBirth: "2004-07-20T14:45:00Z",
     )
     
     func fetchProfileDetailsWithAutoRefresh() -> AnyPublisher<ProfileDetails, Error> {
@@ -189,7 +190,8 @@ class MockProfileDetailsService: ProfileDetailsServiceProtocol {
             preferredSports: mockProfile.preferredSports,
             aboutMe: mockProfile.aboutMe,
             createdAt: mockProfile.createdAt,
-            updatedAt: ISO8601DateFormatter().string(from: Date())
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            dateOfBirth: "2004-07-20T14:45:00Z"
         )
         
         mockProfile = updatedProfile

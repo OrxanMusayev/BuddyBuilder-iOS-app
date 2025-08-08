@@ -28,8 +28,12 @@ enum SectionType {
         }
     }
 }
+// BuddyBuilder/Features/Search/Views/SearchView.swift - UPDATED WITH USER PROFILE NAVIGATION
 
-// MARK: - Search View Model - ALWAYS API, NO USER DATA CACHE
+import SwiftUI
+import Combine
+
+// MARK: - Search View Model - UPDATED WITH NAVIGATION
 class SearchViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var isSearching: Bool = false
@@ -50,6 +54,10 @@ class SearchViewModel: ObservableObject {
     @Published var sectionHasMorePages = false
     @Published var isSectionLoading = false
     
+    // NAVIGATION: User Profile Navigation
+    @Published var selectedUserId: Int?
+    @Published var showUserProfile = false
+    
     private let searchService: SearchServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
@@ -62,6 +70,13 @@ class SearchViewModel: ObservableObject {
         loadDataFromAPI()
         
         setupSearchSuggestions()
+    }
+    
+    // MARK: - NAVIGATION: Navigate to User Profile
+    func navigateToUserProfile(_ userId: Int) {
+        selectedUserId = userId
+        showUserProfile = true
+        print("🚀 Navigating to user profile: \(userId)")
     }
     
     // MARK: - ALWAYS LOAD FROM API (NO CACHE CHECKS)
@@ -219,6 +234,13 @@ class SearchViewModel: ObservableObject {
         loadSectionDataFromAPI(section: section, page: sectionCurrentPage + 1)
     }
     
+    func refreshCurrentSection() {
+        guard let section = currentSection else { return }
+        print("🔄 Refreshing section: \(section.title)")
+        sectionCurrentPage = 1
+        loadSectionDataFromAPI(section: section, page: 1)
+    }
+    
     func hideSectionDetail() {
         showSectionDetail = false
         currentSection = nil
@@ -264,7 +286,7 @@ class SearchViewModel: ObservableObject {
     }
 }
 
-// MARK: - Main Search View - CLEAN, ALWAYS API
+// MARK: - Main Search View - UPDATED WITH USER PROFILE NAVIGATION
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -301,6 +323,13 @@ struct SearchView: View {
                 // Search Suggestions Overlay
                 if !viewModel.filteredSuggestions.isEmpty {
                     searchSuggestionsOverlay
+                }
+            }
+            // NAVIGATION: User Profile Navigation - MOVED INSIDE NavigationStack
+            .navigationDestination(isPresented: $viewModel.showUserProfile) {
+                if let userId = viewModel.selectedUserId {
+                    UserProfileView(userId: userId)
+                        .environmentObject(localizationManager)
                 }
             }
         }
@@ -435,8 +464,7 @@ struct SearchView: View {
             sectionHeader(
                 title: "Popular Users Today",
                 icon: "flame.fill",
-                color: .red,
-                isLoading: viewModel.isLoadingPopular
+                color: .red
             )
             
             if viewModel.isLoadingPopular && viewModel.popularUsers.isEmpty {
@@ -455,8 +483,7 @@ struct SearchView: View {
             sectionHeader(
                 title: "New Joiners Near You",
                 icon: "person.badge.plus.fill",
-                color: .green,
-                isLoading: viewModel.isLoadingNew
+                color: .green
             )
             
             if viewModel.isLoadingNew && viewModel.newJoiners.isEmpty {
@@ -485,6 +512,7 @@ struct SearchView: View {
         }
     }
     
+    // MARK: - Users Grid - UPDATED WITH NAVIGATION
     private func usersGrid(users: [SearchUser], section: SectionType) -> some View {
         VStack(spacing: 16) {
             let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
@@ -497,6 +525,10 @@ struct SearchView: View {
                         buttonIcon: "plus.circle.fill",
                         buttonColor: .primaryOrange,
                         showNewBadge: section == .newJoiners,
+                        onCardTap: {
+                            // NAVIGATION: Navigate to user profile
+                            viewModel.navigateToUserProfile(user.id)
+                        },
                         onButtonTap: {
                             print("Action for \(user.name)")
                         }
@@ -560,13 +592,14 @@ struct SearchView: View {
     }
 }
 
-// MARK: - User Card Component - ONLY IMAGE CACHING
+// MARK: - User Card Component - UPDATED WITH CARD TAP NAVIGATION
 struct UserCard: View {
     let user: SearchUser
     let buttonTitle: String
     let buttonIcon: String
     let buttonColor: Color
     var showNewBadge: Bool = false
+    let onCardTap: () -> Void  // NEW: Card tap action
     let onButtonTap: () -> Void
     
     @State private var isPressed = false
@@ -663,17 +696,31 @@ struct UserCard: View {
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
-            withAnimation {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation {
-                    isPressed = false
-                }
-            }
+            // NAVIGATION: Card tap navigates to user profile
+            onCardTap()
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    withAnimation {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation {
+                        isPressed = false
+                    }
+                }
+        )
     }
 }
+
+// MARK: - Preview
+#Preview {
+    SearchView()
+        .environmentObject(LocalizationManager())
+}
+
 // MARK: - Skeleton User Card Component
 struct SkeletonUserCard: View {
     @State private var isAnimating = false

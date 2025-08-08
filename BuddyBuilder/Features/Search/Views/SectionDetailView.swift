@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - UPDATED WITH USER PROFILE NAVIGATION
+// BuddyBuilder/Features/Search/Views/SectionDetailView.swift - FINAL NAVIGATION FIX
 
 import SwiftUI
 
@@ -10,90 +10,72 @@ struct SectionDetailView: View {
     let isLoading: Bool
     let onDismiss: () -> Void
     let onLoadMore: () -> Void
+    let onUserSelected: (Int) -> Void // NEW: Callback for user selection
     @EnvironmentObject var localizationManager: LocalizationManager
     
-    // NAVIGATION: User Profile Navigation
-    @State private var selectedUserId: Int?
-    @State private var showUserProfile = false
-    
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Background
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+        ZStack {
+            // Background
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                headerView
                 
-                VStack(spacing: 0) {
-                    // Header
-                    headerView
-                    
-                    // Content
-                    ScrollView {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
-                            if isLoading && users.isEmpty && trainers.isEmpty {
-                                // Show skeleton cards while loading
-                                ForEach(0..<6, id: \.self) { _ in
-                                    if section == .topTrainers {
-                                        SkeletonDetailTrainerCard()
-                                    } else {
-                                        SkeletonDetailUserCard()
-                                    }
-                                }
-                            } else {
+                // Content
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
+                        if isLoading && users.isEmpty && trainers.isEmpty {
+                            // Show skeleton cards while loading
+                            ForEach(0..<6, id: \.self) { _ in
                                 if section == .topTrainers {
-                                    ForEach(trainers) { trainer in
-                                        DetailTrainerCard(
-                                            trainer: trainer,
-                                            onCardTap: {
-                                                // NAVIGATION: Navigate to trainer profile (using trainer.id)
-                                                navigateToUserProfile(trainer.id)
-                                            }
-                                        )
-                                    }
+                                    SkeletonDetailTrainerCard()
                                 } else {
-                                    ForEach(users) { user in
-                                        DetailUserCard(
-                                            user: user,
-                                            section: section,
-                                            onCardTap: {
-                                                // NAVIGATION: Navigate to user profile
-                                                navigateToUserProfile(user.id)
-                                            }
-                                        )
-                                    }
-                                }
-                                
-                                // Load more indicator
-                                if hasMorePages {
-                                    loadMoreSection
-                                        .onAppear {
-                                            onLoadMore()
-                                        }
+                                    SkeletonDetailUserCard()
                                 }
                             }
+                        } else {
+                            if section == .topTrainers {
+                                ForEach(trainers) { trainer in
+                                    DetailTrainerCard(
+                                        trainer: trainer,
+                                        onCardTap: {
+                                            // NAVIGATION: Delegate to parent (SearchView)
+                                            onUserSelected(trainer.id)
+                                        }
+                                    )
+                                }
+                            } else {
+                                ForEach(users) { user in
+                                    DetailUserCard(
+                                        user: user,
+                                        section: section,
+                                        onCardTap: {
+                                            // NAVIGATION: Delegate to parent (SearchView)
+                                            onUserSelected(user.id)
+                                        }
+                                    )
+                                }
+                            }
+                            
+                            // Load more indicator
+                            if hasMorePages {
+                                loadMoreSection
+                                    .onAppear {
+                                        onLoadMore()
+                                    }
+                            }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .padding(.bottom, 100)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 100)
                 }
             }
         }
         .navigationBarHidden(true)
-        // NAVIGATION: User Profile Navigation
-        .navigationDestination(isPresented: $showUserProfile) {
-            if let userId = selectedUserId {
-                UserProfileView(userId: userId)
-                    .environmentObject(localizationManager)
-            }
-        }
-    }
-    
-    // MARK: - NAVIGATION: Navigate to User Profile
-    private func navigateToUserProfile(_ userId: Int) {
-        selectedUserId = userId
-        showUserProfile = true
-        print("🚀 Navigating to user profile from section detail: \(userId)")
+        // REMOVED: All local navigation - delegated to parent
     }
     
     private var headerView: some View {
@@ -157,11 +139,11 @@ struct SectionDetailView: View {
     }
 }
 
-// MARK: - Detail User Card - UPDATED WITH NAVIGATION
+// MARK: - Detail User Card - UPDATED WITH DELEGATION
 struct DetailUserCard: View {
     let user: SearchUser
     let section: SectionType
-    let onCardTap: () -> Void // NEW: Card tap action
+    let onCardTap: () -> Void // Delegate to parent
     @State private var isPressed = false
     
     var body: some View {
@@ -251,7 +233,7 @@ struct DetailUserCard: View {
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
-            // NAVIGATION: Card tap navigates to user profile
+            // NAVIGATION: Delegate to parent
             onCardTap()
         }
         .simultaneousGesture(
@@ -297,10 +279,10 @@ struct DetailUserCard: View {
     }
 }
 
-// MARK: - Detail Trainer Card - UPDATED WITH NAVIGATION
+// MARK: - Detail Trainer Card - UPDATED WITH DELEGATION
 struct DetailTrainerCard: View {
     let trainer: SearchTrainer
-    let onCardTap: () -> Void // NEW: Card tap action
+    let onCardTap: () -> Void // Delegate to parent
     @State private var isPressed = false
     
     var body: some View {
@@ -395,7 +377,7 @@ struct DetailTrainerCard: View {
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
-            // NAVIGATION: Card tap navigates to trainer profile
+            // NAVIGATION: Delegate to parent
             onCardTap()
         }
         .simultaneousGesture(
@@ -414,7 +396,7 @@ struct DetailTrainerCard: View {
     }
 }
 
-// MARK: - Skeleton Detail Card Components
+// MARK: - Skeleton Detail Card Components (unchanged)
 struct SkeletonDetailUserCard: View {
     @State private var isAnimating = false
     
@@ -602,21 +584,5 @@ struct SkeletonDetailTrainerCard: View {
         .onAppear {
             isAnimating = true
         }
-    }
-}
-
-// MARK: - Preview
-#Preview {
-    NavigationStack {
-        SectionDetailView(
-            section: .popularUsers,
-            users: [],
-            trainers: [],
-            hasMorePages: false,
-            isLoading: false,
-            onDismiss: {},
-            onLoadMore: {}
-        )
-        .environmentObject(LocalizationManager())
     }
 }

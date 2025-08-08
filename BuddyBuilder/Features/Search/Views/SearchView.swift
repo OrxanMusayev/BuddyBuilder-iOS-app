@@ -357,6 +357,10 @@ struct SearchView: View {
                     },
                     onLoadMore: {
                         viewModel.loadNextSectionPage()
+                    },
+                    onUserSelected: { userId in
+                        // DIRECT NAVIGATION - no delay needed
+                        viewModel.navigateToUserProfile(userId)
                     }
                 )
                 .environmentObject(localizationManager)

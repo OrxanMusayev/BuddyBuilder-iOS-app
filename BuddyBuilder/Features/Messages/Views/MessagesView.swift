@@ -315,61 +315,24 @@ struct MessagesView: View {
     private var modernHeader: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
-                // Title with modern styling
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Messages")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.textPrimary)
-                    
-                    if viewModel.totalUnreadCount > 0 {
-                        Text("\(viewModel.totalUnreadCount) unread")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                    } else {
-                        Text("Stay connected")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                    }
-                }
+                // Title with simple styling
+                Text("Messages")
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
                 
                 Spacer()
                 
-                // Modern action buttons
-                HStack(spacing: 12) {
-                    // Search toggle button
-                    Button(action: {
-                        print("Search tapped")
-                    }) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.primaryOrange)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white)
-                            .clipShape(Circle())
-                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                    }
-                    
-                    // New Message Button with modern styling
-                    Button(action: {
-                        print("New message tapped")
-                    }) {
-                        Image(systemName: "plus.message.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color.primaryOrange,
-                                        Color.primaryOrange.opacity(0.8)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .clipShape(Circle())
-                            .shadow(color: .primaryOrange.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
+                // Simple new message button
+                Button(action: {
+                    print("New message tapped")
+                }) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.primaryOrange)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                 }
             }
             .padding(.horizontal, 20)
@@ -382,15 +345,13 @@ struct MessagesView: View {
     // MARK: - Content View
     private var contentView: some View {
         VStack(spacing: 0) {
-            // Search Bar with modern styling
-            if !viewModel.searchText.isEmpty || viewModel.chatRooms.count > 3 {
-                modernSearchBar
-            }
+            // Search Bar with proper spacing
+            modernSearchBar
             
             // Main content
             Group {
                 if viewModel.isLoading {
-                    modernLoadingView
+                    simpleLoadingView
                 } else if viewModel.filteredChatRooms.isEmpty {
                     modernEmptyStateView
                 } else {
@@ -398,6 +359,23 @@ struct MessagesView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Simple Loading View
+    private var simpleLoadingView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+            
+            Text("Loading messages...")
+                .font(.system(size: 16))
+                .foregroundColor(.textSecondary)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Modern Search Bar
@@ -432,72 +410,15 @@ struct MessagesView: View {
         }
     }
     
-    // MARK: - Modern Loading View
-    private var modernLoadingView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            
-            // Animated loading indicator
-            ZStack {
-                Circle()
-                    .stroke(Color.primaryOrange.opacity(0.2), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(
-                        LinearGradient(
-                            colors: [Color.primaryOrange, Color.primaryOrange.opacity(0.5)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(0))
-                    .animation(.linear(duration: 1).repeatForever(autoreverses: false), value: UUID())
-            }
-            
-            VStack(spacing: 8) {
-                Text("Loading conversations...")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                
-                Text("Getting your latest messages")
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-            }
-            
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
-    }
-    
     // MARK: - Modern Empty State View
     private var modernEmptyStateView: some View {
         VStack(spacing: 32) {
             Spacer()
             
-            // Modern illustration
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.primaryOrange.opacity(0.1),
-                                Color.primaryOrange.opacity(0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 120, height: 120)
-                
-                Image(systemName: "message.circle")
-                    .font(.system(size: 60, weight: .light))
-                    .foregroundColor(.primaryOrange)
-            }
+            // Simple illustration
+            Image(systemName: "message.circle")
+                .font(.system(size: 80, weight: .light))
+                .foregroundColor(.primaryOrange.opacity(0.6))
             
             VStack(spacing: 16) {
                 Text("No Conversations Yet")
@@ -511,38 +432,22 @@ struct MessagesView: View {
                     .lineSpacing(4)
             }
             
-            // Modern CTA button
+            // Simple CTA button
             Button(action: {
                 print("Start chatting tapped")
             }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.message")
-                        .font(.system(size: 16, weight: .semibold))
-                    
-                    Text("Start Chatting")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color.primaryOrange,
-                            Color.primaryOrange.opacity(0.8)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(Capsule())
-                .shadow(color: .primaryOrange.opacity(0.3), radius: 12, x: 0, y: 6)
+                Text("Start Chatting")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(Color.primaryOrange)
+                    .clipShape(Capsule())
             }
             
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.clear)
     }
     
     // MARK: - Modern Chat List View

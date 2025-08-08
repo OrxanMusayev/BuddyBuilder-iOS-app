@@ -1,14 +1,12 @@
-// BuddyBuilder/Features/UserProfile/ViewModels/UserProfileViewModel.swift
+// BuddyBuilder/Features/UserProfile/ViewModels/UserProfileViewModel.swift - SearchAsyncImage UYUMLU GÜNCELLENMİŞ
 
 import SwiftUI
 import Combine
 
-// MARK: - User Profile View Model
+// MARK: - User Profile View Model - SearchAsyncImage UYUMLU
 class UserProfileViewModel: ObservableObject {
     @Published var profileDetails: ProfileDetails?
-    @Published var profilePhotoImage: UIImage?
     @Published var isLoadingProfile = false
-    @Published var isLoadingPhoto = false
     @Published var errorMessage: String = ""
     @Published var showError = false
     
@@ -20,24 +18,20 @@ class UserProfileViewModel: ObservableObject {
     @Published var connectionRequestSent = false
     
     private let userProfileService: UserProfileServiceProtocol
-    private let profilePhotoService: ProfilePhotoServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
     // User ID to fetch
     let userId: Int
     
     init(userId: Int,
-         userProfileService: UserProfileServiceProtocol = UserProfileService(),
-         profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService()) {
+         userProfileService: UserProfileServiceProtocol = UserProfileService()) {
         self.userId = userId
         self.userProfileService = userProfileService
-        self.profilePhotoService = profilePhotoService
         
         loadUserProfile()
-        // Don't load photo here - wait for profile details first
     }
     
-    // MARK: - Load User Profile
+    // MARK: - Load User Profile - SADECE API VERİSİ, FOTOĞRAF MANUEL YÜKLENMİYOR
     func loadUserProfile() {
         isLoadingProfile = true
         errorMessage = ""
@@ -54,61 +48,11 @@ class UserProfileViewModel: ObservableObject {
                 receiveValue: { [weak self] profile in
                     self?.profileDetails = profile
                     print("✅ User profile loaded successfully for ID: \(profile.userId)")
+                    
+                    // YENİ: Profil fotoğrafı SearchAsyncImage tarafından otomatik yüklenecek
+                    // Manuel fotoğraf yükleme kaldırıldı
                 }
             )
-            .store(in: &cancellables)
-    }
-    
-    // MARK: - Force Reload Photo
-    func forceReloadPhoto() {
-        guard let profileImageUrl = profileDetails?.profileImageUrl,
-              !profileImageUrl.isEmpty else {
-            print("ℹ️ No profile image URL available for force reload")
-            return
-        }
-        
-        print("🔄 Force reloading profile photo...")
-        loadUserProfilePhoto()
-    }
-    
-    // MARK: - Load User Profile Photo
-    private func loadUserProfilePhoto() {
-        guard let profileImageUrl = profileDetails?.profileImageUrl,
-              !profileImageUrl.isEmpty else {
-            return
-        }
-        
-        isLoadingPhoto = true
-        
-        // Check cache first
-        if let cachedImage = CentralCacheManager.shared.getSearchImage(for: profileImageUrl) {
-            self.profilePhotoImage = cachedImage
-            self.isLoadingPhoto = false
-            return
-        }
-        
-        // Download if not cached
-        guard let url = URL(string: profileImageUrl) else {
-            self.isLoadingPhoto = false
-            return
-        }
-        
-        URLSession.shared.dataTaskPublisher(for: url)
-            .map { data, _ -> UIImage? in
-                guard let image = UIImage(data: data) else { return nil }
-                // Cache the downloaded image
-                CentralCacheManager.shared.saveSearchImage(image, for: profileImageUrl)
-                return image
-            }
-            .catch { error -> AnyPublisher<UIImage?, Never> in
-                print("❌ Failed to download user profile image: \(error)")
-                return Just(nil).eraseToAnyPublisher()
-            }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] image in
-                self?.profilePhotoImage = image
-                self?.isLoadingPhoto = false
-            }
             .store(in: &cancellables)
     }
     
@@ -374,6 +318,11 @@ class UserProfileViewModel: ObservableObject {
         return userAge != nil
     }
     
+    // MARK: - YENİ: Profile Image URL Helper
+    var profileImageUrl: String? {
+        return profileDetails?.profileImageUrl
+    }
+    
     // MARK: - Helper Methods
     private func handleError(_ message: String) {
         errorMessage = message
@@ -383,8 +332,7 @@ class UserProfileViewModel: ObservableObject {
     
     func refresh() {
         loadUserProfile()
-        if profileDetails?.profileImageUrl != nil {
-            loadUserProfilePhoto()
-        }
+        // Profil fotoğrafı SearchAsyncImage tarafından otomatik olarak yenilenecek
+        // Manuel fotoğraf yükleme kaldırıldı
     }
 }

@@ -236,7 +236,6 @@ class SearchService: SearchServiceProtocol {
                 }
             }
         )
-        .delay(for: .seconds(0.5), scheduler: DispatchQueue.main) // TEST: Artificial delay to see skeleton loading
         .eraseToAnyPublisher()
     }
     
@@ -282,7 +281,6 @@ class SearchService: SearchServiceProtocol {
                 }
             }
         )
-        .delay(for: .seconds(0.5), scheduler: DispatchQueue.main) // TEST: Artificial delay to see skeleton loading
         .eraseToAnyPublisher()
     }
     

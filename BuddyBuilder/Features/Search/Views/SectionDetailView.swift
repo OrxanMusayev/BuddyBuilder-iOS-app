@@ -1,7 +1,6 @@
 // BuddyBuilder/Features/Search/Views/SectionDetailView.swift - FINAL NAVIGATION FIX
 
 import SwiftUI
-
 struct SectionDetailView: View {
     let section: SectionType
     let users: [SearchUser]
@@ -10,7 +9,8 @@ struct SectionDetailView: View {
     let isLoading: Bool
     let onDismiss: () -> Void
     let onLoadMore: () -> Void
-    let onUserSelected: (Int) -> Void // NEW: Callback for user selection
+    let onRefresh: () -> Void  // YENİ: Refresh callback
+    let onUserSelected: (Int) -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {
@@ -41,7 +41,6 @@ struct SectionDetailView: View {
                                     DetailTrainerCard(
                                         trainer: trainer,
                                         onCardTap: {
-                                            // NAVIGATION: Delegate to parent (SearchView)
                                             onUserSelected(trainer.id)
                                         }
                                     )
@@ -52,7 +51,6 @@ struct SectionDetailView: View {
                                         user: user,
                                         section: section,
                                         onCardTap: {
-                                            // NAVIGATION: Delegate to parent (SearchView)
                                             onUserSelected(user.id)
                                         }
                                     )
@@ -72,10 +70,13 @@ struct SectionDetailView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 100)
                 }
+                .refreshable {
+                    // YENİ: Pull-to-refresh özelliği
+                    onRefresh()
+                }
             }
         }
         .navigationBarHidden(true)
-        // REMOVED: All local navigation - delegated to parent
     }
     
     private var headerView: some View {
@@ -94,7 +95,6 @@ struct SectionDetailView: View {
             Spacer()
             
             VStack(spacing: 4) {
-                // Icon removed for New Joiners, kept for others
                 if section != .newJoiners {
                     Image(systemName: section.icon)
                         .font(.system(size: 16, weight: .medium))
@@ -135,7 +135,7 @@ struct SectionDetailView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .gridCellColumns(2) // Span both columns
+        .gridCellColumns(2)
     }
 }
 

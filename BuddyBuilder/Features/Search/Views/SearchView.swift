@@ -28,12 +28,8 @@ enum SectionType {
         }
     }
 }
+
 // BuddyBuilder/Features/Search/Views/SearchView.swift - UPDATED WITH USER PROFILE NAVIGATION
-
-import SwiftUI
-import Combine
-
-// MARK: - Search View Model - UPDATED WITH NAVIGATION
 class SearchViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var isSearching: Bool = false
@@ -42,9 +38,11 @@ class SearchViewModel: ObservableObject {
     @Published var popularUsers: [SearchUser] = []
     @Published var newJoiners: [SearchUser] = []
     
-    // Loading states
+    // Loading states - YENİ: Görsel yükleme durumları
     @Published var isLoadingPopular = false
     @Published var isLoadingNew = false
+    @Published var isPreloadingPopularImages = false  // YENİ: Popüler kullanıcı profil fotoğrafları yükleniyor
+    @Published var isPreloadingNewImages = false      // YENİ: Yeni katılan kullanıcı profil fotoğrafları yükleniyor
     
     // Section detail
     @Published var currentSection: SectionType? = nil
@@ -53,6 +51,7 @@ class SearchViewModel: ObservableObject {
     @Published var sectionCurrentPage = 1
     @Published var sectionHasMorePages = false
     @Published var isSectionLoading = false
+    @Published var isSectionPreloadingImages = false  // YENİ: Section profil fotoğrafları yükleniyor
     
     // NAVIGATION: User Profile Navigation
     @Published var selectedUserId: Int?
@@ -60,15 +59,13 @@ class SearchViewModel: ObservableObject {
     
     private let searchService: SearchServiceProtocol
     private var cancellables = Set<AnyCancellable>()
+    private let cacheManager = CentralCacheManager.shared
     
     private let userLocation = ""
     
     init(searchService: SearchServiceProtocol = SearchService()) {
         self.searchService = searchService
-        
-        // IMMEDIATE API CALLS ON INIT
         loadDataFromAPI()
-        
         setupSearchSuggestions()
     }
     
@@ -81,12 +78,58 @@ class SearchViewModel: ObservableObject {
     
     // MARK: - ALWAYS LOAD FROM API (NO CACHE CHECKS)
     private func loadDataFromAPI() {
-        // IMMEDIATE API calls - no delays, no cache checks
         loadPopularUsersFromAPI()
         loadNewJoinersFromAPI()
     }
     
-    // MARK: - Load Popular Users FROM API
+    // MARK: - YENİ: Profil Fotoğrafları Ön Yükleme Fonksiyonu - OPTİMİZE EDİLMİŞ
+    private func preloadImages(for users: [SearchUser], completion: @escaping () -> Void) {
+        let group = DispatchGroup()
+        var imagesToLoad = 0
+        
+        for user in users {
+            guard let urlString = user.profileImageUrl, !urlString.isEmpty else { continue }
+            
+            // Cache'de zaten varsa geç
+            if cacheManager.getSearchImage(for: urlString) != nil {
+                continue
+            }
+            
+            guard let url = URL(string: urlString) else { continue }
+            
+            imagesToLoad += 1
+            group.enter()
+            URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+                defer { group.leave() }
+                
+                guard let data = data,
+                      let image = UIImage(data: data),
+                      error == nil else {
+                    print("❌ Failed to preload image for user: \(user.username)")
+                    return
+                }
+                
+                // Cache'e kaydet
+                self?.cacheManager.saveSearchImage(image, for: urlString)
+                print("✅ Preloaded image for user: \(user.username)")
+            }.resume()
+        }
+        
+        // Eğer yüklenecek fotoğraf yoksa direkt completion'ı çağır
+        if imagesToLoad == 0 {
+            print("ℹ️ No images to preload, proceeding with UI update")
+            completion()
+            return
+        }
+        
+        print("📥 Started preloading \(imagesToLoad) images...")
+        group.notify(queue: .main) {
+            print("✅ Finished preloading all \(imagesToLoad) images")
+            completion()
+        }
+    }
+    
+    // MARK: - Load Popular Users FROM API - DÜZELTME: ÖNCE FOTOĞRAFLAR SONRA UI
     private func loadPopularUsersFromAPI() {
         isLoadingPopular = true
         
@@ -99,20 +142,32 @@ class SearchViewModel: ObservableObject {
         .receive(on: DispatchQueue.main)
         .sink(
             receiveCompletion: { [weak self] completion in
-                self?.isLoadingPopular = false
                 if case .failure(let error) = completion {
                     print("❌ Failed to load popular users: \(error)")
+                    self?.isLoadingPopular = false
+                    self?.isPreloadingPopularImages = false
                 }
             },
             receiveValue: { [weak self] data in
-                self?.popularUsers = data.items
                 print("✅ Loaded \(data.items.count) popular users FROM API")
+                
+                // ÖNCE profil fotoğraflarını ön yükle, VERİYİ HENÜZ ATAMA!
+                self?.isPreloadingPopularImages = true
+                self?.preloadImages(for: data.items) {
+                    // Tüm fotoğraflar yüklendikten SONRA veriyi ata ve loading'i false yap
+                    DispatchQueue.main.async {
+                        self?.popularUsers = data.items  // VERİ BURADA ATANIYOR
+                        self?.isLoadingPopular = false
+                        self?.isPreloadingPopularImages = false
+                        print("✅ All popular user images preloaded and UI updated")
+                    }
+                }
             }
         )
         .store(in: &cancellables)
     }
     
-    // MARK: - Load New Joiners FROM API
+    // MARK: - Load New Joiners FROM API - DÜZELTME: ÖNCE FOTOĞRAFLAR SONRA UI
     private func loadNewJoinersFromAPI() {
         isLoadingNew = true
         
@@ -125,14 +180,26 @@ class SearchViewModel: ObservableObject {
         .receive(on: DispatchQueue.main)
         .sink(
             receiveCompletion: { [weak self] completion in
-                self?.isLoadingNew = false
                 if case .failure(let error) = completion {
                     print("❌ Failed to load new joiners: \(error)")
+                    self?.isLoadingNew = false
+                    self?.isPreloadingNewImages = false
                 }
             },
             receiveValue: { [weak self] data in
-                self?.newJoiners = data.items
                 print("✅ Loaded \(data.items.count) new joiners FROM API")
+                
+                // ÖNCE profil fotoğraflarını ön yükle, VERİYİ HENÜZ ATAMA!
+                self?.isPreloadingNewImages = true
+                self?.preloadImages(for: data.items) {
+                    // Tüm fotoğraflar yüklendikten SONRA veriyi ata ve loading'i false yap
+                    DispatchQueue.main.async {
+                        self?.newJoiners = data.items  // VERİ BURADA ATANIYOR
+                        self?.isLoadingNew = false
+                        self?.isPreloadingNewImages = false
+                        print("✅ All new joiner images preloaded and UI updated")
+                    }
+                }
             }
         )
         .store(in: &cancellables)
@@ -170,7 +237,7 @@ class SearchViewModel: ObservableObject {
         CentralCacheManager.shared.clearSearchImageCache()
     }
     
-    // MARK: - Section Methods
+    // MARK: - Section Methods - YENİ: GÖRSEL ÖN YÜKLEME İLE
     func showSection(_ section: SectionType) {
         currentSection = section
         sectionCurrentPage = 1
@@ -211,19 +278,31 @@ class SearchViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
-                    self?.isSectionLoading = false
                     if case .failure(let error) = completion {
                         print("❌ Failed to load section data: \(error)")
+                        self?.isSectionLoading = false
+                        self?.isSectionPreloadingImages = false
                     }
                 },
                 receiveValue: { [weak self] data in
-                    if page == 1 {
-                        self?.sectionUsers = data.items
-                    } else {
-                        self?.sectionUsers.append(contentsOf: data.items)
+                    // ÖNCE profil fotoğraflarını ön yükle, VERİYİ HENÜZ ATAMA!
+                    self?.isSectionPreloadingImages = true
+                    self?.preloadImages(for: data.items) {
+                        DispatchQueue.main.async {
+                            // Tüm fotoğraflar yüklendikten SONRA veriyi ata ve loading'i false yap
+                            if page == 1 {
+                                self?.sectionUsers = data.items  // VERİ BURADA ATANIYOR
+                            } else {
+                                self?.sectionUsers.append(contentsOf: data.items)
+                            }
+                            self?.sectionCurrentPage = data.page
+                            self?.sectionHasMorePages = data.hasNextPage
+                            
+                            self?.isSectionLoading = false
+                            self?.isSectionPreloadingImages = false
+                            print("✅ All section images preloaded and UI updated")
+                        }
                     }
-                    self?.sectionCurrentPage = data.page
-                    self?.sectionHasMorePages = data.hasNextPage
                 }
             )
             .store(in: &cancellables)
@@ -255,7 +334,20 @@ class SearchViewModel: ObservableObject {
         return []
     }
     
-    // MARK: - Search Methods
+    // MARK: - YENİ: Loading durumları için computed properties
+    var isPopularSectionReady: Bool {
+        return !isLoadingPopular && !isPreloadingPopularImages
+    }
+    
+    var isNewJoinersSectionReady: Bool {
+        return !isLoadingNew && !isPreloadingNewImages
+    }
+    
+    var isSectionDetailReady: Bool {
+        return !isSectionLoading && !isSectionPreloadingImages
+    }
+    
+    // MARK: - Search Methods (değişmez)
     private func setupSearchSuggestions() {
         $searchText
             .debounce(for: .seconds(0.3), scheduler: RunLoop.main)
@@ -286,6 +378,9 @@ class SearchViewModel: ObservableObject {
     }
 }
 
+
+
+
 // MARK: - Main Search View - UPDATED WITH USER PROFILE NAVIGATION
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
@@ -304,10 +399,10 @@ struct SearchView: View {
                     // Main Content
                     ScrollView {
                         LazyVStack(spacing: 32) {
-                            // Popular Users Section - ALWAYS FROM API
+                            // Popular Users Section - YENİ: Skeleton koşulu güncellendi
                             popularUsersSection
                             
-                            // New Joiners Section - ALWAYS FROM API
+                            // New Joiners Section - YENİ: Skeleton koşulu güncellendi
                             newJoinersSection
                             
                             Spacer(minLength: 100)
@@ -315,7 +410,6 @@ struct SearchView: View {
                         .padding(.top, 20)
                     }
                     .refreshable {
-                        // ALWAYS API REFRESH
                         viewModel.refreshAllData()
                     }
                 }
@@ -325,7 +419,6 @@ struct SearchView: View {
                     searchSuggestionsOverlay
                 }
             }
-            // NAVIGATION: User Profile Navigation - MOVED INSIDE NavigationStack
             .navigationDestination(isPresented: $viewModel.showUserProfile) {
                 if let userId = viewModel.selectedUserId {
                     UserProfileView(userId: userId)
@@ -335,7 +428,6 @@ struct SearchView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            // ALWAYS LOAD FROM API ON APPEAR
             viewModel.onViewAppear()
         }
         .onReceive(NotificationCenter.default.publisher(for: .userDidLogin)) { _ in
@@ -351,15 +443,17 @@ struct SearchView: View {
                     users: viewModel.getUsersForSection(section),
                     trainers: viewModel.getTrainersForSection(section),
                     hasMorePages: viewModel.sectionHasMorePages,
-                    isLoading: viewModel.isSectionLoading,
+                    isLoading: !viewModel.isSectionDetailReady,  // YENİ: Görsel yükleme dahil
                     onDismiss: {
                         viewModel.hideSectionDetail()
                     },
                     onLoadMore: {
                         viewModel.loadNextSectionPage()
                     },
+                    onRefresh: {  // YENİ: Refresh callback eklendi
+                        viewModel.refreshCurrentSection()
+                    },
                     onUserSelected: { userId in
-                        // DIRECT NAVIGATION - no delay needed
                         viewModel.navigateToUserProfile(userId)
                     }
                 )
@@ -468,10 +562,11 @@ struct SearchView: View {
             sectionHeader(
                 title: "Popular Users Today",
                 icon: "flame.fill",
-                color: .red
+                color: .red // YENİ: Görsel yükleme dahil
             )
             
-            if viewModel.isLoadingPopular && viewModel.popularUsers.isEmpty {
+            // YENİ: Skeleton koşulu - veri YOK veya görsel yükleniyor
+            if !viewModel.isPopularSectionReady && viewModel.popularUsers.isEmpty {
                 SkeletonLoadingGrid(count: 6)
             } else if viewModel.popularUsers.isEmpty {
                 emptyStateView(message: "No popular users found")
@@ -487,10 +582,11 @@ struct SearchView: View {
             sectionHeader(
                 title: "New Joiners Near You",
                 icon: "person.badge.plus.fill",
-                color: .green
+                color: .green // YENİ: Görsel yükleme dahil
             )
             
-            if viewModel.isLoadingNew && viewModel.newJoiners.isEmpty {
+            // YENİ: Skeleton koşulu - veri YOK veya görsel yükleniyor
+            if !viewModel.isNewJoinersSectionReady && viewModel.newJoiners.isEmpty {
                 SkeletonLoadingGrid(count: 6)
             } else if viewModel.newJoiners.isEmpty {
                 emptyStateView(message: "No new joiners found")

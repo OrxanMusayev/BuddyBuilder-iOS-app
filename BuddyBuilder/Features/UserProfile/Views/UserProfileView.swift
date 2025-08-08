@@ -1,6 +1,7 @@
-// BuddyBuilder/Features/UserProfile/Views/UserProfileView.swift
+// BuddyBuilder/Features/UserProfile/Views/UserProfileView.swift - SearchAsyncImage İLE GÜNCELLENMİŞ
 
 import SwiftUI
+import Combine
 
 struct UserProfileView: View {
     let userId: Int
@@ -13,127 +14,6 @@ struct UserProfileView: View {
         self._viewModel = StateObject(wrappedValue: UserProfileViewModel(userId: userId))
     }
 
-// MARK: - User Unblock Action Sheet Component
-struct UserUnblockActionSheet: View {
-    let userName: String
-    let onUnblockUser: () -> Void
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 16) {
-                // Drag handle
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 8)
-                
-                // Title
-                Text("user.profile.report.blocked_title".localized(using: localizationManager))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                
-                Text(String(format: "user.profile.report.blocked_subtitle".localized(using: localizationManager), userName))
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-            }
-            .padding(.bottom, 24)
-            
-            // Unblock Option
-            VStack(spacing: 12) {
-                Button(action: {
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        onUnblockUser()
-                    }
-                }) {
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.green.opacity(0.1))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "person.fill.checkmark")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.green)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("user.profile.report.unblock_user".localized(using: localizationManager))
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.textPrimary)
-                            
-                            Text(String(format: "user.profile.report.unblock_description".localized(using: localizationManager), userName))
-                                .font(.system(size: 12))
-                                .foregroundColor(.textSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.formBackground.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .padding(.horizontal, 20)
-            
-            // Cancel Button
-            Button(action: {
-                dismiss()
-            }) {
-                Text("common.cancel".localized(using: localizationManager))
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(Color.formBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 22))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 20)
-        }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(200)])
-        .presentationDragIndicator(.hidden)
-    }
-}
-
-// MARK: - Profile Stat Card (Same as ProfileView)
-struct ProfileStatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundColor(.primaryOrange)
-            
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.textSecondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -303,60 +183,22 @@ struct ProfileStatCard: View {
         }
     }
     
-    // MARK: - Profile Header Section
+    // MARK: - Profile Header Section - SearchView UserCard ile AYNI STIL
     private var profileHeaderSection: some View {
         VStack(spacing: 20) {
-            // Profile Image
+            // Profile Image - SearchView UserCard ile birebir aynı
             ZStack {
-                if viewModel.isLoadingPhoto {
-                    Circle()
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 120, height: 120)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                        )
-                } else if let profileImage = viewModel.profilePhotoImage {
-                    Image(uiImage: profileImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 120, height: 120)
-                        .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
-                } else {
-                    // Default profile icon - same as SearchView
-                    ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.gray.opacity(0.08),
-                                        Color.gray.opacity(0.12)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 120, height: 120)
-                        
-                        Circle()
-                            .stroke(Color.gray.opacity(0.15), lineWidth: 1)
-                            .frame(width: 120, height: 120)
-                        
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 60, weight: .ultraLight))
-                            .foregroundColor(.gray.opacity(0.3))
-                    }
-                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
-                }
+                SearchAsyncImage(
+                    url: viewModel.profileDetails?.profileImageUrl,
+                    placeholder: "person.crop.circle.fill"
+                )
+                .frame(width: 120, height: 120)
+                .clipShape(Circle())
+                
+                // Eğer kullanıcı yeniyse NEW badge (SearchView'daki gibi)
+                // Bu kısım isteğe bağlı - profil sayfasında genellikle badge olmaz
             }
-            .onAppear {
-                // Force photo loading when profile header appears
-                if viewModel.profileDetails != nil && viewModel.profilePhotoImage == nil && !viewModel.isLoadingPhoto {
-                    print("🔄 Forcing photo reload on header appear")
-                    viewModel.forceReloadPhoto()
-                }
-            }
+            .frame(height: 130) // SearchView'daki UserCard ile aynı frame logic
             
             // User Info
             VStack(spacing: 8) {
@@ -484,7 +326,7 @@ struct ProfileStatCard: View {
         .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
     
-    // MARK: - Sports Section
+    // MARK: - Sports Section - YENİ: SearchAsyncImage KULLANIMI
     private var sportsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "user.profile.section.sports".localized(using: localizationManager), icon: "sportscourt")
@@ -625,6 +467,40 @@ struct ProfileStatCard: View {
         .background(Color.red.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
+    
+    // MARK: - Helper Views
+    private func sectionHeader(title: String, icon: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.primaryOrange)
+            
+            Text(title)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.textPrimary)
+            
+            Spacer()
+        }
+    }
+    
+    private func infoRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(.primaryOrange)
+                .frame(width: 20)
+            
+            Text(title)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.textSecondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.system(size: 16))
+                .foregroundColor(.textPrimary)
+        }
+    }
 }
 
 // MARK: - User Report Action Sheet Component
@@ -764,51 +640,113 @@ struct UserReportActionSheet: View {
         .presentationDragIndicator(.hidden)
     }
 }
+
+// MARK: - User Unblock Action Sheet Component
+struct UserUnblockActionSheet: View {
+    let userName: String
+    let onUnblockUser: () -> Void
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var localizationManager: LocalizationManager
     
-    // MARK: - Helper Views
-    private func sectionHeader(title: String, icon: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(.primaryOrange)
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(spacing: 16) {
+                // Drag handle
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 8)
+                
+                // Title
+                Text("user.profile.report.blocked_title".localized(using: localizationManager))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.textPrimary)
+                
+                Text(String(format: "user.profile.report.blocked_subtitle".localized(using: localizationManager), userName))
+                    .font(.system(size: 14))
+                    .foregroundColor(.textSecondary)
+            }
+            .padding(.bottom, 24)
             
-            Text(title)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.textPrimary)
+            // Unblock Option
+            VStack(spacing: 12) {
+                Button(action: {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        onUnblockUser()
+                    }
+                }) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                            
+                            Image(systemName: "person.fill.checkmark")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("user.profile.report.unblock_user".localized(using: localizationManager))
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.textPrimary)
+                            
+                            Text(String(format: "user.profile.report.unblock_description".localized(using: localizationManager), userName))
+                                .font(.system(size: 12))
+                                .foregroundColor(.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.formBackground.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.horizontal, 20)
             
-            Spacer()
+            // Cancel Button
+            Button(action: {
+                dismiss()
+            }) {
+                Text("common.cancel".localized(using: localizationManager))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.formBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 20)
         }
-    }
-    
-private func infoRow(icon: String, title: String, value: String) -> some View {
-    HStack(spacing: 12) {
-        Image(systemName: icon)
-            .font(.system(size: 16))
-            .foregroundColor(.primaryOrange)
-            .frame(width: 20)
-        
-        Text(title)
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(.textSecondary)
-        
-        Spacer()
-        
-        Text(value)
-            .font(.system(size: 16))
-            .foregroundColor(.textPrimary)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .presentationDetents([.height(200)])
+        .presentationDragIndicator(.hidden)
     }
 }
 
-// MARK: - Sport Card Component
+// MARK: - Sport Card Component - YENİ: SearchAsyncImage KULLANIMI
 struct SportCard: View {
     let sport: PreferredSportDetails
     
     var body: some View {
         VStack(spacing: 8) {
-            // Sport icon or placeholder
+            // Sport icon or placeholder - SearchAsyncImage ile değiştirildi
             if let iconUrl = sport.sportIconUrl, !iconUrl.isEmpty {
                 SearchAsyncImage(url: iconUrl, placeholder: "sportscourt.fill")
                     .frame(width: 30, height: 30)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 Image(systemName: "sportscourt.fill")
                     .font(.system(size: 24))

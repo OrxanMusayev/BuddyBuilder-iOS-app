@@ -10,7 +10,7 @@ struct SectionDetailView: View {
     let onDismiss: () -> Void
     let onLoadMore: () -> Void
     let onRefresh: () -> Void  // YENİ: Refresh callback
-    let onUserSelected: (Int) -> Void
+    let onUserSelected: (String) -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
     
     var body: some View {

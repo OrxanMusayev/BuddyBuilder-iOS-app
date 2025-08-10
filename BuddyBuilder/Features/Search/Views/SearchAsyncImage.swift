@@ -22,7 +22,7 @@ struct SearchAsyncImage: View {
                     .transition(.opacity)
             } else if isLoading {
                 // Loading state - light gray background with spinner
-                Color.gray.opacity(0.15)
+                Color.dynamicTertiaryBackground
                 
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -32,8 +32,8 @@ struct SearchAsyncImage: View {
                 Image(systemName: placeholder)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundColor(.gray.opacity(0.35))
-                    .background(Color.white.opacity(0.85))
+                    .foregroundColor(.tertiaryText) // ✅ Updated (daha görünür)
+                    .background(Color.dynamicSecondaryBackground)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: loadedImage)

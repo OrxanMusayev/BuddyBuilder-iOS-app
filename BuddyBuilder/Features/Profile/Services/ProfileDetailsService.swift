@@ -120,7 +120,7 @@ class ProfileDetailsService: ProfileDetailsServiceProtocol {
 // MARK: - Mock Profile Details Service (for testing)
 class MockProfileDetailsService: ProfileDetailsServiceProtocol {
     private var mockProfile: ProfileDetails = ProfileDetails(
-        userId: 123,
+        userId: "123",
         username: "johndoe",
         firstName: "John",
         lastName: "Doe",

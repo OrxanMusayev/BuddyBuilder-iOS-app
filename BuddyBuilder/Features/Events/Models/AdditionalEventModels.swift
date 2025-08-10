@@ -81,7 +81,7 @@ struct UpdateEventRequest: Codable {
 // MARK: - Event Participant Model
 struct EventParticipant: Codable, Identifiable {
     let id: Int
-    let userId: Int
+    let userId: String
     let username: String
     let fullName: String
     let profileImageUrl: String?
@@ -120,7 +120,7 @@ struct EventStatistics: Codable {
 struct EventComment: Codable, Identifiable {
     let id: Int
     let eventId: Int
-    let userId: Int
+    let userId: String
     let username: String
     let userFullName: String
     let userProfileImageUrl: String?
@@ -226,7 +226,7 @@ struct EventLocation: Codable, Identifiable {
 struct EventRating: Codable, Identifiable {
     let id: Int
     let eventId: Int
-    let userId: Int
+    let userId: String
     let username: String
     let rating: Int // 1-5 stars
     let review: String?
@@ -245,7 +245,7 @@ struct EventRating: Codable, Identifiable {
 struct EventNotification: Codable, Identifiable {
     let id: Int
     let eventId: Int
-    let userId: Int
+    let userId: String
     let type: NotificationType
     let title: String
     let message: String
@@ -336,7 +336,7 @@ struct WeatherForecast: Codable {
 
 // MARK: - User Event Preferences Model
 struct UserEventPreferences: Codable {
-    let userId: Int
+    let userId: String
     let preferredSports: [Int]
     let preferredLocations: [String]
     let maxTravelDistance: Double?

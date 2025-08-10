@@ -54,7 +54,7 @@ class SearchViewModel: ObservableObject {
     @Published var isSectionPreloadingImages = false  // YENİ: Section profil fotoğrafları yükleniyor
     
     // NAVIGATION: User Profile Navigation
-    @Published var selectedUserId: Int?
+    @Published var selectedUserId: String?
     @Published var showUserProfile = false
     
     private let searchService: SearchServiceProtocol
@@ -70,7 +70,7 @@ class SearchViewModel: ObservableObject {
     }
     
     // MARK: - NAVIGATION: Navigate to User Profile
-    func navigateToUserProfile(_ userId: Int) {
+    func navigateToUserProfile(_ userId: String) {
         selectedUserId = userId
         showUserProfile = true
         print("🚀 Navigating to user profile: \(userId)")
@@ -740,19 +740,19 @@ struct UserCard: View {
             VStack(spacing: 6) {
                 Text(user.name)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                     .frame(height: 18)
                 
                 Text("@\(user.username)")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .lineLimit(1)
                     .frame(height: 16)
                 
                 Text(user.bio)
                     .font(.system(size: 11))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .frame(height: 28)
@@ -790,9 +790,10 @@ struct UserCard: View {
         }
         .frame(width: 140, height: 240)
         .padding(16)
-        .background(Color.white)
+        .background(Color.cardBackground
+            .animation(.easeInOut(duration: 0.2), value: isPressed))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: .dynamicShadow.opacity(isPressed ? 0.05 : 0.1), radius: 8, x: 0, y: 4)
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
@@ -802,12 +803,12 @@ struct UserCard: View {
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in
-                    withAnimation {
+                    withAnimation(.easeOut(duration: 0.1)) { // ✅ Enhanced
                         isPressed = true
                     }
                 }
                 .onEnded { _ in
-                    withAnimation {
+                    withAnimation(.easeOut(duration: 0.15)) { // ✅ Enhanced
                         isPressed = false
                     }
                 }
@@ -830,7 +831,7 @@ struct SkeletonUserCard: View {
             // Profile Image Skeleton
             ZStack {
                 RoundedRectangle(cornerRadius: 45)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(Color.dynamicTertiaryBackground)
                     .frame(width: 90, height: 90)
                     .overlay(
                         RoundedRectangle(cornerRadius: 45)
@@ -923,9 +924,9 @@ struct SkeletonUserCard: View {
         }
         .frame(width: 140, height: 240)
         .padding(16)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 4)
         .onAppear {
             isAnimating = true
         }

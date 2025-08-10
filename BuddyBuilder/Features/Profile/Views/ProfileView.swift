@@ -470,7 +470,7 @@ struct ProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
                 title: "profile.stats.activities".localized(using: localizationManager),
@@ -481,7 +481,7 @@ struct ProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
                 title: "profile.stats.score".localized(using: localizationManager),
@@ -491,18 +491,18 @@ struct ProfileView: View {
             )
         }
         .padding(10)
-        .background(Color.white)
+        .background(Color.cardBackground) // ✅ Updated
         .clipShape(RoundedRectangle(cornerRadius: 25))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // ✅ Updated
     }
-    
+
     // MARK: - Menu Section
     private var menuSection: some View {
         VStack(spacing: 0) {
             ProfileMenuRow(
                 icon: "person.crop.circle",
                 title: "profile.menu.profile".localized(using: localizationManager),
-                color: .primaryOrange,
+                color: .primaryOrange, // Orange kalacak
                 action: {
                     navigateToProfileDetails = true
                 }
@@ -513,7 +513,7 @@ struct ProfileView: View {
             ProfileMenuRow(
                 icon: "figure.run.circle",
                 title: "profile.menu.my_sports".localized(using: localizationManager),
-                color: .primaryOrange,
+                color: .primaryOrange, // Orange kalacak
                 action: {
                     navigateToMySports = true
                 }
@@ -524,7 +524,7 @@ struct ProfileView: View {
             ProfileMenuRow(
                 icon: "gearshape.circle",
                 title: "profile.menu.settings".localized(using: localizationManager),
-                color: .gray,
+                color: .secondaryText, // ✅ Updated (gray yerine adaptive)
                 action: {
                     navigateToSettings = true
                 }
@@ -532,7 +532,7 @@ struct ProfileView: View {
             
             ProfileMenuDivider()
         
-            // Logout butonu
+            // Logout button
             Button(action: {
                 showLogoutConfirmation = true
             }) {
@@ -545,13 +545,13 @@ struct ProfileView: View {
                     } else {
                         Image(systemName: "arrow.right.square")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.red)
+                            .foregroundColor(.red) // Kırmızı kalacak
                             .frame(width: 24, height: 24)
                     }
                     
                     Text("auth.logout".localized(using: localizationManager))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.red)
+                        .foregroundColor(.red) // Kırmızı kalacak
                         .lineLimit(1)
                     
                     Spacer()
@@ -563,14 +563,14 @@ struct ProfileView: View {
             .opacity(authViewModel.isLoading ? 0.7 : 1.0)
             .buttonStyle(PlainButtonStyle())
         }
-        .background(Color.white)
+        .background(Color.cardBackground) // ✅ Updated
         .clipShape(RoundedRectangle(cornerRadius: 25))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // ✅ Updated
     }
     
-    // MARK: - Logout Confirmation Overlay
+    // MARK: - Logout Confirmation Overlay - Dark Mode Adaptive
     private var logoutConfirmationOverlay: some View {
-        Color.black.opacity(0.4)
+        Color.overlayBackground // ✅ Updated (adaptive overlay)
             .ignoresSafeArea()
             .transition(.opacity)
             .onTapGesture {
@@ -590,18 +590,18 @@ struct ProfileView: View {
                             
                             Image(systemName: "arrow.right.square")
                                 .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(.red)
+                                .foregroundColor(.red) // Kırmızı kalacak
                         }
                         
                         // Title
                         Text("auth.logout.confirmation.title".localized(using: localizationManager))
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.primaryText) // ✅ Updated
                         
                         // Message
                         Text("auth.logout.confirmation.message".localized(using: localizationManager))
                             .font(.system(size: 16))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.secondaryText) // ✅ Updated
                             .multilineTextAlignment(.center)
                             .lineLimit(nil)
                     }
@@ -610,7 +610,7 @@ struct ProfileView: View {
                     .padding(.bottom, 32)
                     
                     Divider()
-                        .background(Color.gray.opacity(0.3))
+                        .background(Color.dynamicBorder) // ✅ Updated
                     
                     // Buttons
                     HStack(spacing: 0) {
@@ -620,13 +620,13 @@ struct ProfileView: View {
                         }) {
                             Text("auth.logout.confirmation.cancel".localized(using: localizationManager))
                                 .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.blue) // Mavi kalacak (system blue)
                                 .frame(maxWidth: .infinity, minHeight: 56)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Divider()
-                            .background(Color.gray.opacity(0.3))
+                            .background(Color.dynamicBorder) // ✅ Updated
                             .frame(height: 56)
                         
                         // Confirm Button
@@ -647,17 +647,15 @@ struct ProfileView: View {
                         }) {
                             Text("auth.logout.confirmation.confirm".localized(using: localizationManager))
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(.red) // Kırmızı kalacak
                                 .frame(maxWidth: .infinity, minHeight: 56)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
-                )
+                .background(Color.cardBackground) // ✅ Updated
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .dynamicShadow, radius: 20, x: 0, y: 10) // ✅ Updated
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 40)
                 .scaleEffect(showLogoutConfirmation ? 1.0 : 0.8)
@@ -669,10 +667,10 @@ struct ProfileView: View {
             )
     }
     
-    // MARK: - Logout Loading Overlay
+    // MARK: - Logout Loading Overlay - Dark Mode Adaptive
     private var logoutLoadingOverlay: some View {
         ZStack {
-            Color.gray
+            Color.overlayBackground // ✅ Updated (adaptive overlay)
                 .ignoresSafeArea()
             
             ZStack {
@@ -748,14 +746,14 @@ struct CustomPhotoSelectionSheet: View {
             VStack(spacing: 12) {
                 // Drag handle
                 RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.secondaryText.opacity(0.3))
                     .frame(width: 40, height: 5)
                     .padding(.top, 8)
                 
                 // Title only
                 Text("Profile Photo")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
             }
             .padding(.bottom, 20)
             
@@ -795,7 +793,7 @@ struct CustomPhotoSelectionSheet: View {
             }) {
                 Text("Cancel")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.formBackground)
@@ -805,7 +803,7 @@ struct CustomPhotoSelectionSheet: View {
             .padding(.top, 16)
             .padding(.bottom, 20)
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(hasExistingPhoto ? 280 : 240)])
         .presentationDragIndicator(.hidden)
@@ -836,14 +834,14 @@ struct CompactPhotoOptionButton: View {
                 // Title only
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                 
                 Spacer()
                 
                 // Small arrow
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -898,6 +896,7 @@ struct CameraView: View {
 }
 
 // MARK: - Profile Stat Card
+// MARK: - Profile Stat Card - Dark Mode Adaptive
 struct ProfileStatCard: View {
     let title: String
     let value: String
@@ -908,22 +907,22 @@ struct ProfileStatCard: View {
         VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 24, weight: .medium))
-                .foregroundColor(.primaryOrange)
+                .foregroundColor(.primaryOrange) // Orange kalacak
             
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // ✅ Updated
             
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText) // ✅ Updated
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Profile Menu Row
+// MARK: - Profile Menu Row - Dark Mode Adaptive
 struct ProfileMenuRow: View {
     let icon: String
     let title: String
@@ -935,19 +934,19 @@ struct ProfileMenuRow: View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundColor(color) // Color parametre olarak geliyor (orange/adaptive)
                     .frame(width: 24, height: 24)
                 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText) // ✅ Updated
                     .lineLimit(1)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText) // ✅ Updated
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -956,12 +955,12 @@ struct ProfileMenuRow: View {
     }
 }
 
-// MARK: - Profile Menu Divider
+// MARK: - Profile Menu Divider - Dark Mode Adaptive
 struct ProfileMenuDivider: View {
     var body: some View {
         Divider()
             .padding(.leading, 72)
-            .background(Color.formBorder.opacity(0.2))
+            .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
     }
 }
 

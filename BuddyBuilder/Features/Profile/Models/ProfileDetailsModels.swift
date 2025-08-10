@@ -13,7 +13,7 @@ struct ProfileDetailsResponse: Codable {
 
 // MARK: - Profile Details Model
 struct ProfileDetails: Codable {
-    let userId: Int
+    let userId: String
     let username: String
     let firstName: String?
     let lastName: String?

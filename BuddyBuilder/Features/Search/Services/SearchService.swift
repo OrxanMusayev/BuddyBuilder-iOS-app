@@ -5,7 +5,7 @@ import Combine
 
 // MARK: - Search API Models
 struct SearchUser: Codable, Identifiable {
-    let id: Int
+    let id: String
     let username: String
     let firstName: String
     let lastName: String
@@ -85,7 +85,7 @@ struct SearchUser: Codable, Identifiable {
 }
 
 struct SearchTrainer: Codable, Identifiable {
-    let id: Int
+    let id: String
     let username: String
     let firstName: String
     let lastName: String

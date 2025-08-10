@@ -246,13 +246,13 @@ struct SettingsMenuItemView: View {
                 // Outline (içi boş) siyah iconlar
                 Image(systemName: getOutlineIcon(item.customIcon))
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.black)
+                    .foregroundColor(.primaryText)
                     .frame(width: 24, height: 24)
                 
                 // Title
                 Text(item.title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
                 Spacer()
@@ -260,7 +260,7 @@ struct SettingsMenuItemView: View {
                 // Arrow
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -290,7 +290,7 @@ struct SettingsMenuDivider: View {
     var body: some View {
         Divider()
             .padding(.leading, 60) // Icon width'e göre ayarlandı (24 + 16 + 20)
-            .background(Color.formBorder.opacity(0.2))
+            .background(Color.dynamicBorder.opacity(0.3))
     }
 }
 

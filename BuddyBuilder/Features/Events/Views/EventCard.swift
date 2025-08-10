@@ -200,19 +200,12 @@ struct EventCard: View {
                                 .fill(Color.primaryOrange.opacity(0.1))
                         )
                 }
-                
-                
-                
-                
-                
-                
-                
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
         //        .onTapGesture {
         //            onTap()
         //        }
@@ -314,9 +307,9 @@ struct EventCardSkeleton: View {
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 isAnimating = true

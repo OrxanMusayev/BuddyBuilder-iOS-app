@@ -21,9 +21,9 @@ class UserProfileViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     // User ID to fetch
-    let userId: Int
+    let userId: String
     
-    init(userId: Int,
+    init(userId: String,
          userProfileService: UserProfileServiceProtocol = UserProfileService()) {
         self.userId = userId
         self.userProfileService = userProfileService

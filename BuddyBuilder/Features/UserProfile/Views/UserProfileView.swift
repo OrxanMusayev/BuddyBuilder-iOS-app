@@ -4,12 +4,12 @@ import SwiftUI
 import Combine
 
 struct UserProfileView: View {
-    let userId: Int
+    let userId: String
     @StateObject private var viewModel: UserProfileViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.dismiss) var dismiss
     
-    init(userId: Int) {
+    init(userId: String) {
         self.userId = userId
         self._viewModel = StateObject(wrappedValue: UserProfileViewModel(userId: userId))
     }
@@ -524,11 +524,11 @@ struct UserReportActionSheet: View {
                 // Title
                 Text(String(format: "user.profile.report.title".localized(using: localizationManager), userName))
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                 
                 Text("user.profile.report.subtitle".localized(using: localizationManager))
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .padding(.bottom, 24)
             
@@ -555,22 +555,22 @@ struct UserReportActionSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("user.profile.report.block_user".localized(using: localizationManager))
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.primaryText)
                             
                             Text("user.profile.report.block_description".localized(using: localizationManager))
                                 .font(.system(size: 12))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.secondaryText)
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.tertiaryText)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.formBackground.opacity(0.5))
+                    .background(Color.dynamicSecondaryBackground.opacity(0.5))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -624,7 +624,7 @@ struct UserReportActionSheet: View {
             }) {
                 Text("common.cancel".localized(using: localizationManager))
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.formBackground)
@@ -634,7 +634,7 @@ struct UserReportActionSheet: View {
             .padding(.top, 20)
             .padding(.bottom, 20)
         }
-        .background(Color.white)
+        .background(Color.cardBackground) 
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(280)])
         .presentationDragIndicator(.hidden)
@@ -755,34 +755,34 @@ struct SportCard: View {
             
             Text(sport.sportName)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
                 .lineLimit(1)
             
             Text("Level \(sport.experienceLevel)")
                 .font(.system(size: 12))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText)
             
             if let notes = sport.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.system(size: 10))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 120)
-        .background(Color.formBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.formBorder, lineWidth: 1)
+        .background(Color.formBackground) // ✅ Updated (zaten adaptive)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.dynamicBorder, lineWidth: 1) // ✅ Updated
         )
     }
 }
 
 // MARK: - Preview
 #Preview {
-    UserProfileView(userId: 3005)
+    UserProfileView(userId: "3005")
         .environmentObject(LocalizationManager())
 }

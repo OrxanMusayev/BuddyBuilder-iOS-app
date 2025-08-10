@@ -5,7 +5,7 @@ import Combine
 
 // MARK: - User Profile Service Protocol
 protocol UserProfileServiceProtocol {
-    func fetchUserProfile(userId: Int) -> AnyPublisher<ProfileDetails, Error>
+    func fetchUserProfile(userId: String) -> AnyPublisher<ProfileDetails, Error>
 }
 
 // MARK: - User Profile Service Implementation
@@ -14,7 +14,7 @@ class UserProfileService: UserProfileServiceProtocol {
     private let baseURL = "http://192.168.100.76:5206/api/Profile"
     
     // MARK: - Fetch User Profile by ID
-    func fetchUserProfile(userId: Int) -> AnyPublisher<ProfileDetails, Error> {
+    func fetchUserProfile(userId: String) -> AnyPublisher<ProfileDetails, Error> {
         let endpoint = "\(baseURL)/user-profile/\(userId)"
         let headers = getAuthHeaders()
         
@@ -66,7 +66,7 @@ class UserProfileService: UserProfileServiceProtocol {
 
 // MARK: - Mock User Profile Service (for testing)
 class MockUserProfileService: UserProfileServiceProtocol {
-    func fetchUserProfile(userId: Int) -> AnyPublisher<ProfileDetails, Error> {
+    func fetchUserProfile(userId: String) -> AnyPublisher<ProfileDetails, Error> {
         print("🧪 MOCK: Fetching user profile for ID: \(userId)")
         
         let mockProfile = ProfileDetails(
@@ -105,7 +105,7 @@ class MockUserProfileService: UserProfileServiceProtocol {
             aboutMe: "Mock user with great enthusiasm for sports and connecting with like-minded people!",
             createdAt: "05.08.2025 13:18:49", // Turkish DateTime format
             updatedAt: "20.07.2024 14:45:32", // Turkish DateTime format
-            dateOfBirth: userId % 2 == 0 ? "15.05.1995 00:00:00" : nil // Some users have age, some don't
+            dateOfBirth:"15.05.1995 00:00:00"// Some users have age, some don't
         )
         
         return Just(mockProfile)

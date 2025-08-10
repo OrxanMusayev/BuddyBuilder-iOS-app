@@ -1,6 +1,7 @@
+// BuddyBuilder/Shared/Components/CustomTextField.swift (Updated)
 import SwiftUI
 
-// MARK: - Custom Text Field (No Title)
+// MARK: - Custom Text Field (No Title) - Dark Mode Adaptive
 struct CustomTextFieldNoTitle: View {
     @Binding var text: String
     let icon: String
@@ -9,6 +10,7 @@ struct CustomTextFieldNoTitle: View {
     var isDisabled: Bool = false
     
     @FocusState private var isFocused: Bool
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 12) {
@@ -21,7 +23,7 @@ struct CustomTextFieldNoTitle: View {
             // Text Field
             TextField(placeholder, text: $text)
                 .font(.system(size: 16))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
                 .focused($isFocused)
                 .disabled(isDisabled)
                 .textInputAutocapitalization(.never)
@@ -39,14 +41,14 @@ struct CustomTextFieldNoTitle: View {
         .animation(.easeInOut(duration: 0.2), value: hasError)
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Computed Properties (Dark Mode Adaptive)
     private var iconColor: Color {
         if hasError {
-            return .red
+            return .errorRed
         } else if isFocused {
-            return .primaryOrange
+            return .primaryOrange // Focus olduğunda primary orange kalsın
         } else {
-            return .textSecondary
+            return .secondaryText // Normal durumda secondary text (adaptive)
         }
     }
     
@@ -60,11 +62,11 @@ struct CustomTextFieldNoTitle: View {
     
     private var borderColor: Color {
         if hasError {
-            return .red
+            return .errorRed
         } else if isFocused {
             return .primaryOrange
         } else {
-            return .formBorder
+            return .dynamicBorder
         }
     }
     
@@ -77,7 +79,7 @@ struct CustomTextFieldNoTitle: View {
     }
 }
 
-// MARK: - Custom Password Field (No Title)
+// MARK: - Custom Password Field (No Title) - Dark Mode Adaptive
 struct CustomPasswordFieldNoTitle: View {
     @Binding var text: String
     @Binding var showPassword: Bool
@@ -86,6 +88,7 @@ struct CustomPasswordFieldNoTitle: View {
     var isDisabled: Bool = false
     
     @FocusState private var isFocused: Bool
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 12) {
@@ -104,7 +107,7 @@ struct CustomPasswordFieldNoTitle: View {
                 }
             }
             .font(.system(size: 16))
-            .foregroundColor(.textPrimary)
+            .foregroundColor(.primaryText)
             .focused($isFocused)
             .disabled(isDisabled)
             .textInputAutocapitalization(.never)
@@ -116,7 +119,7 @@ struct CustomPasswordFieldNoTitle: View {
             }) {
                 Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .disabled(isDisabled)
         }
@@ -133,14 +136,14 @@ struct CustomPasswordFieldNoTitle: View {
         .animation(.easeInOut(duration: 0.2), value: showPassword)
     }
     
-    // MARK: - Computed Properties
+    // MARK: - Computed Properties (Dark Mode Adaptive)
     private var iconColor: Color {
         if hasError {
-            return .red
+            return .errorRed
         } else if isFocused {
-            return .primaryOrange
+            return .primaryOrange // Focus olduğunda primary orange kalsın
         } else {
-            return .textSecondary
+            return .secondaryText // Normal durumda secondary text (adaptive)
         }
     }
     
@@ -154,11 +157,11 @@ struct CustomPasswordFieldNoTitle: View {
     
     private var borderColor: Color {
         if hasError {
-            return .red
+            return .errorRed
         } else if isFocused {
             return .primaryOrange
         } else {
-            return .formBorder
+            return .dynamicBorder
         }
     }
     
@@ -172,18 +175,55 @@ struct CustomPasswordFieldNoTitle: View {
 }
 
 // MARK: - Login Background View
+// BuddyBuilder/Shared/Components/CustomTextField.swift (LoginBackgroundView kısmı)
 struct LoginBackgroundView: View {
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
-        LinearGradient(
-            colors: [
-                Color.primaryOrange.opacity(0.1),
-                Color.blue.opacity(0.1),
-                Color.purple.opacity(0.1)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        ZStack {
+            // Ana adaptive background
+            Color.dynamicBackground
+                .ignoresSafeArea(.all)
+            
+            // Conditional gradient overlay
+            if colorScheme == .light {
+                // Light mode - subtle warm gradient
+                LinearGradient(
+                    colors: [
+                        Color.primaryOrange.opacity(0.08),
+                        Color.blue.opacity(0.06),
+                        Color.purple.opacity(0.04)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            } else {
+                // Dark mode - minimal accent gradient
+                LinearGradient(
+                    colors: [
+                        Color.primaryOrange.opacity(0.03),
+                        Color.blue.opacity(0.02),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            }
+            
+            // Subtle radial highlights (adaptive opacity)
+            RadialGradient(
+                colors: [
+                    Color.primaryOrange.opacity(colorScheme == .light ? 0.05 : 0.02),
+                    Color.clear
+                ],
+                center: UnitPoint(x: 0.8, y: 0.2),
+                startRadius: 0,
+                endRadius: 200
+            )
+            .ignoresSafeArea()
+        }
     }
 }
 

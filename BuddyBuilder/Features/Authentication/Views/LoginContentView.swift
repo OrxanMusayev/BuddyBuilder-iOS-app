@@ -19,7 +19,7 @@ struct LoginContentView: View {
                         Image("appstore")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 80, height: 80)
+                            .frame(width: 70, height: 70)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                         
                         Text("BuddyBuilder")
@@ -36,7 +36,7 @@ struct LoginContentView: View {
                             )
                             .tracking(1.2) // More letter spacing for softer look
                     }
-                    .padding(.bottom, 60)
+                    .padding(.bottom, 10)
                     
                     // Login title - removed the "Login" text
                     // Error Message Area
@@ -95,13 +95,13 @@ struct LoginContentView: View {
                                     authViewModel.rememberMe.toggle()
                                 }) {
                                     Image(systemName: authViewModel.rememberMe ? "checkmark.square.fill" : "square")
-                                        .foregroundColor(authViewModel.rememberMe ? .primaryOrange : .textSecondary)
+                                        .foregroundColor(authViewModel.rememberMe ? .primaryOrange : .secondaryText)
                                         .font(.system(size: 18))
                                 }
                                 
                                 Text("auth.login.remember.me".localized(using: localizationManager))
                                     .font(.system(size: 14))
-                                    .foregroundColor(.textPrimary)
+                                    .foregroundColor(.primaryText)
                                 
                                 Spacer()
                             }
@@ -159,7 +159,7 @@ struct LoginContentView: View {
                             
                             Text("common.or".localized(using: localizationManager))
                                 .font(.system(size: 14))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.secondaryText)
                                 .padding(.horizontal, 16)
                             
                             Rectangle()
@@ -177,7 +177,7 @@ struct LoginContentView: View {
                             HStack {
                                 Text("auth.login.signup.text".localized(using: localizationManager))
                                     .font(.system(size: 15))
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.secondaryText)
                                 
                                 Button(action: {
                                     print("🔄 Sign Up button tapped")

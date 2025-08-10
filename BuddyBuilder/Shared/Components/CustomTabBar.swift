@@ -4,6 +4,7 @@ import SwiftUI
 struct CustomTabBar: View {
     @Binding var selectedTab: TabItem
     @EnvironmentObject var localizationManager: LocalizationManager
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 0) {
@@ -20,11 +21,11 @@ struct CustomTabBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
-        .padding(.bottom, 30) // Safe area + extra padding
+        .padding(.bottom, 30)
         .background(
             Rectangle()
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
+                .fill(Color.cardBackground) // Updated
+                .shadow(color: .dynamicShadow, radius: 10, x: 0, y: -5) // Updated
         )
     }
 }
@@ -35,21 +36,23 @@ struct TabBarButton: View {
     let isSelected: Bool
     let action: () -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Icon with hover effect
                 Image(systemName: tab.icon)
                     .font(.system(size: 20, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? .black : .gray)
+                    .foregroundColor(isSelected ? .primaryText : .secondaryText) // Updated
                     .frame(width: 44, height: 44)
-                
-                // Modern dot indicator
+                    .scaleEffect(isSelected ? 1.1 : 1.0)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isSelected)
                 Circle()
                     .fill(isSelected ? Color.primaryOrange : Color.clear)
-                    .frame(width: 4, height: 4)
+                    .frame(width: isSelected ? 6 : 4, height: isSelected ? 6 : 4)
                     .padding(.top, 4)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.7), value: isSelected)
+                
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)

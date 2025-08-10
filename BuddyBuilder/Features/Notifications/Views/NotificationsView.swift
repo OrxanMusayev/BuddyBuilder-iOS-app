@@ -12,7 +12,7 @@ struct AppNotification: Codable, Identifiable {
     let timestamp: String
     let isRead: Bool
     let actionData: NotificationActionData?
-    let senderUserId: Int?
+    let senderUserId: String?
     let senderName: String?
     let senderProfileImageUrl: String?
     
@@ -83,7 +83,7 @@ struct AppNotification: Codable, Identifiable {
         let targetId: Int?
         let targetUrl: String?
         let eventId: Int?
-        let userId: Int?
+        let userId: String?
         let groupId: Int?
     }
     
@@ -190,10 +190,10 @@ class MockNotificationsService: NotificationsServiceProtocol {
                 targetId: nil,
                 targetUrl: nil,
                 eventId: nil,
-                userId: 201,
+                userId: "201",
                 groupId: nil
             ),
-            senderUserId: 201,
+            senderUserId: "201",
             senderName: "Sarah Johnson",
             senderProfileImageUrl: "https://via.placeholder.com/150x150/FF6B35/FFFFFF?text=SJ"
         ),
@@ -209,10 +209,10 @@ class MockNotificationsService: NotificationsServiceProtocol {
                 targetId: nil,
                 targetUrl: nil,
                 eventId: 101,
-                userId: 202,
+                userId: "202",
                 groupId: nil
             ),
-            senderUserId: 202,
+            senderUserId: "202",
             senderName: "Mike Chen",
             senderProfileImageUrl: "https://via.placeholder.com/150x150/2196F3/FFFFFF?text=MC"
         ),
@@ -228,10 +228,10 @@ class MockNotificationsService: NotificationsServiceProtocol {
                 targetId: nil,
                 targetUrl: nil,
                 eventId: nil,
-                userId: 203,
+                userId: "203",
                 groupId: nil
             ),
-            senderUserId: 203,
+            senderUserId: "203",
             senderName: "Alex Rodriguez",
             senderProfileImageUrl: "https://via.placeholder.com/150x150/4CAF50/FFFFFF?text=AR"
         ),
@@ -243,7 +243,7 @@ class MockNotificationsService: NotificationsServiceProtocol {
             timestamp: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-7200)),
             isRead: true,
             actionData: nil,
-            senderUserId: 204,
+            senderUserId: "204",
             senderName: "Emma Wilson",
             senderProfileImageUrl: "https://via.placeholder.com/150x150/FF9800/FFFFFF?text=EW"
         ),
@@ -290,10 +290,10 @@ class MockNotificationsService: NotificationsServiceProtocol {
                 targetId: nil,
                 targetUrl: nil,
                 eventId: nil,
-                userId: 205,
+                userId: "205",
                 groupId: 301
             ),
-            senderUserId: 205,
+            senderUserId: "205",
             senderName: "Team Captain",
             senderProfileImageUrl: "https://via.placeholder.com/150x150/9C27B0/FFFFFF?text=TC"
         ),
@@ -1048,12 +1048,12 @@ struct NotificationRow: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(notification.title)
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.textPrimary)
+                                    .foregroundColor(.primaryText)
                                     .lineLimit(1)
                                 
                                 Text(notification.message)
                                     .font(.system(size: 14))
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.secondaryText)
                                     .lineLimit(3)
                             }
                             
@@ -1062,7 +1062,7 @@ struct NotificationRow: View {
                             VStack {
                                 Text(notification.timeAgo)
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.tertiaryText)
                                 
                                 Spacer()
                             }

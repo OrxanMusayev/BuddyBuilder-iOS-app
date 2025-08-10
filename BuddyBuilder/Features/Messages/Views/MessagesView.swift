@@ -54,7 +54,7 @@ struct ChatRoom: Codable, Identifiable {
 
 struct Message: Codable, Identifiable {
     let id: Int
-    let senderId: Int
+    let senderId: String
     let senderName: String
     let content: String
     let timestamp: String
@@ -70,7 +70,9 @@ struct Message: Codable, Identifiable {
     }
     
     var isFromCurrentUser: Bool {
-        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id") else {
+            return false
+        }
         return senderId == currentUserId
     }
 }
@@ -135,7 +137,7 @@ class MockMessagesService: MessagesServiceProtocol {
         1: [
             Message(
                 id: 101,
-                senderId: 201,
+                senderId: "201",
                 senderName: "Sarah Johnson",
                 content: "Hey! Are you free this weekend?",
                 timestamp: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)),
@@ -143,7 +145,7 @@ class MockMessagesService: MessagesServiceProtocol {
             ),
             Message(
                 id: 102,
-                senderId: UserDefaults.standard.integer(forKey: "user_id"),
+                senderId: "201",
                 senderName: "You",
                 content: "Yes! What do you have in mind?",
                 timestamp: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3300)),
@@ -151,7 +153,7 @@ class MockMessagesService: MessagesServiceProtocol {
             ),
             Message(
                 id: 103,
-                senderId: 201,
+                senderId: "201",
                 senderName: "Sarah Johnson",
                 content: "Hey! Are you joining the basketball game tomorrow?",
                 timestamp: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-300)),
@@ -181,7 +183,7 @@ class MockMessagesService: MessagesServiceProtocol {
         print("🧪 MOCK: Sending message to chat room \(chatRoomId): \(content)")
         let newMessage = Message(
             id: Int.random(in: 1000...9999),
-            senderId: UserDefaults.standard.integer(forKey: "user_id"),
+            senderId: "201",
             senderName: "You",
             content: content,
             timestamp: ISO8601DateFormatter().string(from: Date()),

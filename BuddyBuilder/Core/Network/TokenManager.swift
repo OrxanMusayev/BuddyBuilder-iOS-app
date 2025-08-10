@@ -107,7 +107,7 @@ class TokenManager: ObservableObject {
             }
             
             let response: RefreshTokenResponse = try await NetworkManager.shared.performTokenRefresh(
-                endpoint: "http://192.168.100.74:5206/api/Auth/refresh-token",
+                endpoint: "http://192.168.100.76:5206/api/Auth/refresh-token",
                 requestData: requestData
             )
             

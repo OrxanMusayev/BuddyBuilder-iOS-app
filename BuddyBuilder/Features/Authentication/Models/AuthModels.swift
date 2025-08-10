@@ -20,7 +20,7 @@ struct APIResponse<T: Codable>: Codable {
 
 // Login Data (API'nin data field'ında dönen exact bilgiler)
 struct LoginData: Codable {
-    let userId: Int
+    let userId: String
     let username: String
     let email: String
     let accessToken: String
@@ -33,12 +33,13 @@ struct LoginData: Codable {
     }
 }
 
+
 // Login Response Type
 typealias LoginResponse = APIResponse<LoginData>
 
 // User Model (LoginData'dan türetilmiş)
 struct User: Codable {
-    let id: Int
+    let id: String
     let username: String
     let email: String
     

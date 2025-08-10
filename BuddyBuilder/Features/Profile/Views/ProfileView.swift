@@ -22,25 +22,30 @@ class ProfileViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     // NEW: Track current user to detect user changes
-    private var currentUserId: Int = 0
-    
+    private var currentUserId: String = ""
+
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService(),
          profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService()) {
         self.profilePhotoService = profilePhotoService
         self.profileDetailsService = profileDetailsService
         
         // Set current user ID
-        currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        currentUserId = UserDefaults.standard.string(forKey: "user_id") ?? ""
         
         loadProfilePhoto()
         loadProfileDetails()
     }
+
     
     // MARK: - NEW: Check for User Change and Clear Cache if Needed
     func checkForUserChange() {
-        let newUserId = UserDefaults.standard.integer(forKey: "user_id")
+        guard let newUserId = UserDefaults.standard.string(forKey: "user_id"),
+              !newUserId.isEmpty else {
+            print("⚠️ No user ID found in UserDefaults.")
+            return
+        }
         
-        if newUserId != currentUserId && newUserId > 0 {
+        if newUserId != currentUserId {
             print("🔄 User changed from \(currentUserId) to \(newUserId), clearing caches...")
             
             // Clear photo cache
@@ -59,6 +64,7 @@ class ProfileViewModel: ObservableObject {
             loadProfileDetails()
         }
     }
+
     
     // MARK: - Load Profile Photo (Image Data)
     func loadProfilePhoto() {

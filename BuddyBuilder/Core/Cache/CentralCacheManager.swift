@@ -7,15 +7,18 @@ import UIKit
 struct ImageCacheEntry {
     let image: UIImage
     let timestamp: Date
-    let userId: Int // Track which user this image belongs to
+    let userId: String // Track which user this image belongs to
     
     var isExpired: Bool {
         Date().timeIntervalSince(timestamp) > CentralCacheManager.cacheExpirationInterval
     }
     
     var belongsToCurrentUser: Bool {
-        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
-        return userId == currentUserId && currentUserId > 0
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id"),
+              !currentUserId.isEmpty else {
+            return false
+        }
+        return userId == currentUserId
     }
 }
 
@@ -34,16 +37,19 @@ class CentralCacheManager {
     private let cacheQueue = DispatchQueue(label: "com.buddybuilder.imagecache", attributes: .concurrent)
     
     // Track current user for cache validation
-    private var lastKnownUserId: Int = 0
+    private var lastKnownUserId: String = ""
     
     private init() {
-        lastKnownUserId = UserDefaults.standard.integer(forKey: "user_id")
+        lastKnownUserId = UserDefaults.standard.string(forKey: "user_id") ?? ""
         startCleanupTimer()
     }
     
     // MARK: - User Change Detection (Only for images)
     func checkUserChange() {
-        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id") else {
+            print("⚠️ No current user ID found in UserDefaults.")
+            return
+        }
         
         if currentUserId != lastKnownUserId {
             print("🔄 CentralCache: User changed from \(lastKnownUserId) to \(currentUserId), clearing IMAGE caches...")
@@ -75,7 +81,10 @@ class CentralCacheManager {
     }
     
     func saveProfileImage(_ image: UIImage, for url: String) {
-        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id"), !currentUserId.isEmpty else {
+            print("⚠️ No current user ID found, profile image not cached for url: \(url)")
+            return
+        }
         
         cacheQueue.async(flags: .barrier) {
             self.profileImageCache[url] = ImageCacheEntry(
@@ -113,7 +122,10 @@ class CentralCacheManager {
     }
     
     func saveSearchImage(_ image: UIImage, for url: String) {
-        let currentUserId = UserDefaults.standard.integer(forKey: "user_id")
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id"), !currentUserId.isEmpty else {
+            print("⚠️ No current user ID found, search image not cached for url: \(url)")
+            return
+        }
         
         cacheQueue.async(flags: .barrier) {
             self.searchImageCache[url] = ImageCacheEntry(
@@ -124,6 +136,7 @@ class CentralCacheManager {
             print("💾 Search image cached for user \(currentUserId): \(url)")
         }
     }
+
     
     // MARK: - Clear Methods (Only images)
     func clearAllImageCaches() {
@@ -158,9 +171,8 @@ class CentralCacheManager {
     // NOTE: All user data caching methods removed - data always comes fresh from API
     
     func clearUserData() {
-        // Only clear image caches when user changes
         clearAllImageCaches()
-        lastKnownUserId = 0
+        lastKnownUserId = ""
         print("🧹 Cleared user data (images only) - user data now always fresh from API")
     }
     

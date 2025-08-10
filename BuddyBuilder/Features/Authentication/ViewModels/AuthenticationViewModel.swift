@@ -71,7 +71,7 @@ class AuthenticationViewModel: ObservableObject {
             }
             
             // Debug: Kaydedilmiş user bilgilerini yazdır
-            let userId = UserDefaults.standard.integer(forKey: "user_id")
+            let userId = UserDefaults.standard.string(forKey: "user_id")
             let username = UserDefaults.standard.string(forKey: "username")
             let email = UserDefaults.standard.string(forKey: "user_email")
             

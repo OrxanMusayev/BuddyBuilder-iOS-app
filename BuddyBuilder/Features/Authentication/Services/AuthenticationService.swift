@@ -5,7 +5,7 @@ import Combine
 
 class AuthenticationService {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/Auth"
+    private let baseURL = "http://192.168.100.76:5206/api/Auth"
     
     func login(userName: String, password: String, rememberMe: Bool) -> AnyPublisher<LoginResponse, Error> {
         let loginRequest = LoginRequest(

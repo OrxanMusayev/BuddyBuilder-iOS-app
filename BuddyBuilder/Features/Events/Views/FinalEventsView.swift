@@ -386,7 +386,7 @@
 //   )
 //
 //2. Update API endpoints in CompleteEventsService:
-//   - Replace "http://192.168.100.74:5206" with your actual API base URL
+//   - Replace "http://192.168.100.76:5206" with your actual API base URL
 //   - Ensure all endpoints match your backend API
 //
 //3. Features included:

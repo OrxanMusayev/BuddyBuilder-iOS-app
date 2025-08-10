@@ -28,11 +28,16 @@ class ProfilePhotoCache {
     
     // FIXED: Get cached image only if it belongs to current user
     func getCachedImage() -> Data? {
-        let currentUserId = getCurrentUserId()
-        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        guard let currentUserId = getCurrentUserId(),
+              !currentUserId.isEmpty,
+              let cachedUserId = UserDefaults.standard.string(forKey: currentUserIdKey),
+              !cachedUserId.isEmpty else {
+            clearCache()
+            return nil
+        }
         
         // Only return cache if it belongs to current user
-        if currentUserId == cachedUserId && currentUserId > 0 {
+        if currentUserId == cachedUserId {
             return UserDefaults.standard.data(forKey: profileImageKey)
         } else {
             print("🗑️ Cache belongs to different user (\(cachedUserId) vs \(currentUserId)), clearing...")
@@ -43,10 +48,15 @@ class ProfilePhotoCache {
     
     // FIXED: Get cached URL only if it belongs to current user
     func getCachedURL() -> String? {
-        let currentUserId = getCurrentUserId()
-        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        guard let currentUserId = getCurrentUserId(),
+              !currentUserId.isEmpty,
+              let cachedUserId = UserDefaults.standard.string(forKey: currentUserIdKey),
+              !cachedUserId.isEmpty else {
+            clearCache()
+            return nil
+        }
         
-        if currentUserId == cachedUserId && currentUserId > 0 {
+        if currentUserId == cachedUserId {
             return UserDefaults.standard.string(forKey: profileUrlKey)
         } else {
             clearCache()
@@ -72,13 +82,13 @@ class ProfilePhotoCache {
     // Check if cache exists and belongs to current user
     var hasCache: Bool {
         let currentUserId = getCurrentUserId()
-        let cachedUserId = UserDefaults.standard.integer(forKey: currentUserIdKey)
+        let cachedUserId = UserDefaults.standard.string(forKey: currentUserIdKey)
         return getCachedImage() != nil && getCachedURL() != nil && currentUserId == cachedUserId
     }
     
     // FIXED: Helper to get current user ID
-    private func getCurrentUserId() -> Int {
-        return UserDefaults.standard.integer(forKey: "user_id")
+    private func getCurrentUserId() -> String? {
+        return UserDefaults.standard.string(forKey: "user_id")
     }
 }
 
@@ -142,7 +152,7 @@ protocol ProfilePhotoServiceProtocol {
 // MARK: - Profile Photo Service Implementation - FIXED FOR NEW API FORMAT
 class ProfilePhotoService: ProfilePhotoServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/ProfilePhoto"
+    private let baseURL = "http://192.168.100.76:5206/api/ProfilePhoto"
     private let cache = ProfilePhotoCache.shared
     
     // MARK: - NEW: Clear cache on user change

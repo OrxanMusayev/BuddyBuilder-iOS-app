@@ -192,7 +192,7 @@ protocol SearchServiceProtocol {
 // MARK: - Search Service Implementation
 class SearchService: SearchServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/Search"
+    private let baseURL = "http://192.168.100.76:5206/api/Search"
     
     // MARK: - Popular Users
     func fetchPopularUsers(location: String?, sportId: Int?, page: Int = 1, pageSize: Int = 10) -> AnyPublisher<SearchData<SearchUser>, Error> {

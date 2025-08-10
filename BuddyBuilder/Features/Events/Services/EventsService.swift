@@ -42,12 +42,12 @@ protocol CompleteEventsServiceProtocol: EventsServiceProtocol {
 // MARK: - Complete Events Service Implementation
 class CompleteEventsService: CompleteEventsServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/Events"
-    private let commentsURL = "http://192.168.100.74:5206/api/EventComments"
-    private let ratingsURL = "http://192.168.100.74:5206/api/EventRatings"
-    private let invitationsURL = "http://192.168.100.74:5206/api/EventInvitations"
-    private let notificationsURL = "http://192.168.100.74:5206/api/Notifications"
-    private let preferencesURL = "http://192.168.100.74:5206/api/UserPreferences"
+    private let baseURL = "http://192.168.100.76:5206/api/Events"
+    private let commentsURL = "http://192.168.100.76:5206/api/EventComments"
+    private let ratingsURL = "http://192.168.100.76:5206/api/EventRatings"
+    private let invitationsURL = "http://192.168.100.76:5206/api/EventInvitations"
+    private let notificationsURL = "http://192.168.100.76:5206/api/Notifications"
+    private let preferencesURL = "http://192.168.100.76:5206/api/UserPreferences"
     
     // MARK: - Basic Event Operations (inherited from EventsService)
     func fetchEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error> {
@@ -196,7 +196,7 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
     
     func fetchAvailableSports() -> AnyPublisher<[Sport], Error> {
         return networkManager.request(
-            endpoint: "http://192.168.100.74:5206/api/Sports",
+            endpoint: "http://192.168.100.76:5206/api/Sports",
             method: .GET,
             type: APIResponse<[Sport]>.self
         )
@@ -446,7 +446,7 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
     // MARK: - Categories & Locations
     func fetchEventCategories() -> AnyPublisher<[EventCategory], Error> {
         return networkManager.request(
-            endpoint: "http://192.168.100.74:5206/api/EventCategories",
+            endpoint: "http://192.168.100.76:5206/api/EventCategories",
             method: .GET,
             type: APIResponse<[EventCategory]>.self
         )
@@ -458,7 +458,7 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
     
     func fetchEventLocations() -> AnyPublisher<[EventLocation], Error> {
         return networkManager.request(
-            endpoint: "http://192.168.100.74:5206/api/EventLocations",
+            endpoint: "http://192.168.100.76:5206/api/EventLocations",
             method: .GET,
             type: APIResponse<[EventLocation]>.self
         )

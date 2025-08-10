@@ -14,7 +14,7 @@ protocol ProfileServiceProtocol {
 class ProfileService: ProfileServiceProtocol {
     private let networkManager: NetworkManager
     private let tokenManager: TokenManager
-    private let baseURL = "http://192.168.100.74:5206/api/Profile";
+    private let baseURL = "http://192.168.100.76:5206/api/Profile";
     
     init(networkManager: NetworkManager = NetworkManager.shared,
          tokenManager: TokenManager = TokenManager.shared) {

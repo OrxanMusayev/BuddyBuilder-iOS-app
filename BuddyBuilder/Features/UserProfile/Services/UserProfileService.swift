@@ -11,7 +11,7 @@ protocol UserProfileServiceProtocol {
 // MARK: - User Profile Service Implementation
 class UserProfileService: UserProfileServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/Profile"
+    private let baseURL = "http://192.168.100.76:5206/api/Profile"
     
     // MARK: - Fetch User Profile by ID
     func fetchUserProfile(userId: Int) -> AnyPublisher<ProfileDetails, Error> {

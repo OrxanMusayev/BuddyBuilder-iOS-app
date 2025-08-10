@@ -16,9 +16,9 @@ protocol RegistrationServiceProtocol {
 // MARK: - Registration Service Implementation
 class RegistrationService: RegistrationServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://192.168.100.74:5206/api/Auth"
-    private let locationURL = "http://192.168.100.74:5206/api/Location"
-    private let sportsURL = "http://192.168.100.74:5206/api/Sports"
+    private let baseURL = "http://192.168.100.76:5206/api/Auth"
+    private let locationURL = "http://192.168.100.76:5206/api/Location"
+    private let sportsURL = "http://192.168.100.76:5206/api/Sports"
     
     // MARK: - Registration
     func register(_ request: RegistrationRequest) -> AnyPublisher<RegistrationResponse, Error> {
@@ -170,7 +170,7 @@ class RegistrationService: RegistrationServiceProtocol {
 // MARK: - Mock Registration Service (for testing/preview)
 class MockRegistrationService: RegistrationServiceProtocol {
     func register(_ request: RegistrationRequest) -> AnyPublisher<RegistrationResponse, Error> {
-        print("🧪 MOCK: Simulating registration for user: \(request.userName)")
+        print("🧪 MUserDefaults.standardOCK: Simulating registration for user: \(request.userName)")
         
         // Simulate network delay
         return Just(
@@ -178,7 +178,7 @@ class MockRegistrationService: RegistrationServiceProtocol {
                 success: true,
                 message: "Registration successful",
                 data: LoginData(
-                    userId: 123,
+                    userId: "123",
                     username: request.userName,
                     email: request.email,
                     accessToken: "mock_access_token_12345",

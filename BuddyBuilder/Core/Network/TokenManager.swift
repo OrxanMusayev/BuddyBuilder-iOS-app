@@ -1,4 +1,4 @@
-// BuddyBuilder/Core/Network/TokenManager.swift
+// BuddyBuilder/Core/Network/TokenManager.swift - TOKEN KAYDETME DÜZELTMESİ
 
 import Foundation
 import Combine
@@ -10,18 +10,15 @@ struct RefreshTokenRequest: Codable {
 }
 
 struct RefreshTokenResponse: Codable {
-    let success: Bool
-    let message: String?
+    let isSuccess: Bool
     let data: RefreshTokenData?
-    let errors: [String]?
-    let timestamp: String
+    let errorMessage: String?
+    let validationErrors: [String]?
 }
 
 struct RefreshTokenData: Codable {
     let accessToken: String
     let refreshToken: String
-    let expiresIn: Int
-    let tokenType: String
 }
 
 // MARK: - Token Manager
@@ -29,25 +26,35 @@ class TokenManager: ObservableObject {
     static let shared = TokenManager()
     
     @Published var isRefreshing = false
-    private var refreshTask: Task<Void, Never>?
+    private var refreshTask: Task<Bool, Never>?
     private let refreshLock = NSLock()
     
     private init() {}
     
-    // MARK: - Token Storage
+    // MARK: - DÜZELTME: Token Storage with immediate save
     var accessToken: String? {
-        get { UserDefaults.standard.string(forKey: "auth_token") }
+        get {
+            let token = UserDefaults.standard.string(forKey: "auth_token")
+            return token
+        }
         set {
+            // DÜZELTME: Hemen kaydet ve senkronize et
             UserDefaults.standard.set(newValue, forKey: "auth_token")
-            print(newValue != nil ? "✅ Access token saved" : "🗑️ Access token cleared")
+            UserDefaults.standard.synchronize() // Force immediate save
+            print("💾 Access token updated and synchronized: \(newValue?.prefix(20) ?? "nil")...")
         }
     }
     
     var refreshToken: String? {
-        get { UserDefaults.standard.string(forKey: "refresh_token") }
+        get {
+            let token = UserDefaults.standard.string(forKey: "refresh_token")
+            return token
+        }
         set {
+            // DÜZELTME: Hemen kaydet ve senkronize et
             UserDefaults.standard.set(newValue, forKey: "refresh_token")
-            print(newValue != nil ? "✅ Refresh token saved" : "🗑️ Refresh token cleared")
+            UserDefaults.standard.synchronize() // Force immediate save
+            print("💾 Refresh token updated and synchronized: \(newValue?.prefix(20) ?? "nil")...")
         }
     }
     
@@ -57,16 +64,16 @@ class TokenManager: ObservableObject {
             refreshLock.lock()
             defer { refreshLock.unlock() }
             
-            // If already refreshing, wait for the existing task
+            // Eğer zaten refresh yapılıyorsa, mevcut task'i bekle
             if let existingTask = refreshTask {
                 Task {
-                    await existingTask.value
-                    continuation.resume(returning: accessToken != nil)
+                    let result = await existingTask.value
+                    continuation.resume(returning: result)
                 }
                 return
             }
             
-            // Start new refresh task
+            // Yeni refresh task başlat
             refreshTask = Task {
                 let success = await performTokenRefresh()
                 await MainActor.run {
@@ -74,6 +81,7 @@ class TokenManager: ObservableObject {
                     self.refreshTask = nil
                 }
                 continuation.resume(returning: success)
+                return success
             }
             
             Task {
@@ -84,50 +92,110 @@ class TokenManager: ObservableObject {
         }
     }
     
+    // MARK: - DÜZELTME: Token refresh implementation
     private func performTokenRefresh() async -> Bool {
-        guard let currentRefreshToken = refreshToken else {
+        guard let currentRefreshToken = refreshToken,
+              !currentRefreshToken.isEmpty else {
             print("❌ No refresh token available")
             await clearAllTokens()
             return false
         }
         
-        guard let currentAccessToken = accessToken else {
-            print("❌ No Access token available")
+        guard let currentAccessToken = accessToken,
+              !currentAccessToken.isEmpty else {
+            print("❌ No access token available")
             await clearAllTokens()
             return false
         }
         
         print("🔄 Attempting to refresh tokens...")
+        print("🔄 Current tokens before refresh:")
+        print("   - Access: \(currentAccessToken.prefix(20))...")
+        print("   - Refresh: \(currentRefreshToken.prefix(20))...")
         
-        let request = RefreshTokenRequest(refreshToken: currentRefreshToken, accessToken: currentAccessToken)
+        let request = RefreshTokenRequest(
+            refreshToken: currentRefreshToken,
+            accessToken: currentAccessToken
+        )
         
         do {
             guard let requestData = try? JSONEncoder().encode(request) else {
                 throw NetworkError.decodingError
             }
             
+            print("🔄 Sending refresh request...")
             let response: RefreshTokenResponse = try await NetworkManager.shared.performTokenRefresh(
                 endpoint: "http://192.168.100.76:5206/api/Auth/refresh-token",
                 requestData: requestData
             )
             
-            if response.success, let tokenData = response.data {
-                // Save new tokens
-                accessToken = tokenData.accessToken
-                refreshToken = tokenData.refreshToken
+            print("✅ Refresh API response received")
+            print("📊 Response isSuccess: \(response.isSuccess)")
+            
+            if response.isSuccess, let tokenData = response.data {
+                print("🎉 Token refresh successful!")
                 
-                print("✅ Tokens refreshed successfully")
+                // DÜZELTME: Tokenları hemen güncelle ve verify et
+                await updateTokensSafely(
+                    newAccessToken: tokenData.accessToken,
+                    newRefreshToken: tokenData.refreshToken
+                )
+                
                 return true
             } else {
-                print("❌ Token refresh failed: \(response.message ?? "Unknown error")")
+                let errorMsg = response.errorMessage ?? "Unknown error"
+                print("❌ Token refresh failed: \(errorMsg)")
                 await clearAllTokens()
                 return false
             }
             
         } catch {
             print("❌ Token refresh network error: \(error)")
-            await clearAllTokens()
+            
+            if let networkError = error as? NetworkError,
+               case .unauthorized = networkError {
+                print("🔐 Unauthorized during refresh, clearing tokens")
+                await clearAllTokens()
+            }
+            
             return false
+        }
+    }
+    
+    // DÜZELTME: Thread-safe token update
+    @MainActor
+    private func updateTokensSafely(newAccessToken: String, newRefreshToken: String) {
+        print("💾 Updating tokens safely...")
+        
+        let oldAccessToken = accessToken
+        let oldRefreshToken = refreshToken
+        
+        // Update tokens
+        accessToken = newAccessToken
+        refreshToken = newRefreshToken
+        
+        // Verify update
+        let verifiedAccessToken = accessToken
+        let verifiedRefreshToken = refreshToken
+        
+        print("🔍 Token update verification:")
+        print("   - Old Access: \(oldAccessToken?.prefix(20) ?? "nil")...")
+        print("   - New Access: \(verifiedAccessToken?.prefix(20) ?? "nil")...")
+        print("   - Old Refresh: \(oldRefreshToken?.prefix(20) ?? "nil")...")
+        print("   - New Refresh: \(verifiedRefreshToken?.prefix(20) ?? "nil")...")
+        
+        // Double check UserDefaults
+        let udAccessToken = UserDefaults.standard.string(forKey: "auth_token")
+        let udRefreshToken = UserDefaults.standard.string(forKey: "refresh_token")
+        
+        print("🔍 UserDefaults verification:")
+        print("   - Access in UD: \(udAccessToken?.prefix(20) ?? "nil")...")
+        print("   - Refresh in UD: \(udRefreshToken?.prefix(20) ?? "nil")...")
+        
+        if verifiedAccessToken == newAccessToken && verifiedRefreshToken == newRefreshToken {
+            print("✅ Token update successful and verified!")
+        } else {
+            print("❌ Token update verification failed!")
         }
     }
     
@@ -138,7 +206,8 @@ class TokenManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "user_id")
         UserDefaults.standard.removeObject(forKey: "username")
         UserDefaults.standard.removeObject(forKey: "user_email")
-        print("🧹 All tokens and user data cleared")
+        UserDefaults.standard.synchronize()
+        print("🧹 All tokens and user data cleared and synchronized")
     }
 }
 
@@ -153,31 +222,42 @@ class AuthErrorHandler: ObservableObject {
     @MainActor
     func handleAuthError(_ error: Error) {
         if case NetworkError.unauthorized = error {
-            authErrorMessage = "Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın."
-            showAuthError = true
+            // Check if refresh is in progress
+            let refreshInProgress = TokenManager.shared.isRefreshing
             
-            // Automatically logout user
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.performAutoLogout()
+            if refreshInProgress {
+                print("⚠️ Auth error received but refresh in progress, waiting...")
+                return
+            }
+            
+            // Check if we have valid tokens
+            let hasValidTokens = TokenManager.shared.accessToken != nil &&
+                               TokenManager.shared.refreshToken != nil
+            
+            if !hasValidTokens {
+                print("🔐 No valid tokens available, performing logout")
+                authErrorMessage = "Oturumunuzun süresi doldu. Lütfen tekrar giriş yapın."
+                showAuthError = true
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    self.performAutoLogout()
+                }
             }
         }
     }
     
     @MainActor
     private func performAutoLogout() {
-        // Clear all stored data
         TokenManager.shared.accessToken = nil
         TokenManager.shared.refreshToken = nil
         UserDefaults.standard.removeObject(forKey: "user_id")
         UserDefaults.standard.removeObject(forKey: "username")
         UserDefaults.standard.removeObject(forKey: "user_email")
         
-        // Post notification for app-wide logout
         NotificationCenter.default.post(name: .authenticationExpired, object: nil)
     }
 }
 
-// MARK: - Notification Extension
 extension Notification.Name {
     static let authenticationExpired = Notification.Name("authenticationExpired")
 }

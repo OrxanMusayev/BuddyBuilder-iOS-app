@@ -38,11 +38,12 @@ struct EventCard: View {
                 
                 // Event Type Badge
                 HStack(spacing: 4) {
-                    //                    Image(systemName: event.eventType.icon)
-                    //                        .font(.system(size: 10, weight: .medium))
+                    Image(systemName: eventTypeIcon(for: event.eventTypeName))
+                        .font(.system(size: 10, weight: .medium))
                     
-                    //                    Text(event.eventType.localized(using: localizationManager) ?? event.eventType)
-                    //                        .font(.system(size: 10, weight: .medium))
+                    Text(event.eventTypeName)
+                        .font(.system(size: 10, weight: .medium))
+                        .lineLimit(1)
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
@@ -59,9 +60,9 @@ struct EventCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 // Title and Participation Status
                 HStack {
-                    Text(event.name ?? "")
+                    Text(event.name)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                         .lineLimit(2)
                     
                     Spacer()
@@ -79,11 +80,11 @@ struct EventCard: View {
                     HStack(spacing: 6) {
                         Image(systemName: "calendar")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondaryText)
                         
-                        Text(event.eventDate)
+                        Text(event.formattedEventDate)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primaryText)
                     }
                     
                     // Location
@@ -92,7 +93,7 @@ struct EventCard: View {
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                         
-                        Text(event.location ?? "")
+                        Text(event.location)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.textSecondary)
                             .lineLimit(1)
@@ -101,12 +102,25 @@ struct EventCard: View {
                     Spacer()
                 }
                 
+                // Entry Fee (if applicable)
+                if event.entryFee > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "dollarsign.circle")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                        
+                        Text("$\(String(format: "%.0f", event.entryFee))")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primaryOrange)
+                    }
+                }
+                
                 // Participants and Action
                 HStack {
                     // Participant Avatars
                     HStack(spacing: -8) {
                         ForEach(event.participants.prefix(3), id: \.id) { participant in
-                            AsyncImage(url: URL(string: participant.imageUrl ?? "")) { image in
+                            AsyncImage(url: URL(string: participant.profileImageUrl ?? "")) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -127,12 +141,12 @@ struct EventCard: View {
                             )
                         }
                         
-                        if event.participants.count > 3 {
+                        if event.currentParticipants > 3 {
                             Circle()
                                 .fill(Color.textSecondary.opacity(0.2))
                                 .frame(width: 24, height: 24)
                                 .overlay(
-                                    Text("+\(event.participants.count - 3)")
+                                    Text("+\(event.currentParticipants - 3)")
                                         .font(.system(size: 8, weight: .semibold))
                                         .foregroundColor(.textSecondary)
                                 )
@@ -143,16 +157,26 @@ struct EventCard: View {
                         }
                     }
                     
-                    let participantCount = event.participants.count
-                    let participantsText = "events.participants".localized(using: localizationManager) ?? "participants"
-                    Text("\(participantCount) \(participantsText)")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(event.currentParticipants)/\(event.maxParticipants) participants")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                        
+                        if event.availableSpots > 0 {
+                            Text("\(event.availableSpots) spots left")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.green)
+                        } else {
+                            Text("Full")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.red)
+                        }
+                    }
                     
                     Spacer()
                     
                     // Join/Leave Button
-                    if event.availableSpots > 0 || event.isParticipant {
+                    if event.canJoin || event.isParticipant {
                         Button(action: {
                             Task {
                                 isJoining = true
@@ -200,6 +224,18 @@ struct EventCard: View {
                                 .fill(Color.primaryOrange.opacity(0.1))
                         )
                 }
+                
+                if event.daysUntilEvent >= 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                        
+                        Text(daysUntilText)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                    }
+                }
             }
             .padding(16)
         }
@@ -211,16 +247,41 @@ struct EventCard: View {
         //        }
     }
     
-    func defaultImageUrl(for sportType: String) -> String {
+    private var daysUntilText: String {
+        switch event.daysUntilEvent {
+        case 0:
+            return "Today"
+        case 1:
+            return "Tomorrow"
+        case let days where days > 1:
+            return "In \(days) days"
+        default:
+            return "Event passed"
+        }
+    }
+    
+    private func defaultImageUrl(for sportType: String) -> String {
         switch sportType.lowercased() {
-        case "soccer":
+        case "soccer", "football":
             return "https://images.unsplash.com/photo-1574629810360-7efbbe195018"
         case "volleyball":
             return "https://media.istockphoto.com/id/1582215564/photo/women-hands-blocking-volleyball-ball.jpg?s=1024x1024&w=is&k=20&c=v-cDKThS4z6t2JePrunvhod6yxioAlE0_mjiA3aodBE="
         case "tennis":
-            return "https://example.com/images/tennis.jpg"
+            return "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6"
+        case "basketball":
+            return "https://images.unsplash.com/photo-1546519638-68e109498ffc"
+        case "golf":
+            return "https://images.unsplash.com/photo-1535131749006-b7f58c99034b"
+        case "swimming":
+            return "https://images.unsplash.com/photo-1530549387789-4c1017266635"
+        case "running":
+            return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b"
+        case "cycling":
+            return "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13"
+        case "fitness":
+            return "https://images.unsplash.com/photo-1534258936925-c58bed479fcb"
         default:
-            return "https://example.com/images/default.jpg"
+            return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b"
         }
     }
     
@@ -234,6 +295,45 @@ struct EventCard: View {
         return formatter.string(from: date)
     }
     
+    private func sportIcon(for sportName: String) -> String {
+            switch sportName.lowercased() {
+            case "basketball":
+                return "basketball"
+            case "tennis":
+                return "tennis.racket"
+            case "soccer", "football":
+                return "soccer.ball"
+            case "swimming":
+                return "figure.pool.swim"
+            case "volleyball":
+                return "volleyball"
+            case "running":
+                return "figure.run"
+            case "cycling":
+                return "bicycle"
+            case "fitness":
+                return "dumbbell"
+            case "golf":
+                return "figure.golf"
+            default:
+                return "figure.run"
+            }
+        }
+        
+        // 🔴 NEDEN EKLENEN: API'de eventTypeName string olarak geliyor
+        // Bu fonksiyon her event type için uygun ikon sağlıyor
+        private func eventTypeIcon(for eventTypeName: String) -> String {
+            switch eventTypeName.lowercased() {
+            case "normal":
+                return "calendar"
+            case "tournament":
+                return "trophy"
+            case "featured":
+                return "star"
+            default:
+                return "calendar"
+            }
+        }
     
 }
 

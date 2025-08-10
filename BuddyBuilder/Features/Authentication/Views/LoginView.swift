@@ -17,7 +17,7 @@ struct LoginView: View {
                     .environmentObject(localizationManager)
                     .padding(.horizontal, 20)
             }
-            .navigationBarHidden(true)
+            .navigationBarHidden(true) 
         }
         .navigationBarHidden(true)
         .onChange(of: localizationManager.currentLanguage) {

@@ -1,6 +1,9 @@
+// BuddyBuilder/Features/Authentication/Views/UpdatedLoginContentView.swift
+// Bu dosyayı mevcut LoginContentView.swift ile değiştirin veya güncelleyin
+
 import SwiftUI
 
-struct LoginContentView: View {
+struct UpdatedLoginContentView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var showRegistration = false
@@ -12,7 +15,7 @@ struct LoginContentView: View {
                 VStack(spacing: 0) {
                     // Top spacing for status bar and language picker
                     Spacer()
-                        .frame(height: 120) // Increased to give more space for language picker
+                        .frame(height: 120)
                     
                     // App logo with text
                     VStack(spacing: 12) {
@@ -27,19 +30,16 @@ struct LoginContentView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 1.0, green: 0.42, blue: 0.21), // Orange like logo
-                                        Color(red: 1.0, green: 0.35, blue: 0.15)  // Slightly darker orange
+                                        Color(red: 1.0, green: 0.42, blue: 0.21),
+                                        Color(red: 1.0, green: 0.35, blue: 0.15)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .tracking(1.2) // More letter spacing for softer look
+                            .tracking(1.2)
                     }
                     .padding(.bottom, 60)
-                    
-                    // Login title - removed the "Login" text
-                    // Error Message Area
                     
                     // Error Message Area
                     VStack {
@@ -180,7 +180,7 @@ struct LoginContentView: View {
                                     .foregroundColor(.textSecondary)
                                 
                                 Button(action: {
-                                    print("🔄 Sign Up button tapped")
+                                    print("🔄 Sign Up button tapped - Opening Updated Registration")
                                     showRegistration = true
                                 }) {
                                     Text("auth.login.signup.link".localized(using: localizationManager))
@@ -194,12 +194,12 @@ struct LoginContentView: View {
                     Spacer()
                 }
                 
-                // Language picker - positioned higher, away from logo
+                // Language picker
                 VStack {
                     HStack {
                         Spacer()
                         CompactLanguagePicker(localizationManager: localizationManager)
-                            .padding(.top, 30) // Reduced from 50 to move it higher
+                            .padding(.top, 30)
                             .padding(.trailing, 10)
                     }
                     Spacer()
@@ -208,6 +208,7 @@ struct LoginContentView: View {
             }
         }
         .fullScreenCover(isPresented: $showRegistration) {
+            // UPDATED: Use the new UpdatedRegistrationView instead of RegistrationView
             UpdatedRegistrationView()
                 .environmentObject(authViewModel)
                 .environmentObject(localizationManager)
@@ -220,7 +221,7 @@ struct LoginContentView: View {
 
 #Preview(traits: .sizeThatFitsLayout) {
     NavigationStack {
-        LoginContentView()
+        UpdatedLoginContentView()
             .environmentObject(AuthenticationViewModel())
             .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
     }

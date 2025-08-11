@@ -190,7 +190,7 @@ class ForgotPasswordViewModel: ObservableObject {
         errorMessage = ""
         
         // Use the trimmed code
-        forgotPasswordService.verifyEmail(verificationCode: codeToSend)
+        forgotPasswordService.verifyEmailWithQueryParam(verificationCode: codeToSend)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in

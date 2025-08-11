@@ -8,6 +8,7 @@ protocol ForgotPasswordServiceProtocol {
     func requestPasswordReset(email: String) -> AnyPublisher<ForgotPasswordResponse, Error>
     func verifyEmail(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error>
     func resetPassword(newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error>
+    func verifyEmailWithQueryParam(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error>
 }
 
 // MARK: - Forgot Password Service Implementation
@@ -100,7 +101,7 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
         
         return networkManager.request(
             endpoint: endpoint,
-            method: .GET,
+            method: .POST,
             type: VerifyEmailResponse.self
         )
         .handleEvents(
@@ -170,67 +171,6 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
                 }
             }
         )
-        .eraseToAnyPublisher()
-    }
-}
-
-// MARK: - Mock Forgot Password Service (for testing/preview)
-class MockForgotPasswordService: ForgotPasswordServiceProtocol {
-    func requestPasswordReset(email: String) -> AnyPublisher<ForgotPasswordResponse, Error> {
-        print("🧪 MOCK: Requesting password reset for email: \(email)")
-        
-        // Simulate network delay
-        return Just(
-            ForgotPasswordResponse(
-                success: true,
-                message: "Verification code sent to your email",
-                data: true,
-                errors: nil,
-                timestamp: ISO8601DateFormatter().string(from: Date())
-            )
-        )
-        .delay(for: .seconds(1.5), scheduler: RunLoop.main)
-        .setFailureType(to: Error.self)
-        .eraseToAnyPublisher()
-    }
-    
-    func verifyEmail(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
-        print("🧪 MOCK: Verifying email with code: \(verificationCode)")
-        
-        // Simulate success for 6-digit numeric codes, failure for others
-        let isValid = verificationCode.count == 6 && verificationCode.allSatisfy { $0.isNumber }
-        
-        return Just(
-            VerifyEmailResponse(
-                success: isValid,
-                message: isValid ? nil : "Invalid verification code",
-                data: isValid,
-                errors: nil,
-                timestamp: ISO8601DateFormatter().string(from: Date())
-            )
-        )
-        .delay(for: .seconds(1.0), scheduler: RunLoop.main)
-        .setFailureType(to: Error.self)
-        .eraseToAnyPublisher()
-    }
-    
-    func resetPassword(newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error> {
-        print("🧪 MOCK: Resetting password")
-        
-        // Simulate validation
-        let isValid = newPassword == confirmPassword && newPassword.count >= 8
-        
-        return Just(
-            ResetPasswordResponse(
-                success: isValid,
-                message: isValid ? "Password reset successfully" : "Password validation failed",
-                data: isValid,
-                errors: nil,
-                timestamp: ISO8601DateFormatter().string(from: Date())
-            )
-        )
-        .delay(for: .seconds(1.5), scheduler: RunLoop.main)
-        .setFailureType(to: Error.self)
         .eraseToAnyPublisher()
     }
 }

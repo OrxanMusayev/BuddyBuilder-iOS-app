@@ -669,33 +669,7 @@ struct ProfileView: View {
     
     // MARK: - Logout Loading Overlay - Dark Mode Adaptive
     private var logoutLoadingOverlay: some View {
-        ZStack {
-            Color.overlayBackground // ✅ Updated (adaptive overlay)
-                .ignoresSafeArea()
-            
-            ZStack {
-                Circle()
-                    .stroke(Color.primaryOrange.opacity(0.2), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(
-                        AngularGradient(
-                            colors: [.primaryOrange, .primaryOrange.opacity(0.1)],
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(showLogoutLoading ? 360 : 0))
-                    .animation(
-                        .linear(duration: 1.0)
-                            .repeatForever(autoreverses: false),
-                        value: showLogoutLoading
-                    )
-            }
-        }
+        LogoutLoadingOverlay(isVisible: showLogoutLoading)
     }
     
     // MARK: - ENHANCED Helper Methods

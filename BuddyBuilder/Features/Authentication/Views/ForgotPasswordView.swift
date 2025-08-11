@@ -371,7 +371,7 @@ struct EnterEmailStepView: View {
         VStack(spacing: 20) {
             Text("Enter the email address associated with your account and we'll send you a verification code to reset your password.")
                 .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             
@@ -398,7 +398,7 @@ struct VerifyCodeStepView: View {
             VStack(spacing: 12) {
                 Text("We've sent a verification code to:")
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                 
                 Text(viewModel.formData.email)
                     .font(.system(size: 16, weight: .semibold))
@@ -439,7 +439,7 @@ struct ResetPasswordStepView: View {
         VStack(spacing: 20) {
             Text("Create a new password for your account. Make sure it's strong and secure.")
                 .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             
@@ -464,7 +464,7 @@ struct ResetPasswordStepView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Password Requirements:")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                     
                     VStack(alignment: .leading, spacing: 4) {
                         ForgotPasswordRequirementRow(
@@ -534,7 +534,7 @@ struct SuccessStepView: View {
                 
                 Text("Your password has been updated. You can now login with your new password.")
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -640,21 +640,21 @@ struct ForgotPasswordRequirementRow: View {
         HStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .fill(isValid ? Color.green : Color.textSecondary.opacity(0.3))
+                    .fill(isValid ? Color.green : Color.primaryText.opacity(0.3))
                     .frame(width: 16, height: 16)
                     .scaleEffect(isValid ? 1.1 : 1.0)
                     .animation(.easeInOut(duration: 0.2), value: isValid)
                 
                 Image(systemName: isValid ? "checkmark" : "circle")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(isValid ? .white : .textSecondary)
+                    .foregroundColor(isValid ? .white : .secondaryText)
                     .scaleEffect(isValid ? 1.2 : 1.0)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isValid)
             }
             
             Text(text)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isValid ? .green : .textSecondary)
+                .foregroundColor(isValid ? .green : .secondaryText)
                 .animation(.easeInOut(duration: 0.2), value: isValid)
             
             Spacer()

@@ -371,7 +371,7 @@ struct EnterEmailStepView: View {
         VStack(spacing: 20) {
             Text("Enter the email address associated with your account and we'll send you a verification code to reset your password.")
                 .font(.system(size: 14))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
             

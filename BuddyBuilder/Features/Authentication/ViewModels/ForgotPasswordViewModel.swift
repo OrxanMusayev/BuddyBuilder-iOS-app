@@ -230,9 +230,9 @@ class ForgotPasswordViewModel: ObservableObject {
         isLoading = true
         errorMessage = ""
         
-        forgotPasswordService.resetPassword(
+        forgotPasswordService.resetPasswordByEmail(
             newPassword: formData.newPassword,
-            confirmPassword: formData.confirmPassword
+            confirmPassword: formData.confirmPassword,
         )
         .receive(on: DispatchQueue.main)
         .sink(

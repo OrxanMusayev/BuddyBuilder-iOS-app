@@ -19,7 +19,7 @@ struct LocationStepView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("registration.step.location.search_title".localized(using: localizationManager))
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                         .padding(.leading, 20)
                     
                     LocationSearchField(
@@ -45,7 +45,7 @@ struct LocationStepView: View {
                     
                     Text("common.or".localized(using: localizationManager))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                         .padding(.horizontal, 12)
                     
                     Rectangle()
@@ -155,11 +155,11 @@ struct LocationPermissionBanner: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Location Access Needed")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                     
                     Text("Tap to enable location or continue manually")
                         .font(.system(size: 14))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                 }
                 
                 Spacer()
@@ -206,12 +206,12 @@ struct LocationPermissionSheet: View {
                 VStack(spacing: 16) {
                     Text("Enable Location Access")
                         .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                         .multilineTextAlignment(.center)
                     
                     Text("BuddyBuilder uses your location to help you find sports buddies and events nearby. You can always change this later in Settings.")
                         .font(.system(size: 16))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
                 }
@@ -275,7 +275,7 @@ struct LocationPermissionSheet: View {
                     Button("Skip") {
                         onContinueManually()
                     }
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                 }
             }
         }
@@ -339,7 +339,7 @@ struct LocationOptionCard: View {
                     
                     Text(subtitle)
                         .font(.system(size: 14))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                         .multilineTextAlignment(.leading)
                 }
                 
@@ -380,14 +380,14 @@ struct LocationOptionCard: View {
         if isDisabled {
             return .orange
         }
-        return isSelected ? .primaryOrange : .textSecondary
+        return isSelected ? .primaryOrange : .secondaryText
     }
     
     private var titleColor: Color {
         if isDisabled {
             return .orange
         }
-        return isSelected ? .primaryOrange : .textPrimary
+        return isSelected ? .primaryOrange : .primaryText
     }
     
     private var backgroundCardColor: Color {
@@ -447,11 +447,11 @@ struct LocationSearchField: View {
                     HStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondaryText)
                         
                         TextField(placeholder, text: $searchTerm) // CHANGED: Use dynamic placeholder
                             .font(.system(size: 16))
-                            .foregroundColor(.textPrimary)
+                            .foregroundColor(.primaryText)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.words)
                             .onChange(of: searchTerm) { _ in
@@ -554,7 +554,7 @@ struct LocationResultRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(location.displayText)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                         .lineLimit(1)
                     
                     // REMOVED: Duplicate city, country text since displayText already contains it
@@ -564,7 +564,7 @@ struct LocationResultRow: View {
                 
                 Image(systemName: "arrow.up.left")
                     .font(.system(size: 12))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -594,11 +594,11 @@ struct SelectedLocationCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Selected Location")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                 
                 Text(location.displayText)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
             }
             
             Spacer()
@@ -606,7 +606,7 @@ struct SelectedLocationCard: View {
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
         }
         .padding(16)
@@ -640,11 +640,11 @@ struct CurrentLocationCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Current Location")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                 
                 Text("\(city), \(country)")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
             }
             
             Spacer()
@@ -652,7 +652,7 @@ struct CurrentLocationCard: View {
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
         }
         .padding(16)

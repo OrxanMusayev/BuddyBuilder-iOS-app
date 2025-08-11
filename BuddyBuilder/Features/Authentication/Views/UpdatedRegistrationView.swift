@@ -88,6 +88,7 @@ struct UpdatedRegistrationView: View {
         }
         .ignoresSafeArea()
         .navigationBarBackButtonHidden(true)
+        .dismissKeyboardOnTap()
         .onChange(of: viewModel.registrationCompleted) { completed in
             if completed {
                 print("🎉 Registration completed, starting redirect timer...")

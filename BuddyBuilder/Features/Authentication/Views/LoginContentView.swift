@@ -1,9 +1,13 @@
+// BuddyBuilder/Features/Authentication/Views/LoginContentView.swift
+// UPDATED: Added Forgot Password functionality
+
 import SwiftUI
 
 struct LoginContentView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var showRegistration = false
+    @State private var showForgotPassword = false // NEW: Added forgot password state
     
     var body: some View {
         GeometryReader { geometry in
@@ -37,9 +41,6 @@ struct LoginContentView: View {
                             .tracking(1.2) // More letter spacing for softer look
                     }
                     .padding(.bottom, 10)
-                    
-                    // Login title - removed the "Login" text
-                    // Error Message Area
                     
                     // Error Message Area
                     VStack {
@@ -106,9 +107,10 @@ struct LoginContentView: View {
                                 Spacer()
                             }
                             
-                            // Forgot Password
+                            // Forgot Password - UPDATED: Added navigation
                             Button("auth.login.forgot.password".localized(using: localizationManager)) {
-                                // TODO: Implement forgot password
+                                print("🔑 Forgot Password button tapped")
+                                showForgotPassword = true
                             }
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primaryOrange)
@@ -212,8 +214,23 @@ struct LoginContentView: View {
                 .environmentObject(authViewModel)
                 .environmentObject(localizationManager)
         }
+        // NEW: Added forgot password presentation
+        .fullScreenCover(isPresented: $showForgotPassword) {
+            ForgotPasswordView()
+                .environmentObject(localizationManager)
+        }
+        .dismissKeyboardOnTap() // NEW: Dismiss keyboard when tapping anywhere
         .onReceive(localizationManager.$currentLanguage) { _ in
             // Update UI when language changes
+        }
+    }
+}
+
+// MARK: - Dismiss Keyboard Extension
+extension View {
+    func dismissKeyboardOnTap() -> some View {
+        self.onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 }

@@ -79,7 +79,7 @@ struct CustomTextFieldNoTitle: View {
     }
 }
 
-// MARK: - Custom Password Field (No Title) - Dark Mode Adaptive
+// MARK: - Custom Password Field (No Title) - FIXED VERSION
 struct CustomPasswordFieldNoTitle: View {
     @Binding var text: String
     @Binding var showPassword: Bool
@@ -98,20 +98,40 @@ struct CustomPasswordFieldNoTitle: View {
                 .foregroundColor(iconColor)
                 .frame(width: 20)
             
-            // Password Field
-            Group {
-                if showPassword {
+            // FIXED: Stable password field container
+            ZStack(alignment: .leading) {
+                // Placeholder
+                if text.isEmpty {
                     TextField(placeholder, text: $text)
-                } else {
-                    SecureField(placeholder, text: $text)
+                        .font(.system(size: 16))
+                        .foregroundColor(.primaryText)
+                        .focused($isFocused)
+                        .disabled(isDisabled)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+                
+                // FIXED: Always use TextField, manually handle security
+                TextField("", text: $text)
+                    .font(.system(size: 16))
+                    .foregroundColor(showPassword ? .primaryText : .clear) // Hide text when secure
+                    .focused($isFocused)
+                    .disabled(isDisabled)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textContentType(.password)
+                
+                // FIXED: Manual secure text overlay
+                if !showPassword && !text.isEmpty {
+                    HStack {
+                        Text(String(repeating: "•", count: text.count))
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.primaryText)
+                            .allowsHitTesting(false)
+                        Spacer()
+                    }
                 }
             }
-            .font(.system(size: 16))
-            .foregroundColor(.primaryText)
-            .focused($isFocused)
-            .disabled(isDisabled)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
             
             // Show/Hide Password Button
             Button(action: {
@@ -133,7 +153,8 @@ struct CustomPasswordFieldNoTitle: View {
         )
         .animation(.easeInOut(duration: 0.2), value: isFocused)
         .animation(.easeInOut(duration: 0.2), value: hasError)
-        .animation(.easeInOut(duration: 0.2), value: showPassword)
+        // REMOVED: Animation on showPassword to prevent jumping
+        .animation(.none, value: showPassword)
     }
     
     // MARK: - Computed Properties (Dark Mode Adaptive)

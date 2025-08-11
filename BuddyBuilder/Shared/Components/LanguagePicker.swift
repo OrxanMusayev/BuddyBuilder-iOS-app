@@ -13,7 +13,11 @@ struct CompactLanguagePicker: View {
                 compactDropdown
             }
         }
-        .background(backgroundTapHandler)
+        .onReceive(NotificationCenter.default.publisher(for: .dismissDropdowns)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showDropdown = false
+            }
+        }
     }
     
     // MARK: - Language Button (Shows Language Code)
@@ -130,20 +134,6 @@ struct CompactLanguagePicker: View {
             await localizationManager.changeLanguage(to: language)
             withAnimation(.easeInOut(duration: 0.2)) {
                 showDropdown = false
-            }
-        }
-    }
-    
-    private var backgroundTapHandler: some View {
-        Group {
-            if showDropdown {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showDropdown = false
-                        }
-                    }
             }
         }
     }
@@ -310,6 +300,11 @@ struct LanguageRow: View {
         .disabled(isLoading)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
+}
+
+// MARK: - Notification Extension for Dropdown Dismissal
+extension Notification.Name {
+    static let dismissDropdowns = Notification.Name("dismissDropdowns")
 }
 
 // MARK: - Preview

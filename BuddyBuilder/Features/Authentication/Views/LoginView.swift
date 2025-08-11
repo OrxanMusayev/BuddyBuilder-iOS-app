@@ -1,3 +1,6 @@
+// BuddyBuilder/Features/Authentication/Views/LoginView.swift
+// UPDATED: Enhanced keyboard dismissal
+
 import SwiftUI
 
 struct LoginView: View {
@@ -7,17 +10,21 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Full screen background
+                // Full screen background with tap gesture
                 LoginBackgroundView()
                     .ignoresSafeArea(.all)
+                    .contentShape(Rectangle()) // Make entire background tappable
+                    .onTapGesture {
+                        // Dismiss keyboard when background is tapped
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 
                 // Direct content - no card wrapper
                 LoginContentView()
                     .environmentObject(authViewModel)
                     .environmentObject(localizationManager)
-                    .padding(.horizontal, 20)
             }
-            .navigationBarHidden(true) 
+            .navigationBarHidden(true)
         }
         .navigationBarHidden(true)
         .onChange(of: localizationManager.currentLanguage) {

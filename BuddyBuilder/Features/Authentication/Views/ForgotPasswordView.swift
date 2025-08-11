@@ -56,7 +56,7 @@ struct ForgotPasswordView: View {
         }
         .ignoresSafeArea()
         .navigationBarBackButtonHidden(true)
-        .dismissKeyboardOnTap() // NEW: Dismiss keyboard when tapping anywhere
+        .dismissKeyboardOnTap()
         .onChange(of: viewModel.isCompleted) { completed in
             if completed {
                 // Auto-dismiss after success
@@ -118,7 +118,7 @@ struct ForgotPasswordView: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [.primaryOrange.opacity(0.3), .primaryOrange.opacity(0.1)],
+                        colors: [stepIconColor.opacity(0.3), stepIconColor.opacity(0.1)],
                         center: .center,
                         startRadius: 10,
                         endRadius: 40
@@ -128,9 +128,23 @@ struct ForgotPasswordView: View {
             
             Image(systemName: viewModel.currentStep.icon)
                 .font(.system(size: 32, weight: .medium))
-                .foregroundColor(.primaryOrange)
+                .foregroundColor(stepIconColor)
         }
         .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
+    }
+    
+    // MARK: - Step Icon Color Helper
+    private var stepIconColor: Color {
+        switch viewModel.currentStep {
+        case .enterEmail:
+            return .primaryOrange
+        case .verifyCode:
+            return .green // UPDATED: Green for verification step
+        case .resetPassword:
+            return .primaryOrange
+        case .success:
+            return .green
+        }
     }
     
     // MARK: - Current Step Content
@@ -190,8 +204,6 @@ struct ForgotPasswordView: View {
                 .opacity(viewModel.canProceedToNextStep ? 1.0 : 0.6)
             }
             .disabled(!viewModel.canProceedToNextStep || viewModel.isLoading)
-            
-            // Previous button removed as requested
         }
     }
     
@@ -225,25 +237,31 @@ struct ForgotPasswordView: View {
     // MARK: - Overlays
     private var loadingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Color.black.opacity(0.3)
                 .ignoresSafeArea()
             
-            VStack(spacing: 16) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                    .scaleEffect(1.5)
+            VStack(spacing: 24) {
+                // Modern spinning loading animation
+                SpinningLoader()
                 
                 Text(loadingMessage)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(.textPrimary)
+                    .multilineTextAlignment(.center)
             }
-            .padding(32)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 40)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 20)
                     .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
             )
+            .padding(.horizontal, 40)
         }
-        .transition(.opacity)
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.9)),
+            removal: .opacity
+        ))
         .zIndex(999)
     }
     
@@ -262,47 +280,74 @@ struct ForgotPasswordView: View {
     
     private var errorAlertOverlay: some View {
         ZStack {
-            Color.black.opacity(0.6)
+            Color.black.opacity(0.3)
                 .ignoresSafeArea()
                 .onTapGesture {
                     clearError()
                 }
             
-            VStack(spacing: 20) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 50))
-                    .foregroundColor(.red)
+            VStack(spacing: 0) {
+                // Error Icon with modern design
+                ZStack {
+                    Circle()
+                        .fill(Color.red.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    
+                    Circle()
+                        .fill(Color.red.opacity(0.2))
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundColor(.red)
+                }
+                .padding(.bottom, 24)
                 
-                Text("Error")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.white)
+                // Title
+                Text("Oops!")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                    .padding(.bottom, 8)
                 
+                // Message
                 Text(viewModel.errorMessage)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(.system(size: 16))
+                    .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(nil)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 32)
                 
-                Button("OK") {
-                    clearError()
+                // Modern Button
+                Button(action: clearError) {
+                    Text("Got it")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(
+                            LinearGradient(
+                                colors: [.primaryOrange, .primaryOrange.opacity(0.8)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
                 }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primaryOrange)
                 .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 25)
-                        .fill(.white)
-                )
             }
-            .padding(32)
+            .padding(.vertical, 32)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 24)
                     .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
             )
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 32)
         }
-        .transition(.opacity.combined(with: .scale))
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.8)).combined(with: .offset(y: 20)),
+            removal: .opacity.combined(with: .scale(scale: 0.95))
+        ))
         .zIndex(998)
     }
     
@@ -362,22 +407,10 @@ struct VerifyCodeStepView: View {
             .multilineTextAlignment(.center)
             .padding(.horizontal, 20)
             
-            CustomTextFieldNoTitle(
-                text: $viewModel.formData.verificationCode,
-                icon: "number.circle.fill",
-                placeholder: "Enter verification code",
+            VerificationCodeField(
+                code: $viewModel.formData.verificationCode,
                 hasError: viewModel.verificationCodeError
             )
-            .keyboardType(.numberPad)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .onReceive(viewModel.formData.$verificationCode) { newValue in
-                // Only allow numeric input
-                let filtered = newValue.filter { $0.isNumber }
-                if filtered != newValue {
-                    viewModel.formData.verificationCode = filtered
-                }
-            }
             
             // Resend Code Button
             Button(action: {
@@ -531,6 +564,70 @@ struct SuccessStepView: View {
             }
         }
         .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - Custom Verification Code Field
+struct VerificationCodeField: View {
+    @Binding var code: String
+    let hasError: Bool
+    @FocusState private var isFocused: Bool
+    
+    private let maxLength = 6
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "number.circle.fill")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(hasError ? .red : (isFocused ? .primaryOrange : .secondaryText))
+                .frame(width: 20)
+            
+            TextField("Enter 6-digit code", text: $code)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.primaryText)
+                .keyboardType(.numberPad)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($isFocused)
+                .onChange(of: code) { oldValue, newValue in
+                    print("🔍 Input onChange - oldValue: '\(oldValue)', newValue: '\(newValue)'")
+                    
+                    // Filter only numbers
+                    let filtered = newValue.filter { $0.isNumber }
+                    print("🔍 Filtered: '\(filtered)'")
+                    
+                    // Limit to 6 characters
+                    if filtered.count > maxLength {
+                        let limited = String(filtered.prefix(maxLength))
+                        print("🔍 Limited to 6: '\(limited)'")
+                        code = limited
+                    } else if filtered != newValue {
+                        print("🔍 Setting filtered: '\(filtered)'")
+                        code = filtered
+                    }
+                    
+                    print("🔍 Final code value: '\(code)' (length: \(code.count))")
+                    
+                    // Auto-dismiss keyboard when 6 digits entered
+                    if code.count == maxLength {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isFocused = false
+                            print("🔍 Keyboard dismissed for 6-digit code: '\(code)'")
+                        }
+                    }
+                }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(Color.formBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 25))
+        .overlay(
+            RoundedRectangle(cornerRadius: 25)
+                .stroke(hasError ? .red : (isFocused ? .primaryOrange : .formBorder),
+                       lineWidth: hasError || isFocused ? 2.0 : 1.0)
+        )
+        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .animation(.easeInOut(duration: 0.2), value: hasError)
     }
 }
 

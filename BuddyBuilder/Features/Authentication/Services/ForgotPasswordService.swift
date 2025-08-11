@@ -48,9 +48,45 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
         .eraseToAnyPublisher()
     }
     
-    // MARK: - Verify Email Code
+    // MARK: - Verify Email Code - FIXED VERSION
     func verifyEmail(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
-        // URL encode the verification code to handle special characters
+        // Create request body for verification code
+        let requestBody = ["verificationCode": verificationCode]
+        
+        guard let requestData = try? JSONEncoder().encode(requestBody) else {
+            print("❌ Failed to encode verification request")
+            return Fail(error: NetworkError.decodingError)
+                .eraseToAnyPublisher()
+        }
+        
+        let endpoint = "\(baseURL)/verify-email"
+        
+        print("🔍 VERIFY EMAIL REQUEST:")
+        print("URL: \(endpoint)")
+        print("Body: \(String(data: requestData, encoding: .utf8) ?? "nil")")
+        print("Code: \(verificationCode)")
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .POST, // Changed to POST with body
+            body: requestData,
+            type: VerifyEmailResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Verify email response: success=\(response.success), message=\(response.message ?? "nil"), data=\(response.data ?? false)")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Verify email request failed: \(error)")
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - Alternative Verify Email Methods (if needed)
+    func verifyEmailWithQueryParam(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
         guard let encodedCode = verificationCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
             print("❌ Failed to encode verification code")
             return Fail(error: NetworkError.decodingError)
@@ -59,10 +95,8 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
         
         let endpoint = "\(baseURL)/verify-email?verificationCode=\(encodedCode)"
         
-        print("🔍 VERIFY EMAIL REQUEST:")
+        print("🔍 VERIFY EMAIL REQUEST (Query Param):")
         print("URL: \(endpoint)")
-        print("Original Code: \(verificationCode)")
-        print("Encoded Code: \(encodedCode)")
         
         return networkManager.request(
             endpoint: endpoint,
@@ -71,7 +105,31 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
         )
         .handleEvents(
             receiveOutput: { response in
-                print("✅ Verify email response: success=\(response.success), message=\(response.message ?? "nil"), data=\(response.data ?? false)")
+                print("✅ Verify email response: success=\(response.success), message=\(response.message ?? "nil")")
+            },
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    print("❌ Verify email request failed: \(error)")
+                }
+            }
+        )
+        .eraseToAnyPublisher()
+    }
+    
+    func verifyEmailWithPathParam(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
+        let endpoint = "\(baseURL)/verify-email/\(verificationCode)"
+        
+        print("🔍 VERIFY EMAIL REQUEST (Path Param):")
+        print("URL: \(endpoint)")
+        
+        return networkManager.request(
+            endpoint: endpoint,
+            method: .GET,
+            type: VerifyEmailResponse.self
+        )
+        .handleEvents(
+            receiveOutput: { response in
+                print("✅ Verify email response: success=\(response.success), message=\(response.message ?? "nil")")
             },
             receiveCompletion: { completion in
                 if case .failure(let error) = completion {

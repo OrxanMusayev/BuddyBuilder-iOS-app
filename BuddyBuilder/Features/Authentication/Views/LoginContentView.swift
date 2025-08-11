@@ -1,5 +1,5 @@
 // BuddyBuilder/Features/Authentication/Views/LoginContentView.swift
-// UPDATED: Added Forgot Password functionality
+// UPDATED: Fixed UI positioning, keyboard behavior, and button animation
 
 import SwiftUI
 
@@ -7,26 +7,32 @@ struct LoginContentView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var showRegistration = false
-    @State private var showForgotPassword = false // NEW: Added forgot password state
+    @State private var showForgotPassword = false
     
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
+                // Background tap gesture for keyboard dismissal - FIXED: Full coverage
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hideKeyboard()
+                    }
+                    .ignoresSafeArea()
+                
                 // Main login content
                 VStack(spacing: 0) {
                     // Top spacing for status bar and language picker
                     Spacer()
-                        .frame(height: 120) // Increased to give more space for language picker
+                        .frame(height: 100) // Reduced from 120
                     
-                    // App logo with text
-                    VStack(spacing: 12) {
-                        Image("appstore")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 70, height: 70)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.bottom, 10)
+                    // App logo only - REMOVED: BuddyBuilder text
+                    Image("appstore")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 70, height: 70)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .padding(.bottom, 20) // Further reduced from 30
                     
                     // Error Message Area
                     VStack {
@@ -54,9 +60,9 @@ struct LoginContentView: View {
                     }
                     .frame(height: 38)
                     .animation(.easeInOut(duration: 0.3), value: authViewModel.validationMessage.isEmpty)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 20) // Reduced from 30
                     
-                    // Form fields
+                    // Form fields - MOVED UP
                     VStack(spacing: 20) {
                         // Username Field
                         CustomTextFieldNoTitle(
@@ -93,7 +99,7 @@ struct LoginContentView: View {
                                 Spacer()
                             }
                             
-                            // Forgot Password - UPDATED: Added navigation
+                            // Forgot Password
                             Button("auth.login.forgot.password".localized(using: localizationManager)) {
                                 print("🔑 Forgot Password button tapped")
                                 showForgotPassword = true
@@ -103,8 +109,9 @@ struct LoginContentView: View {
                         }
                         .padding(.vertical, 8)
                         
-                        // Login Button
+                        // Login Button - FIXED: Stable animation
                         Button(action: {
+                            hideKeyboard() // Dismiss keyboard before login
                             authViewModel.login()
                         }) {
                             HStack {
@@ -133,12 +140,18 @@ struct LoginContentView: View {
                                 )
                             )
                             .clipShape(RoundedRectangle(cornerRadius: 27))
-                            .scaleEffect(authViewModel.isLoading ? 0.95 : 1.0)
                             .shadow(color: .primaryOrange.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                         .disabled(authViewModel.isLoading)
-                        .animation(.easeInOut(duration: 0.2), value: authViewModel.isLoading)
-                        
+                        // REMOVED: Scale animation that was causing jumping
+                        .animation(.none, value: authViewModel.isLoading) // Disable animation on loading state
+                    }
+                    
+                    // EXPANDED: Spacer to push content to bottom
+                    Spacer()
+                    
+                    // Bottom Section - MOVED TO BOTTOM
+                    VStack(spacing: 24) {
                         // Divider
                         HStack {
                             Rectangle()
@@ -154,7 +167,6 @@ struct LoginContentView: View {
                                 .fill(Color.formBorder)
                                 .frame(height: 1)
                         }
-                        .padding(.vertical, 24)
                         
                         // Sign Up Section
                         VStack(spacing: 16) {
@@ -178,9 +190,9 @@ struct LoginContentView: View {
                             }
                         }
                     }
-                    
-                    Spacer()
+                    .padding(.bottom, 40) // Bottom padding
                 }
+                .padding(.horizontal, 20)
                 
                 // Language picker - positioned higher, away from logo
                 VStack {
@@ -200,18 +212,30 @@ struct LoginContentView: View {
                 .environmentObject(authViewModel)
                 .environmentObject(localizationManager)
         }
-        // NEW: Added forgot password presentation
         .fullScreenCover(isPresented: $showForgotPassword) {
             ForgotPasswordView()
                 .environmentObject(localizationManager)
         }
-        .dismissKeyboardOnTap() // NEW: Dismiss keyboard when tapping anywhere
         .onReceive(localizationManager.$currentLanguage) { _ in
             // Update UI when language changes
         }
     }
+    
+    // MARK: - Enhanced Keyboard Dismissal
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
+// MARK: - REMOVED: Old dismissKeyboardOnTap extension since we're handling it manually
+
+#Preview(traits: .sizeThatFitsLayout) {
+    NavigationStack {
+        LoginContentView()
+            .environmentObject(AuthenticationViewModel())
+            .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
+    }
+}
 // MARK: - Dismiss Keyboard Extension
 extension View {
     func dismissKeyboardOnTap() -> some View {
@@ -221,10 +245,3 @@ extension View {
     }
 }
 
-#Preview(traits: .sizeThatFitsLayout) {
-    NavigationStack {
-        LoginContentView()
-            .environmentObject(AuthenticationViewModel())
-            .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
-    }
-}

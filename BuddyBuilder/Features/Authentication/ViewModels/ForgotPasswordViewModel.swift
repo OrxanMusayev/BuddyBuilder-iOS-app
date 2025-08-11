@@ -33,7 +33,9 @@ class ForgotPasswordViewModel: ObservableObject {
         case .enterEmail:
             return formData.isValidEmail()
         case .verifyCode:
-            return formData.isValidVerificationCode()
+            let isValid = formData.isValidVerificationCode()
+            print("🔍 ViewModel - canProceedToNextStep for verifyCode: \(isValid), code: '\(formData.verificationCode)' (length: \(formData.verificationCode.count))")
+            return isValid
         case .resetPassword:
             return formData.isValidPassword() && formData.passwordsMatch()
         case .success:
@@ -59,6 +61,14 @@ class ForgotPasswordViewModel: ObservableObject {
             .combineLatest(formData.$confirmPassword)
             .sink { [weak self] password, confirmPassword in
                 self?.validatePasswordFields(password: password, confirmPassword: confirmPassword)
+            }
+            .store(in: &cancellables)
+        
+        // ENHANCED: Monitor verification code changes
+        formData.$verificationCode
+            .sink { [weak self] code in
+                print("🔍 ViewModel - Verification code changed: '\(code)' (length: \(code.count))")
+                self?.verificationCodeError = false
             }
             .store(in: &cancellables)
         
@@ -91,13 +101,15 @@ class ForgotPasswordViewModel: ObservableObject {
     
     private func setupFieldErrorClearingObservers() {
         formData.$email.sink { [weak self] _ in self?.emailError = false }.store(in: &cancellables)
-        formData.$verificationCode.sink { [weak self] _ in self?.verificationCodeError = false }.store(in: &cancellables)
         formData.$newPassword.sink { [weak self] _ in self?.passwordError = false }.store(in: &cancellables)
         formData.$confirmPassword.sink { [weak self] _ in self?.confirmPasswordError = false }.store(in: &cancellables)
     }
     
     // MARK: - Navigation Methods
     func proceedToNextStep() {
+        print("🔍 ViewModel - proceedToNextStep called for step: \(currentStep)")
+        print("🔍 ViewModel - Current verification code: '\(formData.verificationCode)'")
+        
         guard canProceedToNextStep else {
             markCurrentStepErrors()
             return
@@ -114,8 +126,6 @@ class ForgotPasswordViewModel: ObservableObject {
             break // No action needed
         }
     }
-    
-    // Previous step functionality removed as requested
     
     // MARK: - API Methods
     private func requestPasswordReset() {
@@ -159,16 +169,28 @@ class ForgotPasswordViewModel: ObservableObject {
     }
     
     private func verifyEmailCode() {
-        guard formData.isValidVerificationCode() else {
+        // ENHANCED VALIDATION AND LOGGING
+        print("🔍 ViewModel - Starting verification process")
+        print("🔍 ViewModel - Current code: '\(formData.verificationCode)'")
+        print("🔍 ViewModel - Code length: \(formData.verificationCode.count)")
+        print("🔍 ViewModel - Code validation result: \(formData.isValidVerificationCode())")
+        
+        // Force unwrap and validate the code one more time
+        let codeToSend = formData.verificationCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("🔍 ViewModel - Trimmed code: '\(codeToSend)'")
+        
+        guard formData.isValidVerificationCode() && !codeToSend.isEmpty else {
+            print("❌ ViewModel - Validation failed")
             markCurrentStepErrors()
             return
         }
         
-        print("🔍 Verifying email code: \(formData.verificationCode)")
+        print("🔍 ViewModel - Calling service with code: '\(codeToSend)'")
         isLoading = true
         errorMessage = ""
         
-        forgotPasswordService.verifyEmail(verificationCode: formData.verificationCode)
+        // Use the trimmed code
+        forgotPasswordService.verifyEmail(verificationCode: codeToSend)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -254,7 +276,8 @@ class ForgotPasswordViewModel: ObservableObject {
         case .verifyCode:
             verificationCodeError = !formData.isValidVerificationCode()
             if verificationCodeError {
-                errorMessage = "Please enter a valid verification code"
+                print("🔍 ViewModel - Marking verification code error, current code: '\(formData.verificationCode)'")
+                errorMessage = "Please enter a valid 6-digit verification code"
             }
             
         case .resetPassword:

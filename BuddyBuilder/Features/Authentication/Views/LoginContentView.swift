@@ -25,20 +25,6 @@ struct LoginContentView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 70, height: 70)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                        
-                        Text("BuddyBuilder")
-                            .font(.system(size: 35, weight: .bold, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 1.0, green: 0.42, blue: 0.21), // Orange like logo
-                                        Color(red: 1.0, green: 0.35, blue: 0.15)  // Slightly darker orange
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .tracking(1.2) // More letter spacing for softer look
                     }
                     .padding(.bottom, 10)
                     

@@ -4,7 +4,25 @@ import Foundation
 import Combine
 import SwiftUI
 
-class EventsViewModel: ObservableObject {
+protocol EventsFilterProtocol: ObservableObject {
+    // Filter properties
+    var selectedEventType: EventType? { get set }
+    var selectedSportId: Int? { get set }
+    var selectedLocation: String { get set }
+    var maxEntryFee: String { get set }
+    var showUpcomingOnly: Bool { get set }
+    var showAvailableOnly: Bool { get set }
+    var showOpenRegistrationOnly: Bool { get set }
+    
+    // Computed properties
+    var hasActiveFilters: Bool { get }
+    
+    // Methods
+    func applyFilters()
+    func clearFilters()
+}
+
+class EventsViewModel: EventsFilterProtocol {
     // MARK: - Published Properties
     @Published var events: [Event] = []
     @Published var isLoading = false

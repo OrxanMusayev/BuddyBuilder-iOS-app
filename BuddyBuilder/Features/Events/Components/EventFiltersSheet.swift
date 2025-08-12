@@ -320,33 +320,6 @@ struct EventFiltersSheet: View {
     }
 }
 
-// MARK: - Filter Toggle Component
-struct FilterToggle: View {
-    let title: String
-    @Binding var isOn: Bool
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textPrimary)
-            
-            Spacer()
-            
-            Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: .primaryOrange))
-                .scaleEffect(0.9)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.formBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.formBorder, lineWidth: 1)
-        )
-    }
-}
 
 // MARK: - Preview
 #Preview {

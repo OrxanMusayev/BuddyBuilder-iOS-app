@@ -1,10 +1,10 @@
-// BuddyBuilder/Features/Events/Views/Enhanced EventsFilterView.swift
+// BuddyBuilder/Features/Events/Views/GenericEventsFilterView.swift
 
 import SwiftUI
 
-// MARK: - Enhanced Events Filter View
-struct EventsFilterView: View {
-    @ObservedObject var viewModel: CachedEventsViewModel
+// MARK: - Generic Events Filter View
+struct GenericEventsFilterView<ViewModel: EventsFilterProtocol>: View {
+    @ObservedObject var viewModel: ViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.presentationMode) var presentationMode
     
@@ -16,8 +16,10 @@ struct EventsFilterView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Cache Strategy Section
-                    cacheStrategySection
+                    // Cache Strategy Section (sadece CachedEventsViewModel için)
+                    if viewModel is CachedEventsViewModel {
+                        cacheStrategySection
+                    }
                     
                     // Event Type Filter
                     filterSection(title: "Event Type") {
@@ -53,7 +55,7 @@ struct EventsFilterView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
-            .navigationTitle("Filters & Cache")
+            .navigationTitle(viewModel is CachedEventsViewModel ? "Filters & Cache" : "Filters")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
                 leading: Button("Clear All") {
@@ -68,52 +70,55 @@ struct EventsFilterView: View {
         .presentationDragIndicator(.visible)
     }
     
-    // MARK: - Cache Strategy Section
+    // MARK: - Cache Strategy Section (sadece CachedEventsViewModel için)
+    @ViewBuilder
     private var cacheStrategySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Cache Strategy")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                
-                Spacer()
-                
-                Button(action: {
-                    showCacheOptions.toggle()
-                }) {
-                    Image(systemName: showCacheOptions ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primaryOrange)
-                }
-            }
-            
-            if showCacheOptions {
-                VStack(spacing: 12) {
-                    // Cache status
-                    cacheStatusCard
+        if let cachedViewModel = viewModel as? CachedEventsViewModel {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Cache Strategy")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.textPrimary)
                     
-                    // Cache actions
-                    cacheActionsGrid
+                    Spacer()
+                    
+                    Button(action: {
+                        showCacheOptions.toggle()
+                    }) {
+                        Image(systemName: showCacheOptions ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.primaryOrange)
+                    }
                 }
-                .transition(.opacity.combined(with: .slide))
-                .animation(.easeInOut(duration: 0.3), value: showCacheOptions)
+                
+                if showCacheOptions {
+                    VStack(spacing: 12) {
+                        // Cache status
+                        cacheStatusCard(for: cachedViewModel)
+                        
+                        // Cache actions
+                        cacheActionsGrid(for: cachedViewModel)
+                    }
+                    .transition(.opacity.combined(with: .slide))
+                    .animation(.easeInOut(duration: 0.3), value: showCacheOptions)
+                }
             }
+            .padding(16)
+            .background(Color.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.formBorder, lineWidth: 1)
+            )
         }
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.formBorder, lineWidth: 1)
-        )
     }
     
-    private var cacheStatusCard: some View {
+    private func cacheStatusCard(for cachedViewModel: CachedEventsViewModel) -> some View {
         HStack(spacing: 12) {
             // Cache status indicator
             VStack {
                 Circle()
-                    .fill(cacheStatusColor)
+                    .fill(cacheStatusColor(for: cachedViewModel))
                     .frame(width: 12, height: 12)
                 
                 Text("Cache")
@@ -122,11 +127,11 @@ struct EventsFilterView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.getCacheInfo())
+                Text(cachedViewModel.getCacheInfo())
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.textPrimary)
                 
-                Text(cacheStatusDescription)
+                Text(cacheStatusDescription(for: cachedViewModel))
                     .font(.system(size: 12))
                     .foregroundColor(.textSecondary)
                     .lineLimit(2)
@@ -134,7 +139,7 @@ struct EventsFilterView: View {
             
             Spacer()
             
-            if viewModel.hasNewDataAvailable {
+            if cachedViewModel.hasNewDataAvailable {
                 VStack {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 16))
@@ -151,13 +156,13 @@ struct EventsFilterView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
-    private var cacheActionsGrid: some View {
+    private func cacheActionsGrid(for cachedViewModel: CachedEventsViewModel) -> some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
             CacheActionButton(
                 title: "Load from Cache",
                 icon: "externaldrive",
                 action: {
-                    viewModel.loadEventsFromCache()
+                    cachedViewModel.loadEventsFromCache()
                     presentationMode.wrappedValue.dismiss()
                 }
             )
@@ -166,7 +171,7 @@ struct EventsFilterView: View {
                 title: "Force API",
                 icon: "arrow.clockwise",
                 action: {
-                    viewModel.loadEvents(strategy: .apiOnly)
+                    cachedViewModel.loadEvents(strategy: .apiOnly)
                     presentationMode.wrappedValue.dismiss()
                 }
             )
@@ -176,8 +181,8 @@ struct EventsFilterView: View {
                 icon: "trash",
                 isDestructive: true,
                 action: {
-                    viewModel.clearAllCache()
-                    viewModel.loadEvents(strategy: .apiFirst)
+                    cachedViewModel.clearAllCache()
+                    cachedViewModel.loadEvents(strategy: .apiFirst)
                 }
             )
             
@@ -185,10 +190,43 @@ struct EventsFilterView: View {
                 title: "Refresh",
                 icon: "arrow.triangle.2.circlepath",
                 action: {
-                    viewModel.refreshEventsManually()
+                    cachedViewModel.refreshEventsManually()
                     presentationMode.wrappedValue.dismiss()
                 }
             )
+        }
+    }
+    
+    // MARK: - Helper Methods for Cache
+    private func cacheStatusColor(for cachedViewModel: CachedEventsViewModel) -> Color {
+        switch cachedViewModel.uiLoadingState {
+        case .showingCached:
+            return .green
+        case .refreshingBackground:
+            return .orange
+        case .showingSkeleton, .refreshingManual:
+            return .red
+        case .error:
+            return .red
+        default:
+            return .gray
+        }
+    }
+    
+    private func cacheStatusDescription(for cachedViewModel: CachedEventsViewModel) -> String {
+        switch cachedViewModel.uiLoadingState {
+        case .showingCached:
+            return "Data loaded from cache"
+        case .refreshingBackground:
+            return "Updating in background"
+        case .showingSkeleton:
+            return "Loading from API"
+        case .refreshingManual:
+            return "Refreshing data"
+        case .error:
+            return "Error occurred"
+        default:
+            return "Cache ready"
         }
     }
     
@@ -477,39 +515,6 @@ struct EventsFilterView: View {
         }
     }
     
-    // MARK: - Computed Properties
-    private var cacheStatusColor: Color {
-        switch viewModel.uiLoadingState {
-        case .showingCached:
-            return .green
-        case .refreshingBackground:
-            return .orange
-        case .showingSkeleton, .refreshingManual:
-            return .red
-        case .error:
-            return .red
-        default:
-            return .gray
-        }
-    }
-    
-    private var cacheStatusDescription: String {
-        switch viewModel.uiLoadingState {
-        case .showingCached:
-            return "Data loaded from cache"
-        case .refreshingBackground:
-            return "Updating in background"
-        case .showingSkeleton:
-            return "Loading from API"
-        case .refreshingManual:
-            return "Refreshing data"
-        case .error:
-            return "Error occurred"
-        default:
-            return "Cache ready"
-        }
-    }
-    
     // MARK: - Mock Data
     private var mockSports: [Sport] {
         [
@@ -527,67 +532,8 @@ struct EventsFilterView: View {
     }
 }
 
-// MARK: - Cache Action Button Component
-struct CacheActionButton: View {
-    let title: String
-    let icon: String
-    var isDestructive: Bool = false
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .medium))
-                
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-            }
-            .foregroundColor(isDestructive ? .red : .primaryOrange)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(isDestructive ? Color.red.opacity(0.1) : Color.primaryOrange.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isDestructive ? Color.red.opacity(0.3) : Color.primaryOrange.opacity(0.3), lineWidth: 1)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// MARK: - Filter Toggle Component
-struct FilterToggle: View {
-    let title: String
-    @Binding var isOn: Bool
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textPrimary)
-            
-            Spacer()
-            
-            Toggle("", isOn: $isOn)
-                .toggleStyle(SwitchToggleStyle(tint: .primaryOrange))
-                .scaleEffect(0.9)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.formBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.formBorder, lineWidth: 1)
-        )
-    }
-}
-
 // MARK: - Preview
 #Preview {
-    EventsFilterView(viewModel: CachedEventsViewModel())
+    GenericEventsFilterView(viewModel: CachedEventsViewModel())
         .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
 }

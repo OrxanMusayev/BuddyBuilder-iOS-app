@@ -45,8 +45,8 @@ struct EventsView: View {
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingFilters) {
-            EventsFilterView(viewModel: eventsViewModel)
-                .environmentObject(localizationManager)
+            GenericEventsFilterView(viewModel: eventsViewModel)
+                 .environmentObject(localizationManager)
         }
         .onAppear {
             if eventsViewModel.events.isEmpty {

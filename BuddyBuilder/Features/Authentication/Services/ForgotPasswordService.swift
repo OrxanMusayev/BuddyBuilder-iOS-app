@@ -7,7 +7,7 @@ import Combine
 protocol ForgotPasswordServiceProtocol {
     func requestPasswordReset(email: String) -> AnyPublisher<ForgotPasswordResponse, Error>
     func verifyEmail(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error>
-    func resetPasswordByEmail(newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error>
+    func resetPasswordByEmail(email: String, newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error>
     func verifyEmailWithQueryParam(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error>
 }
 
@@ -118,8 +118,8 @@ class ForgotPasswordService: ForgotPasswordServiceProtocol {
     }
     
     // MARK: - Reset Password By Email - FIXED WITH VERIFICATION TOKEN
-    func resetPasswordByEmail(newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error> {
-        let request = ResetPasswordRequest(newPassword: newPassword, confirmPassword: confirmPassword)
+    func resetPasswordByEmail(email: String, newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error> {
+        let request = ResetPasswordRequest(email: email, newPassword: newPassword, confirmPassword: confirmPassword)
         
         guard let requestData = try? JSONEncoder().encode(request) else {
             print("❌ Failed to encode reset password request")
@@ -216,67 +216,5 @@ extension ResetPasswordRequest {
         }
         
         return true
-    }
-}
-
-// MARK: - Mock Service Update
-class MockForgotPasswordService: ForgotPasswordServiceProtocol {
-    func requestPasswordReset(email: String) -> AnyPublisher<ForgotPasswordResponse, Error> {
-        print("🧪 MOCK: Sending password reset to \(email)")
-        
-        let response = ForgotPasswordResponse(
-            success: true,
-            message: "Verification code sent to your email",
-            data: true,
-            errors: nil,
-            timestamp: ISO8601DateFormatter().string(from: Date())
-        )
-        
-        return Just(response)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
-    }
-    
-    func verifyEmail(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
-        print("🧪 MOCK: Verifying code: \(verificationCode)")
-        
-        let isValid = verificationCode == "123456" // Mock validation
-        
-        let response = VerifyEmailResponse(
-            success: isValid,
-            message: isValid ? "Email verified successfully" : "Invalid verification code",
-            data: isValid,
-            errors: isValid ? nil : ["Invalid verification code"],
-            timestamp: ISO8601DateFormatter().string(from: Date())
-        )
-        
-        return Just(response)
-            .delay(for: .seconds(1), scheduler: RunLoop.main)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
-    }
-    
-    func resetPasswordByEmail(newPassword: String, confirmPassword: String) -> AnyPublisher<ResetPasswordResponse, Error> {
-        print("🧪 MOCK: Resetting password")
-        
-        let isValid = !newPassword.isEmpty && newPassword == confirmPassword
-        
-        let response = ResetPasswordResponse(
-            success: isValid,
-            message: isValid ? "Password reset successfully" : "Password reset failed",
-            data: isValid,
-            errors: isValid ? nil : ["Password validation failed"],
-            timestamp: ISO8601DateFormatter().string(from: Date())
-        )
-        
-        return Just(response)
-            .delay(for: .seconds(1.5), scheduler: RunLoop.main)
-            .setFailureType(to: Error.self)
-            .eraseToAnyPublisher()
-    }
-    
-    func verifyEmailWithQueryParam(verificationCode: String) -> AnyPublisher<VerifyEmailResponse, Error> {
-        return verifyEmail(verificationCode: verificationCode)
     }
 }

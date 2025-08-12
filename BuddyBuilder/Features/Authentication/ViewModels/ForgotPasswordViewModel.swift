@@ -4,6 +4,7 @@ import Foundation
 import Combine
 import SwiftUI
 
+@MainActor
 class ForgotPasswordViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var currentStep: ForgotPasswordStep = .enterEmail
@@ -20,11 +21,11 @@ class ForgotPasswordViewModel: ObservableObject {
     @Published var passwordError = false
     @Published var confirmPasswordError = false
     
-    // Success state
-    @Published var isCompleted = false
+    // Artık success state'i sadece currentStep ile yönetiliyor
     
     // MARK: - Private Properties
     private let forgotPasswordService: ForgotPasswordServiceProtocol
+    private let localizationManager = LocalizationManager.shared
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Computed Properties
@@ -59,16 +60,20 @@ class ForgotPasswordViewModel: ObservableObject {
         // Real-time password validation
         formData.$newPassword
             .combineLatest(formData.$confirmPassword)
-            .sink { [weak self] password, confirmPassword in
-                self?.validatePasswordFields(password: password, confirmPassword: confirmPassword)
+            .sink { [weak self] (password: String, confirmPassword: String) in
+                Task { @MainActor [weak self] in
+                    await self?.validatePasswordFields(password: password, confirmPassword: confirmPassword)
+                }
             }
             .store(in: &cancellables)
         
         // ENHANCED: Monitor verification code changes
         formData.$verificationCode
-            .sink { [weak self] code in
+            .sink { [weak self] (code: String) in
                 print("🔍 ViewModel - Verification code changed: '\(code)' (length: \(code.count))")
-                self?.verificationCodeError = false
+                Task { @MainActor [weak self] in
+                    self?.verificationCodeError = false
+                }
             }
             .store(in: &cancellables)
         
@@ -76,42 +81,58 @@ class ForgotPasswordViewModel: ObservableObject {
         setupFieldErrorClearingObservers()
     }
     
+    @MainActor
     private func validatePasswordFields(password: String, confirmPassword: String) {
         passwordError = !formData.isValidPassword() && !password.isEmpty
         confirmPasswordError = !formData.passwordsMatch() && !confirmPassword.isEmpty
         
         if passwordError {
             if password.count < 8 {
-                errorMessage = "Password must be at least 8 characters long"
+                errorMessage = "validation.password.min_length".localized(using: localizationManager)
             } else if !formData.passwordHasLowercase() {
-                errorMessage = "Password must contain at least one lowercase letter"
+                errorMessage = "validation.password.lowercase".localized(using: localizationManager)
             } else if !formData.passwordHasUppercase() {
-                errorMessage = "Password must contain at least one uppercase letter"
+                errorMessage = "validation.password.uppercase".localized(using: localizationManager)
             } else if !formData.passwordHasNumber() {
-                errorMessage = "Password must contain at least one number"
+                errorMessage = "validation.password.number".localized(using: localizationManager)
             } else if !formData.passwordHasSpecialChar() {
-                errorMessage = "Password must contain at least one special character"
+                errorMessage = "validation.password.special_char".localized(using: localizationManager)
             }
         } else if confirmPasswordError {
-            errorMessage = "Passwords do not match"
+            errorMessage = "validation.password.no_match".localized(using: localizationManager)
         } else if !passwordError && !confirmPasswordError {
             errorMessage = ""
         }
     }
     
+    
     private func setupFieldErrorClearingObservers() {
-        formData.$email.sink { [weak self] _ in self?.emailError = false }.store(in: &cancellables)
-        formData.$newPassword.sink { [weak self] _ in self?.passwordError = false }.store(in: &cancellables)
-        formData.$confirmPassword.sink { [weak self] _ in self?.confirmPasswordError = false }.store(in: &cancellables)
+        formData.$email.sink { [weak self] (_: String) in
+            Task { @MainActor [weak self] in
+                self?.emailError = false
+            }
+        }.store(in: &cancellables)
+        
+        formData.$newPassword.sink { [weak self] (_: String) in
+            Task { @MainActor [weak self] in
+                self?.passwordError = false
+            }
+        }.store(in: &cancellables)
+        
+        formData.$confirmPassword.sink { [weak self] (_: String) in
+            Task { @MainActor [weak self] in
+                self?.confirmPasswordError = false
+            }
+        }.store(in: &cancellables)
     }
     
     // MARK: - Navigation Methods
-    func proceedToNextStep() {
+    func proceedToNextStep() async {
         print("🔍 ViewModel - proceedToNextStep called for step: \(currentStep)")
         print("🔍 ViewModel - Current verification code: '\(formData.verificationCode)'")
         
         guard canProceedToNextStep else {
-            markCurrentStepErrors()
+            await markCurrentStepErrors()
             return
         }
         
@@ -157,11 +178,13 @@ class ForgotPasswordViewModel: ObservableObject {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self?.currentStep = .verifyCode
                         }
-                    } else {
-                        let errorMsg = response.message ?? "Failed to send verification code"
-                        print("❌ Password reset request error: \(errorMsg)")
-                        self?.errorMessage = errorMsg
-                        self?.showError = true
+                    } else if let messageKey = response.message {
+                        print("❌ Password reset request error: \(messageKey)")
+                        Task { @MainActor [weak self] in
+                            guard let self = self else { return }
+                            self.errorMessage = messageKey.localized(using: self.localizationManager)
+                            self.showError = true
+                        }
                     }
                 }
             )
@@ -209,11 +232,13 @@ class ForgotPasswordViewModel: ObservableObject {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self?.currentStep = .resetPassword
                         }
-                    } else {
-                        let errorMsg = response.message ?? "Invalid verification code"
-                        print("❌ Email verification error: \(errorMsg)")
-                        self?.errorMessage = errorMsg
-                        self?.showError = true
+                    } else if let messageKey = response.message {
+                        print("❌ Email verification error: \(messageKey)")
+                        Task { @MainActor [weak self] in
+                            guard let self = self else { return }
+                            self.errorMessage = messageKey.localized(using: self.localizationManager)
+                            self.showError = true
+                        }
                     }
                 }
             )
@@ -231,8 +256,9 @@ class ForgotPasswordViewModel: ObservableObject {
         errorMessage = ""
         
         forgotPasswordService.resetPasswordByEmail(
+            email: formData.email,
             newPassword: formData.newPassword,
-            confirmPassword: formData.confirmPassword,
+            confirmPassword: formData.confirmPassword
         )
         .receive(on: DispatchQueue.main)
         .sink(
@@ -247,17 +273,20 @@ class ForgotPasswordViewModel: ObservableObject {
                 }
             },
             receiveValue: { [weak self] response in
+                guard let self = self else { return }
+                
                 if response.success {
                     print("🎉 Password reset successful")
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        self?.currentStep = .success
-                        self?.isCompleted = true
+                        self.currentStep = .success
                     }
-                } else {
-                    let errorMsg = response.message ?? "Failed to reset password"
-                    print("❌ Password reset error: \(errorMsg)")
-                    self?.errorMessage = errorMsg
-                    self?.showError = true
+                } else if let messageKey = response.message {
+                    print("❌ Password reset error: \(messageKey)")
+                    // API'den gelen message direkt olarak translation key'i olarak kullanılacak
+                    Task { @MainActor in
+                        self.errorMessage = messageKey.localized(using: self.localizationManager)
+                        self.showError = true
+                    }
                 }
             }
         )
@@ -265,19 +294,20 @@ class ForgotPasswordViewModel: ObservableObject {
     }
     
     // MARK: - Validation Methods
+    @MainActor
     private func markCurrentStepErrors() {
         switch currentStep {
         case .enterEmail:
             emailError = !formData.isValidEmail()
             if emailError {
-                errorMessage = "Please enter a valid email address"
+                errorMessage = "validation.email.invalid".localized(using: localizationManager)
             }
             
         case .verifyCode:
             verificationCodeError = !formData.isValidVerificationCode()
             if verificationCodeError {
                 print("🔍 ViewModel - Marking verification code error, current code: '\(formData.verificationCode)'")
-                errorMessage = "Please enter a valid 6-digit verification code"
+                errorMessage = "validation.verification_code.invalid".localized(using: localizationManager)
             }
             
         case .resetPassword:
@@ -286,12 +316,12 @@ class ForgotPasswordViewModel: ObservableObject {
             
             if passwordError {
                 if formData.newPassword.count < 8 {
-                    errorMessage = "Password must be at least 8 characters long"
+                    errorMessage = "validation.password.min_length".localized(using: localizationManager)
                 } else {
-                    errorMessage = "Password must meet all requirements"
+                    errorMessage = "validation.password.requirements".localized(using: localizationManager)
                 }
             } else if confirmPasswordError {
-                errorMessage = "Passwords do not match"
+                errorMessage = "validation.password.no_match".localized(using: localizationManager)
             }
             
         case .success:
@@ -304,12 +334,15 @@ class ForgotPasswordViewModel: ObservableObject {
     }
     
     // MARK: - Helper Methods
+    @MainActor
     private func handleError(_ error: Error) {
+        let errorKey: String
         if let forgotPasswordError = error as? ForgotPasswordError {
-            errorMessage = forgotPasswordError.localizedDescription
+            errorKey = String(describing: forgotPasswordError)
         } else {
-            errorMessage = error.localizedDescription
+            errorKey = "error.general"
         }
+        errorMessage = errorKey.localized(using: localizationManager)
         showError = true
         print("❌ Forgot Password Error: \(errorMessage)")
     }
@@ -327,7 +360,6 @@ class ForgotPasswordViewModel: ObservableObject {
         formData = ForgotPasswordFormData()
         currentStep = .enterEmail
         clearErrors()
-        isCompleted = false
         print("🔄 Forgot password form reset")
     }
     

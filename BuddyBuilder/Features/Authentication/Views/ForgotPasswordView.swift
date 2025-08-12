@@ -16,17 +16,25 @@ struct ForgotPasswordView: View {
                 
                 // Main Content
                 VStack(spacing: 0) {
-                    // Header Section
-                    headerSection
-                        .padding(.horizontal, 20)
-                        .padding(.top, 80)
-                    
-                    // Step Visual
-                    stepVisual
-                        .padding(.bottom, 30)
+                    if viewModel.currentStep != .success {
+                        // Header Section
+                        headerSection
+                            .padding(.horizontal, 20)
+                            .padding(.top, 80)
+                        
+                        // Step Visual
+                        stepVisual
+                            .padding(.top, 24)
+                            .padding(.bottom, 30)
+                    }
                     
                     // Step Content
                     ScrollView(showsIndicators: false) {
+                        if viewModel.currentStep == .success {
+                            Spacer()
+                                .frame(height: geometry.size.height * 0.2)
+                        }
+                        
                         VStack(spacing: 24) {
                             currentStepContent
                         }
@@ -57,14 +65,6 @@ struct ForgotPasswordView: View {
         .ignoresSafeArea()
         .navigationBarBackButtonHidden(true)
         .dismissKeyboardOnTap()
-        .onChange(of: viewModel.isCompleted) { completed in
-            if completed {
-                // Auto-dismiss after success
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                    dismiss()
-                }
-            }
-        }
     }
     
     // MARK: - Computed Properties
@@ -99,15 +99,11 @@ struct ForgotPasswordView: View {
             
             // Title Section
             VStack(spacing: 8) {
-                Text(viewModel.currentStep.title.localized(using: localizationManager))
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.black)
-                
-                Text(viewModel.currentStep.subtitle.localized(using: localizationManager))
-                    .font(.system(size: 14))
-                    .foregroundColor(.black.opacity(0.7))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
+                if viewModel.currentStep != .success {
+                    Text(viewModel.currentStep.title.localized(using: localizationManager))
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.primaryText)
+                }
             }
         }
     }
@@ -124,10 +120,10 @@ struct ForgotPasswordView: View {
                         endRadius: 40
                     )
                 )
-                .frame(width: 80, height: 80)
+                .frame(width: 70, height: 70)
             
             Image(systemName: viewModel.currentStep.icon)
-                .font(.system(size: 32, weight: .medium))
+                .font(.system(size: 28, weight: .medium))
                 .foregroundColor(stepIconColor)
         }
         .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
@@ -174,7 +170,9 @@ struct ForgotPasswordView: View {
         VStack(spacing: 12) {
             // Main Action Button
             Button(action: {
-                viewModel.proceedToNextStep()
+                Task {
+                    await viewModel.proceedToNextStep()
+                }
             }) {
                 HStack {
                     if viewModel.isLoading {
@@ -295,7 +293,7 @@ struct ForgotPasswordView: View {
                     
                     Circle()
                         .fill(Color.red.opacity(0.2))
-                        .frame(width: 60, height: 60)
+                        .frame(width: 50, height: 50)
                     
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 28, weight: .medium))
@@ -304,10 +302,7 @@ struct ForgotPasswordView: View {
                 .padding(.bottom, 24)
                 
                 // Title
-                Text("Oops!")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.textPrimary)
-                    .padding(.bottom, 8)
+
                 
                 // Message
                 Text(viewModel.errorMessage)
@@ -370,10 +365,11 @@ struct EnterEmailStepView: View {
     var body: some View {
         VStack(spacing: 20) {
             Text("Enter the email address associated with your account and we'll send you a verification code to reset your password.")
-                .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
+                .padding(.vertical, 20)
             
             CustomTextFieldNoTitle(
                 text: $viewModel.formData.email,
@@ -395,22 +391,11 @@ struct VerifyCodeStepView: View {
     
     var body: some View {
         VStack(spacing: 24) {
-            VStack(spacing: 12) {
-                Text("We've sent a verification code to:")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondaryText)
-                
-                Text(viewModel.formData.email)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primaryOrange)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 20)
-            
             VerificationCodeField(
                 code: $viewModel.formData.verificationCode,
                 hasError: viewModel.verificationCodeError
             )
+            .padding(.top, 10)
             
             // Resend Code Button
             Button(action: {
@@ -437,12 +422,6 @@ struct ResetPasswordStepView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Create a new password for your account. Make sure it's strong and secure.")
-                .font(.system(size: 14))
-                .foregroundColor(.secondaryText)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
-            
             // New Password Field
             CustomPasswordFieldNoTitle(
                 text: $viewModel.formData.newPassword,
@@ -450,6 +429,7 @@ struct ResetPasswordStepView: View {
                 placeholder: "New Password",
                 hasError: viewModel.passwordError
             )
+            .padding(.top, 10)
             
             // Confirm Password Field
             CustomPasswordFieldNoTitle(
@@ -522,17 +502,20 @@ struct SuccessStepView: View {
     
     var body: some View {
         VStack(spacing: 32) {
-            // Success Animation
-            SuccessPasswordResetVisual()
-                .scaleEffect(1.2)
+            // Success Icon
+            Image(systemName: "checkmark.circle.fill")
+                .resizable()
+                .frame(width: 80, height: 80)
+                .foregroundColor(.green)
+                .padding(.bottom, 20)
             
             VStack(spacing: 16) {
-                Text("Password Reset Successfully!")
+                Text.localized("forgot_password.success.title", using: localizationManager)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundColor(.green)
                     .multilineTextAlignment(.center)
                 
-                Text("Your password has been updated. You can now login with your new password.")
+                Text.localized("forgot_password.success.message", using: localizationManager)
                     .font(.system(size: 14))
                     .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
@@ -547,7 +530,7 @@ struct SuccessStepView: View {
                     Image(systemName: "arrow.left")
                         .font(.system(size: 16))
                     
-                    Text("Back to Login")
+                    Text.localized("forgot_password.success.login_button", using: localizationManager)
                         .font(.system(size: 16, weight: .semibold))
                 }
                 .foregroundColor(.white)
@@ -664,39 +647,12 @@ struct ForgotPasswordRequirementRow: View {
     }
 }
 
-// MARK: - Success Visual
-struct SuccessPasswordResetVisual: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        ZStack {
-            // Success burst background
-            ForEach(0..<8, id: \.self) { index in
-                Rectangle()
-                    .fill(LinearGradient(colors: [.green, .green.opacity(0.3)], startPoint: .leading, endPoint: .trailing))
-                    .frame(width: 25, height: 2)
-                    .offset(x: 12)
-                    .rotationEffect(.degrees(Double(index) * 45))
-                    .scaleEffect(isAnimating ? 1.2 : 0.8)
-                    .opacity(isAnimating ? 1.0 : 0.6)
-            }
-            
-            // Central lock with checkmark
-            ZStack {
-                Circle()
-                    .fill(LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 45, height: 45)
-                
-                Image(systemName: "lock.rotation.open")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            .scaleEffect(isAnimating ? 1.1 : 1.0)
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                isAnimating = true
-            }
-        }
-    }
+#Preview("Full Flow") {
+    ForgotPasswordView()
+        .environmentObject(LocalizationManager.shared)
+}
+
+#Preview("Success Step") {
+    SuccessStepView(viewModel: ForgotPasswordViewModel())
+        .environmentObject(LocalizationManager.shared)
 }

@@ -32,6 +32,11 @@ class NetworkManager: ObservableObject {
                         finalHeaders["Authorization"] = "Bearer \(token)"
                     }
                     
+                    // Dil header'ını ekle
+                    if let currentLanguage = LocalizationManager.shared.currentLanguage {
+                        finalHeaders["Accept-Language"] = currentLanguage.code
+                    }
+                    
                     // Request yap
                     let result = try await self.makeAsyncRequest(
                         endpoint: endpoint,
@@ -206,10 +211,16 @@ class NetworkManager: ObservableObject {
         request.httpMethod = method.rawValue
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        // Custom headers ekle
         if let headers = headers {
             for (key, value) in headers {
                 request.addValue(value, forHTTPHeaderField: key)
             }
+        }
+        
+        // Dil header'ını ekle
+        if let currentLanguage = LocalizationManager.shared.currentLanguage {
+            request.addValue(currentLanguage.code, forHTTPHeaderField: "Accept-Language")
         }
         
         request.timeoutInterval = 30

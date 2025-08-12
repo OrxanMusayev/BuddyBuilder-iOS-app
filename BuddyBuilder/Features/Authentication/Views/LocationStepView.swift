@@ -508,9 +508,9 @@ struct LocationSearchField: View {
                         }
                     }
                     .frame(maxHeight: 200)
-                    .background(Color.white)
+                    .background(Color.formBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 16)) // CONSISTENT: Match input corners
-                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(Color.primaryOrange.opacity(0.2), lineWidth: 1)

@@ -9,6 +9,7 @@ struct ForgotPasswordRequest: Codable {
 
 // MARK: - Reset Password Request
 struct ResetPasswordRequest: Codable {
+    let email: String
     let newPassword: String
     let confirmPassword: String
 }

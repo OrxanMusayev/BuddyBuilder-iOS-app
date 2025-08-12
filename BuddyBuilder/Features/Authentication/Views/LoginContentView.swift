@@ -24,7 +24,7 @@ struct LoginContentView: View {
                 VStack(spacing: 0) {
                     // Top spacing for status bar and language picker
                     Spacer()
-                        .frame(height: 100) // Reduced from 120
+                        .frame(height: 60)
                     
                     // App logo only - REMOVED: BuddyBuilder text
                     Image("appstore")
@@ -147,11 +147,10 @@ struct LoginContentView: View {
                         .animation(.none, value: authViewModel.isLoading) // Disable animation on loading state
                     }
                     
-                    // EXPANDED: Spacer to push content to bottom
-                    Spacer()
+                        Spacer()
                     
-                    // Bottom Section - MOVED TO BOTTOM
-                    VStack(spacing: 24) {
+                    // Bottom Section
+                    VStack(spacing: 16) {
                         // Divider
                         HStack {
                             Rectangle()
@@ -169,28 +168,22 @@ struct LoginContentView: View {
                         }
                         
                         // Sign Up Section
-                        VStack(spacing: 16) {
-                            Rectangle()
-                                .fill(Color.formBorder)
-                                .frame(height: 1)
+                        HStack {
+                            Text("auth.login.signup.text".localized(using: localizationManager))
+                                .font(.system(size: 15))
+                                .foregroundColor(.secondaryText)
                             
-                            HStack {
-                                Text("auth.login.signup.text".localized(using: localizationManager))
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.secondaryText)
-                                
-                                Button(action: {
-                                    print("🔄 Sign Up button tapped")
-                                    showRegistration = true
-                                }) {
-                                    Text("auth.login.signup.link".localized(using: localizationManager))
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundColor(.primaryOrange)
-                                }
+                            Button(action: {
+                                print("🔄 Sign Up button tapped")
+                                showRegistration = true
+                            }) {
+                                Text("auth.login.signup.link".localized(using: localizationManager))
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(.primaryOrange)
                             }
                         }
                     }
-                    .padding(.bottom, 40) // Bottom padding
+                    .padding(.bottom, 16)
                 }
                 .padding(.horizontal, 20)
                 

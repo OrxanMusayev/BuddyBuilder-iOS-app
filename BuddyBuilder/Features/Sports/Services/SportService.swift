@@ -64,7 +64,7 @@ protocol MySportsServiceProtocol {
 // MARK: - My Sports Service Implementation - UPDATED
 class MySportsService: MySportsServiceProtocol {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://localhost:5206/api/Sports"
+    private let baseURL = "http://192.168.100.76:5206/api/Sports"
     
     // MARK: - Fetch My Sports (with auto-refresh)
     func fetchMySportsWithAutoRefresh() -> AnyPublisher<[UserSport], Error> {

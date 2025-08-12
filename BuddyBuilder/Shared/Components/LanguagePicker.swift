@@ -13,7 +13,11 @@ struct CompactLanguagePicker: View {
                 compactDropdown
             }
         }
-        .background(backgroundTapHandler)
+        .onReceive(NotificationCenter.default.publisher(for: .dismissDropdowns)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showDropdown = false
+            }
+        }
     }
     
     // MARK: - Language Button (Shows Language Code)
@@ -29,16 +33,16 @@ struct CompactLanguagePicker: View {
                 Image(systemName: showDropdown ? "chevron.up" : "chevron.down")
                     .font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor(.textPrimary)
+            .foregroundColor(.primaryText) // Updated
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.formBackground)
+            .background(Color.formBackground) // Already adaptive
             .clipShape(RoundedRectangle(cornerRadius: 25))
             .overlay(
                 RoundedRectangle(cornerRadius: 25)
                     .stroke(buttonBorderColor, lineWidth: buttonBorderWidth)
             )
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .shadow(color: .dynamicShadow, radius: 2, x: 0, y: 1) // Updated
         }
         .disabled(localizationManager.isLoading)
         .scaleEffect(showDropdown ? 0.95 : 1.0)
@@ -52,14 +56,14 @@ struct CompactLanguagePicker: View {
                 compactLanguageRow(for: language)
             }
         }
-        .background(Color.white.opacity(0.98))
+        .background(Color.cardBackground) // Updated
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.formBorder.opacity(0.8), lineWidth: 1)
+                .stroke(Color.dynamicBorder, lineWidth: 1) // Updated
         )
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        .frame(width: 180) // Wider to prevent text wrapping
+        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 4) // Updated
+        .frame(width: 180)
         .padding(.top, 4)
         .transition(.opacity.combined(with: .scale))
         .zIndex(1000)
@@ -69,15 +73,13 @@ struct CompactLanguagePicker: View {
     private func compactLanguageRow(for language: Language) -> some View {
         Button(action: { selectLanguage(language) }) {
             HStack(spacing: 12) {
-                // Language name (native)
                 Text(language.nativeName)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText) // Updated
                     .lineLimit(1)
                 
                 Spacer()
                 
-                // Selection indicator
                 if isSelected(language) {
                     if localizationManager.isLoading {
                         ProgressView()
@@ -109,7 +111,7 @@ struct CompactLanguagePicker: View {
         if showDropdown {
             return .primaryOrange
         } else {
-            return .formBorder
+            return .dynamicBorder // Updated
         }
     }
     
@@ -132,20 +134,6 @@ struct CompactLanguagePicker: View {
             await localizationManager.changeLanguage(to: language)
             withAnimation(.easeInOut(duration: 0.2)) {
                 showDropdown = false
-            }
-        }
-    }
-    
-    private var backgroundTapHandler: some View {
-        Group {
-            if showDropdown {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showDropdown = false
-                        }
-                    }
             }
         }
     }
@@ -312,6 +300,11 @@ struct LanguageRow: View {
         .disabled(isLoading)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
+}
+
+// MARK: - Notification Extension for Dropdown Dismissal
+extension Notification.Name {
+    static let dismissDropdowns = Notification.Name("dismissDropdowns")
 }
 
 // MARK: - Preview

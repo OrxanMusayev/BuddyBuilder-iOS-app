@@ -4,6 +4,9 @@ import Combine
 
 // MARK: - Localization Manager
 class LocalizationManager: ObservableObject {
+    // MARK: - Shared Instance
+    static let shared = LocalizationManager()
+    
     // MARK: - Published Properties
     @Published var currentLanguage: Language? = nil
     @Published var availableLanguages: [Language] = []
@@ -47,7 +50,7 @@ class LocalizationManager: ObservableObject {
             // Fallback to default language if API fails
             availableLanguages = [
                 Language(code: "en", name: "English", nativeName: "English", isDefault: true, isActive: true)
-            ]
+            ]          
         }
         
         isLoading = false

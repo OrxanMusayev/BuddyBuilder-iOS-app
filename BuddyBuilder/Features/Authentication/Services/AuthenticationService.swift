@@ -5,7 +5,7 @@ import Combine
 
 class AuthenticationService {
     private let networkManager = NetworkManager.shared
-    private let baseURL = "http://127.0.0.1:5206/api/Auth"
+    private let baseURL = "http://192.168.100.76:5206/api/Auth"
     
     func login(userName: String, password: String, rememberMe: Bool) -> AnyPublisher<LoginResponse, Error> {
         let loginRequest = LoginRequest(
@@ -35,7 +35,7 @@ class AuthenticationService {
     
     func logout(refreshToken: String, accessToken: String) -> AnyPublisher<Void, Error> {
         let logoutURL = "\(baseURL)/logout?refreshToken=\(refreshToken)"
-                
+        
                 // Access token'ı header olarak ekle
                 let headers = [
                     "Authorization": "Bearer \(accessToken)"
@@ -64,6 +64,11 @@ class AuthenticationService {
                     return Fail(error: error)
                         .eraseToAnyPublisher()
                 }
+                .handleEvents(receiveOutput: { _ in
+                        // ✅ İşte burada cache temizliği yapılır
+                        CentralCacheManager.shared.clearUserData()
+                        print("🧹 Cleared user-related cache on logout")
+                    })
                 .map { _ in () }
                 .eraseToAnyPublisher()
     }

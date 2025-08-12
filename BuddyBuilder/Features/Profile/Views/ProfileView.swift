@@ -1,15 +1,16 @@
-// BuddyBuilder/Features/Profile/Views/ProfileView.swift - COMPLETE VERSION WITH ENHANCED HEADER
+// BuddyBuilder/Features/Profile/Views/ProfileView.swift - UPDATED ProfileViewModel with Cache Management
 
 import SwiftUI
 import PhotosUI
 import Combine
 
-// MARK: - Profile View Model - ENHANCED WITH USER DETAILS
+// MARK: - Profile View Model - ENHANCED WITH IMAGE CACHING AND USER CHANGE DETECTION
 class ProfileViewModel: ObservableObject {
     @Published var profilePhotoURL: String?
-    @Published var profileDetails: ProfileDetails? // Store full profile details
+    @Published var profilePhotoImage: UIImage? // Store actual image
+    @Published var profileDetails: ProfileDetails?
     @Published var isLoadingPhoto = false
-    @Published var isLoadingProfile = false // Loading state for profile details
+    @Published var isLoadingProfile = false
     @Published var showImagePicker = false
     @Published var showCamera = false
     @Published var showPhotoOptions = false
@@ -17,21 +18,62 @@ class ProfileViewModel: ObservableObject {
     @Published var showError = false
     
     private let profilePhotoService: ProfilePhotoServiceProtocol
-    private let profileDetailsService: ProfileDetailsServiceProtocol // Profile details service
+    private let profileDetailsService: ProfileDetailsServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
+    // NEW: Track current user to detect user changes
+    private var currentUserId: String = ""
+
     init(profilePhotoService: ProfilePhotoServiceProtocol = ProfilePhotoService(),
          profileDetailsService: ProfileDetailsServiceProtocol = ProfileDetailsService()) {
         self.profilePhotoService = profilePhotoService
         self.profileDetailsService = profileDetailsService
+        
+        // Set current user ID
+        currentUserId = UserDefaults.standard.string(forKey: "user_id") ?? ""
+        
         loadProfilePhoto()
-        loadProfileDetails() // Load profile details
+        loadProfileDetails()
     }
+
     
+    // MARK: - NEW: Check for User Change and Clear Cache if Needed
+    func checkForUserChange() {
+        guard let newUserId = UserDefaults.standard.string(forKey: "user_id"),
+              !newUserId.isEmpty else {
+            print("⚠️ No user ID found in UserDefaults.")
+            return
+        }
+        
+        if newUserId != currentUserId {
+            print("🔄 User changed from \(currentUserId) to \(newUserId), clearing caches...")
+            
+            // Clear photo cache
+            profilePhotoService.clearCacheOnUserChange()
+            
+            // Reset UI state
+            profilePhotoURL = nil
+            profilePhotoImage = nil
+            profileDetails = nil
+            
+            // Update current user ID
+            currentUserId = newUserId
+            
+            // Reload data for new user
+            loadProfilePhoto()
+            loadProfileDetails()
+        }
+    }
+
+    
+    // MARK: - Load Profile Photo (Image Data)
     func loadProfilePhoto() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         isLoadingPhoto = true
         
-        profilePhotoService.fetchProfilePhotoURL()
+        profilePhotoService.fetchProfilePhoto()
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -40,15 +82,26 @@ class ProfileViewModel: ObservableObject {
                         print("❌ Failed to load profile photo: \(error)")
                     }
                 },
-                receiveValue: { [weak self] url in
-                    self?.profilePhotoURL = url
+                receiveValue: { [weak self] result in
+                    self?.profilePhotoURL = result.url
+                    
+                    // Convert image data to UIImage
+                    if let imageData = result.imageData {
+                        self?.profilePhotoImage = UIImage(data: imageData)
+                        print("✅ Loaded cached profile image: \(imageData.count) bytes")
+                    } else {
+                        self?.profilePhotoImage = nil
+                    }
                 }
             )
             .store(in: &cancellables)
     }
     
-    // Load Profile Details
+    // MARK: - Load Profile Details
     func loadProfileDetails() {
+        // Check for user changes before loading
+        checkForUserChange()
+        
         isLoadingProfile = true
         
         profileDetailsService.fetchProfileDetailsWithAutoRefresh()
@@ -68,6 +121,25 @@ class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
+    // MARK: - Refresh User Details Only
+    func refreshUserDetailsOnly() {
+        profileDetailsService.fetchProfileDetailsWithAutoRefresh()
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    if case .failure(let error) = completion {
+                        print("❌ Failed to refresh user details: \(error)")
+                    }
+                },
+                receiveValue: { [weak self] profile in
+                    self?.profileDetails = profile
+                    print("✅ User details refreshed")
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    // MARK: - Upload Profile Photo (with image caching)
     func uploadProfilePhoto(_ imageData: Data) {
         isLoadingPhoto = true
         
@@ -84,14 +156,20 @@ class ProfileViewModel: ObservableObject {
                         self?.handleError("Failed to upload photo: \(error.localizedDescription)")
                     }
                 },
-                receiveValue: { [weak self] url in
-                    self?.profilePhotoURL = url
-                    print("✅ Profile photo updated successfully")
+                receiveValue: { [weak self] result in
+                    self?.profilePhotoURL = result.url
+                    
+                    // Update UI with new image immediately (already cached)
+                    if let imageData = result.imageData {
+                        self?.profilePhotoImage = UIImage(data: imageData)
+                        print("✅ Profile photo updated and cached")
+                    }
                 }
             )
             .store(in: &cancellables)
     }
     
+    // MARK: - Delete Profile Photo
     func deleteProfilePhoto() {
         isLoadingPhoto = true
         
@@ -107,7 +185,8 @@ class ProfileViewModel: ObservableObject {
                 receiveValue: { [weak self] success in
                     if success {
                         self?.profilePhotoURL = nil
-                        print("✅ Profile photo deleted successfully")
+                        self?.profilePhotoImage = nil // Clear image from memory
+                        print("✅ Profile photo deleted and cache cleared")
                     }
                 }
             )
@@ -120,17 +199,17 @@ class ProfileViewModel: ObservableObject {
     }
 }
 
-// MARK: - Profile View - ENHANCED USER INFO DISPLAY
+// MARK: - Profile View - UPDATED WITH USER CHANGE DETECTION
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthenticationViewModel
     @EnvironmentObject var localizationManager: LocalizationManager
     @StateObject private var profileViewModel = ProfileViewModel()
     @Environment(\.presentationMode) var presentationMode
     @State private var showLogoutConfirmation = false
-    @State private var showLogoutLoading = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
     @State private var navigateToProfileDetails = false
+    @State private var navigateToSettings = false
     
     var body: some View {
         NavigationStack {
@@ -164,7 +243,7 @@ struct ProfileView: View {
                     logoutConfirmationOverlay
                 }
                 
-                if showLogoutLoading {
+                if authViewModel.isLoading {
                     logoutLoadingOverlay
                 }
             }
@@ -176,12 +255,15 @@ struct ProfileView: View {
                 ProfileDetailsView()
                     .environmentObject(localizationManager)
                     .onDisappear {
-                        // 🔴 SMOOTH REFRESH with animation when returning from ProfileDetailsView
+                        // 🔄 SADECE USER DETAILS için smooth refresh (photo yenileme yok)
                         withAnimation(.easeInOut(duration: 0.5)) {
-                            profileViewModel.loadProfileDetails()
-                            profileViewModel.loadProfilePhoto()
+                            profileViewModel.refreshUserDetailsOnly()
                         }
                     }
+            }
+            .navigationDestination(isPresented: $navigateToSettings) {
+                SettingsView()
+                    .environmentObject(localizationManager)
             }
         }
         .photosPicker(isPresented: $profileViewModel.showImagePicker, selection: $selectedPhoto, matching: .images)
@@ -228,7 +310,8 @@ struct ProfileView: View {
             Text(profileViewModel.errorMessage)
         }
         .onAppear {
-            // 🔴 REFRESH profile data when view appears
+            // 🔴 CHECK for user changes and refresh profile data when view appears
+            profileViewModel.checkForUserChange()
             profileViewModel.loadProfileDetails()
             profileViewModel.loadProfilePhoto()
         }
@@ -237,7 +320,7 @@ struct ProfileView: View {
     // MARK: - ENHANCED Profile Header Section - BIGGER & BETTER USER INFO
     private var enhancedProfileHeaderSection: some View {
         VStack(spacing: 24) {
-            // Profile Image with Upload Functionality (Slightly bigger)
+            // Profile Image with Upload Functionality
             Button(action: {
                 profileViewModel.showPhotoOptions = true
             }) {
@@ -246,27 +329,18 @@ struct ProfileView: View {
                         // Loading state
                         Circle()
                             .fill(Color.gray.opacity(0.1))
-                            .frame(width: 110, height: 110) // Slightly bigger
+                            .frame(width: 110, height: 110)
                             .overlay(
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                             )
-                    } else if let photoURL = profileViewModel.profilePhotoURL, !photoURL.isEmpty {
-                        // Profile photo from API
-                        AsyncImage(url: URL(string: photoURL)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .fill(Color.gray.opacity(0.1))
-                                .overlay(
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                                )
-                        }
-                        .frame(width: 110, height: 110)
-                        .clipShape(Circle())
+                    } else if let profileImage = profileViewModel.profilePhotoImage {
+                        // Display cached image directly - NO NETWORK CALL
+                        Image(uiImage: profileImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 110, height: 110)
+                            .clipShape(Circle())
                         
                         // Camera edit icon for existing photo
                         Circle()
@@ -280,7 +354,7 @@ struct ProfileView: View {
                             .offset(x: 38, y: 38)
                             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                     } else {
-                        // Modern default profile icon - SUBTLE & SOFT
+                        // Modern default profile icon
                         ZStack {
                             // Soft background circle
                             Circle()
@@ -304,7 +378,7 @@ struct ProfileView: View {
                                 )
                                 .frame(width: 110, height: 110)
                             
-                            // Modern person icon - very subtle
+                            // Modern person icon
                             Image(systemName: "person.crop.circle")
                                 .font(.system(size: 50, weight: .ultraLight))
                                 .foregroundColor(.gray.opacity(0.3))
@@ -327,9 +401,9 @@ struct ProfileView: View {
             }
             .disabled(profileViewModel.isLoadingPhoto)
             
-            // ENHANCED User Info - BIGGER AND MORE PROMINENT
+            // User Info Section
             VStack(spacing: 12) {
-                // Username - Large and Bold
+                // Username
                 if profileViewModel.isLoadingProfile {
                     HStack(spacing: 8) {
                         ProgressView()
@@ -343,23 +417,23 @@ struct ProfileView: View {
                 } else {
                     VStack(spacing: 12) {
                         Text(getDisplayUsername())
-                            .font(.system(size: 28, weight: .bold, design: .rounded)) // Bigger font
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundColor(.textPrimary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                             .transition(.opacity.combined(with: .scale))
                         
-                        // Full Name - Prominent but smaller than username
+                        // Full Name
                         if let fullName = getDisplayFullName(), !fullName.isEmpty {
                             Text(fullName)
-                                .font(.system(size: 20, weight: .semibold, design: .rounded)) // New: Full name display
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
                                 .foregroundColor(.textSecondary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.9)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                         
-                        // Optional: Bio preview (first line only)
+                        // Bio preview
                         if let bio = profileViewModel.profileDetails?.bio,
                            !bio.isEmpty,
                            bio.trimmingCharacters(in: .whitespacesAndNewlines).count > 0 {
@@ -395,7 +469,7 @@ struct ProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
                 title: "profile.stats.activities".localized(using: localizationManager),
@@ -406,7 +480,7 @@ struct ProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
                 title: "profile.stats.score".localized(using: localizationManager),
@@ -415,19 +489,19 @@ struct ProfileView: View {
                 color: .primaryOrange
             )
         }
-        .padding(20)
-        .background(Color.white)
+        .padding(10)
+        .background(Color.cardBackground) // ✅ Updated
         .clipShape(RoundedRectangle(cornerRadius: 25))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // ✅ Updated
     }
-    
+
     // MARK: - Menu Section
     private var menuSection: some View {
         VStack(spacing: 0) {
             ProfileMenuRow(
                 icon: "person.crop.circle",
                 title: "profile.menu.profile".localized(using: localizationManager),
-                color: .primaryOrange,
+                color: .primaryOrange, // Orange kalacak
                 action: {
                     navigateToProfileDetails = true
                 }
@@ -438,7 +512,7 @@ struct ProfileView: View {
             ProfileMenuRow(
                 icon: "figure.run.circle",
                 title: "profile.menu.my_sports".localized(using: localizationManager),
-                color: .primaryOrange,
+                color: .primaryOrange, // Orange kalacak
                 action: {
                     navigateToMySports = true
                 }
@@ -449,15 +523,15 @@ struct ProfileView: View {
             ProfileMenuRow(
                 icon: "gearshape.circle",
                 title: "profile.menu.settings".localized(using: localizationManager),
-                color: .gray,
+                color: .secondaryText, // ✅ Updated (gray yerine adaptive)
                 action: {
-                    // TODO: Show settings submenu
+                    navigateToSettings = true
                 }
             )
             
             ProfileMenuDivider()
         
-            // Logout butonu
+            // Logout button
             Button(action: {
                 showLogoutConfirmation = true
             }) {
@@ -470,13 +544,13 @@ struct ProfileView: View {
                     } else {
                         Image(systemName: "arrow.right.square")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.red)
+                            .foregroundColor(.red) // Kırmızı kalacak
                             .frame(width: 24, height: 24)
                     }
                     
                     Text("auth.logout".localized(using: localizationManager))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.red)
+                        .foregroundColor(.red) // Kırmızı kalacak
                         .lineLimit(1)
                     
                     Spacer()
@@ -488,14 +562,14 @@ struct ProfileView: View {
             .opacity(authViewModel.isLoading ? 0.7 : 1.0)
             .buttonStyle(PlainButtonStyle())
         }
-        .background(Color.white)
+        .background(Color.cardBackground) // ✅ Updated
         .clipShape(RoundedRectangle(cornerRadius: 25))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // ✅ Updated
     }
     
-    // MARK: - Logout Confirmation Overlay
+    // MARK: - Logout Confirmation Overlay - Dark Mode Adaptive
     private var logoutConfirmationOverlay: some View {
-        Color.black.opacity(0.4)
+        Color.overlayBackground // ✅ Updated (adaptive overlay)
             .ignoresSafeArea()
             .transition(.opacity)
             .onTapGesture {
@@ -515,18 +589,18 @@ struct ProfileView: View {
                             
                             Image(systemName: "arrow.right.square")
                                 .font(.system(size: 24, weight: .medium))
-                                .foregroundColor(.red)
+                                .foregroundColor(.red) // Kırmızı kalacak
                         }
                         
                         // Title
                         Text("auth.logout.confirmation.title".localized(using: localizationManager))
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.primary)
+                            .foregroundColor(.primaryText) // ✅ Updated
                         
                         // Message
                         Text("auth.logout.confirmation.message".localized(using: localizationManager))
                             .font(.system(size: 16))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.secondaryText) // ✅ Updated
                             .multilineTextAlignment(.center)
                             .lineLimit(nil)
                     }
@@ -535,7 +609,7 @@ struct ProfileView: View {
                     .padding(.bottom, 32)
                     
                     Divider()
-                        .background(Color.gray.opacity(0.3))
+                        .background(Color.dynamicBorder) // ✅ Updated
                     
                     // Buttons
                     HStack(spacing: 0) {
@@ -545,44 +619,36 @@ struct ProfileView: View {
                         }) {
                             Text("auth.logout.confirmation.cancel".localized(using: localizationManager))
                                 .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(.blue)
+                                .foregroundColor(.blue) // Mavi kalacak (system blue)
                                 .frame(maxWidth: .infinity, minHeight: 56)
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         Divider()
-                            .background(Color.gray.opacity(0.3))
+                            .background(Color.dynamicBorder) // ✅ Updated
                             .frame(height: 56)
                         
                         // Confirm Button
                         Button(action: {
                             showLogoutConfirmation = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showLogoutLoading = true
-                                }
-                                
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    //showLogoutLoading = true
                                     authViewModel.logout()
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        showLogoutLoading = false
-                                    }
                                 }
                             }
                         }) {
                             Text("auth.logout.confirmation.confirm".localized(using: localizationManager))
                                 .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.red)
+                                .foregroundColor(.red) // Kırmızı kalacak
                                 .frame(maxWidth: .infinity, minHeight: 56)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
-                )
+                .background(Color.cardBackground) // ✅ Updated
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .dynamicShadow, radius: 20, x: 0, y: 10) // ✅ Updated
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 40)
                 .scaleEffect(showLogoutConfirmation ? 1.0 : 0.8)
@@ -594,35 +660,9 @@ struct ProfileView: View {
             )
     }
     
-    // MARK: - Logout Loading Overlay
+    // MARK: - Logout Loading Overlay - Dark Mode Adaptive
     private var logoutLoadingOverlay: some View {
-        ZStack {
-            Color.gray
-                .ignoresSafeArea()
-            
-            ZStack {
-                Circle()
-                    .stroke(Color.primaryOrange.opacity(0.2), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(
-                        AngularGradient(
-                            colors: [.primaryOrange, .primaryOrange.opacity(0.1)],
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(showLogoutLoading ? 360 : 0))
-                    .animation(
-                        .linear(duration: 1.0)
-                            .repeatForever(autoreverses: false),
-                        value: showLogoutLoading
-                    )
-            }
-        }
+        LogoutLoadingOverlay(isVisible: authViewModel.isLoading)
     }
     
     // MARK: - ENHANCED Helper Methods
@@ -673,14 +713,14 @@ struct CustomPhotoSelectionSheet: View {
             VStack(spacing: 12) {
                 // Drag handle
                 RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.secondaryText.opacity(0.3))
                     .frame(width: 40, height: 5)
                     .padding(.top, 8)
                 
                 // Title only
                 Text("Profile Photo")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
             }
             .padding(.bottom, 20)
             
@@ -720,7 +760,7 @@ struct CustomPhotoSelectionSheet: View {
             }) {
                 Text("Cancel")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.formBackground)
@@ -730,7 +770,7 @@ struct CustomPhotoSelectionSheet: View {
             .padding(.top, 16)
             .padding(.bottom, 20)
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(hasExistingPhoto ? 280 : 240)])
         .presentationDragIndicator(.hidden)
@@ -761,14 +801,14 @@ struct CompactPhotoOptionButton: View {
                 // Title only
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                 
                 Spacer()
                 
                 // Small arrow
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -823,6 +863,7 @@ struct CameraView: View {
 }
 
 // MARK: - Profile Stat Card
+// MARK: - Profile Stat Card - Dark Mode Adaptive
 struct ProfileStatCard: View {
     let title: String
     let value: String
@@ -833,22 +874,22 @@ struct ProfileStatCard: View {
         VStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.system(size: 24, weight: .medium))
-                .foregroundColor(.primaryOrange)
+                .foregroundColor(.primaryOrange) // Orange kalacak
             
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // ✅ Updated
             
             Text(title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText) // ✅ Updated
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Profile Menu Row
+// MARK: - Profile Menu Row - Dark Mode Adaptive
 struct ProfileMenuRow: View {
     let icon: String
     let title: String
@@ -860,19 +901,19 @@ struct ProfileMenuRow: View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(color)
+                    .foregroundColor(color) // Color parametre olarak geliyor (orange/adaptive)
                     .frame(width: 24, height: 24)
                 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText) // ✅ Updated
                     .lineLimit(1)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.tertiaryText) // ✅ Updated
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -881,12 +922,12 @@ struct ProfileMenuRow: View {
     }
 }
 
-// MARK: - Profile Menu Divider
+// MARK: - Profile Menu Divider - Dark Mode Adaptive
 struct ProfileMenuDivider: View {
     var body: some View {
         Divider()
             .padding(.leading, 72)
-            .background(Color.formBorder.opacity(0.2))
+            .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
     }
 }
 

@@ -11,15 +11,19 @@ struct ContentView: View {
                     .environmentObject(authViewModel)
                     .environmentObject(localizationManager)
             } else {
+                // Full screen login experience
                 LoginView()
                     .environmentObject(authViewModel)
                     .environmentObject(localizationManager)
+                    .ignoresSafeArea(.all) // Ensure full screen
             }
         }
+        .animation(.easeInOut(duration: 0.5), value: authViewModel.isAuthenticated)
         .onAppear {
             print("📱 ContentView appeared")
             print("🔍 Auth status: \(authViewModel.isAuthenticated)")
         }
+        .preferredColorScheme(.light) // Consistent light mode
     }
 }
 

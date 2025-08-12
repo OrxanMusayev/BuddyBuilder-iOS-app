@@ -1,8 +1,41 @@
+// BuddyBuilder/Features/Profile/Views/SettingsView.swift
+
 import SwiftUI
 
+// MARK: - Settings View Model
+class SettingsViewModel: ObservableObject {
+    @Published var isLoading = false
+    @Published var errorMessage: String = ""
+    @Published var showError = false
+    @Published var notificationsEnabled = true
+    @Published var selectedLanguage = "English"
+    
+    func handleError(_ message: String) {
+        errorMessage = message
+        showError = true
+        print("❌ Settings Error: \(message)")
+    }
+}
+
+// MARK: - Settings Menu Item Model
+struct SettingsMenuItem {
+    let id: String
+    let title: String
+    let subtitle: String?
+    let customIcon: String
+    let iconColor: Color
+    let backgroundColor: Color
+    let action: () -> Void
+}
+
+// MARK: - Settings View
 struct SettingsView: View {
+    @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject var localizationManager: LocalizationManager
     @Environment(\.dismiss) var dismiss
+    @State private var navigateToAccount = false
+    @State private var navigateToLanguageRegion = false
+    @State private var navigateToNotifications = false
     
     var body: some View {
         NavigationStack {
@@ -15,44 +48,41 @@ struct SettingsView: View {
                     customHeader
                     
                     // Settings Content
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(SettingsSection.allCases, id: \.self) { section in
-                                NavigationLink(destination: destinationView(for: section)) {
-                                    SettingsMenuRow(
-                                        icon: section.icon,
-                                        title: section.title.localized(using: localizationManager),
-                                        subtitle: getSubtitle(for: section),
-                                        color: section.color
-                                    )
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                    }
+                    settingsContent
                 }
+            }
+            .navigationDestination(isPresented: $navigateToAccount) {
+                AccountSettingsView()
+                    .environmentObject(localizationManager)
+            }
+            .navigationDestination(isPresented: $navigateToLanguageRegion) {
+                LanguageRegionSettingsView()
+                    .environmentObject(localizationManager)
+            }
+            .navigationDestination(isPresented: $navigateToNotifications) {
+                NotificationSettingsView()
+                    .environmentObject(localizationManager)
             }
         }
         .navigationBarHidden(true)
+        .alert("settings.error.title".localized(using: localizationManager), isPresented: $viewModel.showError) {
+            Button("common.ok".localized(using: localizationManager)) { }
+        } message: {
+            Text(viewModel.errorMessage)
+        }
     }
     
     // MARK: - Custom Header
     private var customHeader: some View {
         VStack(spacing: 16) {
             HStack {
-                // Back button
+                // Back button - sadece ok işareti
                 Button(action: { dismiss() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.left")
-                            .font(.system(size: 16, weight: .medium))
-                        Text("common.back".localized(using: localizationManager))
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(.primaryOrange)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primaryOrange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                 }
                 
                 Spacer()
@@ -64,9 +94,9 @@ struct SettingsView: View {
                 
                 Spacer()
                 
-                // Placeholder for symmetry
-                Color.clear
-                    .frame(width: 80)
+                // Balance space for back button
+                HStack { }
+                    .frame(width: 44) // ok işaretinin genişliği kadar
             }
         }
         .padding(.horizontal, 20)
@@ -74,450 +104,214 @@ struct SettingsView: View {
         .background(Color.white.opacity(0.95))
     }
     
-    // MARK: - Destination Views
-    @ViewBuilder
-    private func destinationView(for section: SettingsSection) -> some View {
-        switch section {
-        case .account:
-            AccountSettingsView()
-                .environmentObject(localizationManager)
-        case .languageRegion:
-            LanguageRegionSettingsView()
-                .environmentObject(localizationManager)
-        case .notifications:
-            NotificationSettingsView()
-                .environmentObject(localizationManager)
-        case .support:
-            SupportSettingsView()
-                .environmentObject(localizationManager)
-        }
-    }
-    
-    // MARK: - Subtitle Helper
-    private func getSubtitle(for section: SettingsSection) -> String {
-        switch section {
-        case .account:
-            return "settings.account.subtitle".localized(using: localizationManager)
-        case .languageRegion:
-            return localizationManager.currentLanguage!.nativeName
-        case .notifications:
-            return "settings.notifications.subtitle".localized(using: localizationManager)
-        case .support:
-            return "settings.support.subtitle".localized(using: localizationManager)
-        }
-    }
-}
-
-// MARK: - Account Settings View
-struct AccountSettingsView: View {
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @Environment(\.dismiss) var dismiss
-    @State private var showDeleteConfirmation = false
-    
-    var body: some View {
-        ZStack {
-            // Background
-            LoginBackgroundView()
-            
-            VStack(spacing: 0) {
-                // Custom Header
-                SettingsSubHeader(
-                    title: "settings.account".localized(using: localizationManager),
-                    dismiss: dismiss
-                )
+    // MARK: - Settings Content
+    private var settingsContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Main Settings Menu
+                mainSettingsMenu
                 
-                // Account Menu Content
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(AccountMenuItem.allCases, id: \.self) { item in
-                            Button(action: {
-                                handleAccountAction(item)
-                            }) {
-                                SettingsMenuRow(
-                                    icon: item.icon,
-                                    title: item.title.localized(using: localizationManager),
-                                    subtitle: getAccountSubtitle(for: item),
-                                    color: item.color,
-                                    showArrow: item != .deleteAccount
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                // App Info Section
+                appInfoSection
+                
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+        }
+    }
+    
+    // MARK: - Main Settings Menu
+    private var mainSettingsMenu: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(settingsMenuItems.enumerated()), id: \.offset) { index, item in
+                SettingsMenuItemView(item: item)
+                
+                if index < settingsMenuItems.count - 1 {
+                    SettingsMenuDivider()
                 }
             }
         }
-        .navigationBarHidden(true)
-        .alert("settings.account.delete_account.confirmation.title".localized(using: localizationManager),
-               isPresented: $showDeleteConfirmation) {
-            Button("common.cancel".localized(using: localizationManager), role: .cancel) { }
-            Button("settings.account.delete_account.confirmation.delete".localized(using: localizationManager),
-                   role: .destructive) {
-                // TODO: Implement account deletion
-            }
-        } message: {
-            Text("settings.account.delete_account.confirmation.message".localized(using: localizationManager))
-        }
-    }
-    
-    private func handleAccountAction(_ item: AccountMenuItem) {
-        switch item {
-        case .personalDetails:
-            // TODO: Navigate to personal details
-            break
-        case .changePassword:
-            // TODO: Navigate to change password
-            break
-        case .deleteAccount:
-            showDeleteConfirmation = true
-        }
-    }
-    
-    private func getAccountSubtitle(for item: AccountMenuItem) -> String {
-        switch item {
-        case .personalDetails:
-            return "settings.account.personal_details.subtitle".localized(using: localizationManager)
-        case .changePassword:
-            return "settings.account.change_password.subtitle".localized(using: localizationManager)
-        case .deleteAccount:
-            return "settings.account.delete_account.subtitle".localized(using: localizationManager)
-        }
-    }
-}
-
-// MARK: - Language & Region Settings View
-struct LanguageRegionSettingsView: View {
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        ZStack {
-            LoginBackgroundView()
-            
-            VStack(spacing: 0) {
-                SettingsSubHeader(
-                    title: "settings.language_region".localized(using: localizationManager),
-                    dismiss: dismiss
-                )
-                
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(LanguageRegionMenuItem.allCases, id: \.self) { item in
-                            Button(action: {
-                                handleLanguageRegionAction(item)
-                            }) {
-                                SettingsMenuRow(
-                                    icon: item.icon,
-                                    title: item.title.localized(using: localizationManager),
-                                    subtitle: getLanguageRegionSubtitle(for: item),
-                                    color: item.color
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-    
-    private func handleLanguageRegionAction(_ item: LanguageRegionMenuItem) {
-        switch item {
-        case .changeLanguage:
-            // TODO: Show language picker
-            break
-        case .country:
-            // TODO: Show country picker
-            break
-        case .city:
-            // TODO: Show city picker
-            break
-        }
-    }
-    
-    private func getLanguageRegionSubtitle(for item: LanguageRegionMenuItem) -> String {
-        switch item {
-        case .changeLanguage:
-            return localizationManager.currentLanguage!.nativeName
-        case .country:
-            return "Turkey" // TODO: Get from user profile
-        case .city:
-            return "Istanbul" // TODO: Get from user profile
-        }
-    }
-}
-
-// MARK: - Notification Settings View
-struct NotificationSettingsView: View {
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @Environment(\.dismiss) var dismiss
-    @State private var notificationSettings = NotificationSettings.default
-    
-    var body: some View {
-        ZStack {
-            LoginBackgroundView()
-            
-            VStack(spacing: 0) {
-                SettingsSubHeader(
-                    title: "settings.notifications".localized(using: localizationManager),
-                    dismiss: dismiss
-                )
-                
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // Push Notifications Toggle
-                        NotificationToggleRow(
-                            title: "settings.notifications.push_notifications".localized(using: localizationManager),
-                            subtitle: "settings.notifications.push_notifications.subtitle".localized(using: localizationManager),
-                            isEnabled: $notificationSettings.pushNotificationsEnabled,
-                            icon: "bell.fill"
-                        )
-                        
-                        // Event Reminders Toggle
-                        NotificationToggleRow(
-                            title: "settings.notifications.event_reminders".localized(using: localizationManager),
-                            subtitle: "settings.notifications.event_reminders.subtitle".localized(using: localizationManager),
-                            isEnabled: $notificationSettings.eventRemindersEnabled,
-                            icon: "calendar.badge.clock"
-                        )
-                        
-                        // Messaging Toggle
-                        NotificationToggleRow(
-                            title: "settings.notifications.messaging".localized(using: localizationManager),
-                            subtitle: "settings.notifications.messaging.subtitle".localized(using: localizationManager),
-                            isEnabled: $notificationSettings.messagingEnabled,
-                            icon: "message.fill"
-                        )
-                        
-                        // Marketing Toggle
-                        NotificationToggleRow(
-                            title: "settings.notifications.marketing".localized(using: localizationManager),
-                            subtitle: "settings.notifications.marketing.subtitle".localized(using: localizationManager),
-                            isEnabled: $notificationSettings.marketingEnabled,
-                            icon: "megaphone.fill"
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-}
-
-// MARK: - Support Settings View
-struct SupportSettingsView: View {
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        ZStack {
-            LoginBackgroundView()
-            
-            VStack(spacing: 0) {
-                SettingsSubHeader(
-                    title: "settings.support".localized(using: localizationManager),
-                    dismiss: dismiss
-                )
-                
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(SupportMenuItem.allCases, id: \.self) { item in
-                            Button(action: {
-                                handleSupportAction(item)
-                            }) {
-                                SettingsMenuRow(
-                                    icon: item.icon,
-                                    title: item.title.localized(using: localizationManager),
-                                    subtitle: getSupportSubtitle(for: item),
-                                    color: item.color
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                }
-            }
-        }
-        .navigationBarHidden(true)
-    }
-    
-    private func handleSupportAction(_ item: SupportMenuItem) {
-        switch item {
-        case .contactSupport:
-            // TODO: Open email composer or support chat
-            break
-        case .reportBug:
-            // TODO: Open bug report form
-            break
-        case .sendFeedback:
-            // TODO: Open feedback form
-            break
-        case .rateApp:
-            // TODO: Open App Store rating
-            break
-        }
-    }
-    
-    private func getSupportSubtitle(for item: SupportMenuItem) -> String {
-        switch item {
-        case .contactSupport:
-            return "settings.support.contact_support.subtitle".localized(using: localizationManager)
-        case .reportBug:
-            return "settings.support.report_bug.subtitle".localized(using: localizationManager)
-        case .sendFeedback:
-            return "settings.support.send_feedback.subtitle".localized(using: localizationManager)
-        case .rateApp:
-            return "settings.support.rate_app.subtitle".localized(using: localizationManager)
-        }
-    }
-}
-
-// MARK: - Supporting Views
-
-// Settings Menu Row
-struct SettingsMenuRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let color: Color
-    var showArrow: Bool = true
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.1))
-                    .frame(width: 44, height: 44)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(color)
-            }
-            
-            // Text Content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                
-                Text(subtitle)
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(2)
-            }
-            
-            Spacer()
-            
-            // Arrow
-            if showArrow {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
-}
-
-// Settings Sub Header
-struct SettingsSubHeader: View {
-    let title: String
-    let dismiss: DismissAction
     
-    var body: some View {
+    // MARK: - App Info Section
+    private var appInfoSection: some View {
         VStack(spacing: 16) {
             HStack {
-                Button(action: { dismiss() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.left")
-                            .font(.system(size: 16, weight: .medium))
-                        Text("common.back")
-                            .font(.system(size: 16, weight: .medium))
-                    }
+                Image(systemName: "info.circle")
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.primaryOrange)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                }
                 
-                Spacer()
-                
-                Text(title)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                Text("settings.section.app_info".localized(using: localizationManager))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.textPrimary)
                 
                 Spacer()
+            }
+            
+            VStack(spacing: 12) {
+                HStack {
+                    Text("settings.app.version".localized(using: localizationManager))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    Spacer()
+                    
+                    Text("1.0.0")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                }
                 
-                Color.clear
-                    .frame(width: 80)
+                HStack {
+                    Text("settings.app.build".localized(using: localizationManager))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    Spacer()
+                    
+                    Text("2024.08.02")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.textPrimary)
+                }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .padding(20)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+    }
+    
+    // MARK: - Settings Menu Items Configuration
+    private var settingsMenuItems: [SettingsMenuItem] {
+        [
+            SettingsMenuItem(
+                id: "account",
+                title: "settings.menu.account".localized(using: localizationManager),
+                subtitle: nil,
+                customIcon: "person.crop.circle.badge.checkmark",
+                iconColor: .blue,
+                backgroundColor: Color.blue.opacity(0.1),
+                action: {
+                    navigateToAccount = true
+                }
+            ),
+            SettingsMenuItem(
+                id: "language",
+                title: "settings.menu.language".localized(using: localizationManager),
+                subtitle: nil,
+                customIcon: "globe.americas.fill",
+                iconColor: .green,
+                backgroundColor: Color.green.opacity(0.1),
+                action: {
+                    navigateToLanguageRegion = true
+                }
+            ),
+            SettingsMenuItem(
+                id: "notifications",
+                title: "settings.menu.notifications".localized(using: localizationManager),
+                subtitle: nil,
+                customIcon: "bell.badge.fill",
+                iconColor: .orange,
+                backgroundColor: Color.orange.opacity(0.1),
+                action: {
+                    navigateToNotifications = true
+                }
+            ),
+            SettingsMenuItem(
+                id: "support",
+                title: "settings.menu.support".localized(using: localizationManager),
+                subtitle: nil,
+                customIcon: "questionmark.circle.fill",
+                iconColor: .purple,
+                backgroundColor: Color.purple.opacity(0.1),
+                action: {
+                    // TODO: Navigate to Support & Feedback
+                    print("🟣 Support settings tapped")
+                }
+            )
+        ]
     }
 }
 
-// Notification Toggle Row
-struct NotificationToggleRow: View {
-    let title: String
-    let subtitle: String
-    @Binding var isEnabled: Bool
-    let icon: String
+// MARK: - Settings Menu Item View
+struct SettingsMenuItemView: View {
+    let item: SettingsMenuItem
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(isEnabled ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
-                    .frame(width: 44, height: 44)
+        Button(action: item.action) {
+            HStack(spacing: 16) {
+                // Outline (içi boş) siyah iconlar
+                Image(systemName: getOutlineIcon(item.customIcon))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.primaryText)
+                    .frame(width: 24, height: 24)
                 
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isEnabled ? .green : .gray)
-            }
-            
-            // Text Content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                // Title
+                Text(item.title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
-                Text(subtitle)
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(2)
+                Spacer()
+                
+                // Arrow
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.tertiaryText)
             }
-            
-            Spacer()
-            
-            // Toggle
-            Toggle("", isOn: $isEnabled)
-                .toggleStyle(SwitchToggleStyle(tint: .primaryOrange))
-                .scaleEffect(0.9)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 3)
+        .buttonStyle(PlainButtonStyle())
     }
+    
+    // Icon'ları outline (içi boş) versiyonlarına çevir
+    private func getOutlineIcon(_ icon: String) -> String {
+        switch icon {
+        case "person.crop.circle.badge.checkmark":
+            return "person.crop.circle"
+        case "globe.americas.fill":
+            return "globe.americas"
+        case "bell.badge.fill":
+            return "bell.badge"
+        case "questionmark.circle.fill":
+            return "questionmark.circle"
+        default:
+            return icon
+        }
+    }
+}
+
+// MARK: - Settings Menu Divider
+struct SettingsMenuDivider: View {
+    var body: some View {
+        Divider()
+            .padding(.leading, 60) // Icon width'e göre ayarlandı (24 + 16 + 20)
+            .background(Color.dynamicBorder.opacity(0.3))
+    }
+}
+
+// MARK: - Settings Localization Keys Extension
+extension String {
+    // Settings Keys
+    static let settingsTitle = "settings.title"
+    static let settingsErrorTitle = "settings.error.title"
+    
+    // Settings Sections
+    static let settingsSectionAppInfo = "settings.section.app_info"
+    
+    // Settings Menu Items
+    static let settingsMenuAccount = "settings.menu.account"
+    static let settingsMenuLanguage = "settings.menu.language"
+    static let settingsMenuNotifications = "settings.menu.notifications"
+    static let settingsMenuSupport = "settings.menu.support"
+    
+    // App Info
+    static let settingsAppVersion = "settings.app.version"
+    static let settingsAppBuild = "settings.app.build"
 }
 
 // MARK: - Preview

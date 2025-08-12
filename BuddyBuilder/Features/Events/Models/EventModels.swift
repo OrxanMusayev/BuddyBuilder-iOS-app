@@ -2,7 +2,7 @@
 
 import Foundation
 
-// MARK: - Event Model
+// MARK: - Event Model - Updated for API Compatibility
 struct Event: Codable, Identifiable {
     let id: Int
     let name: String
@@ -25,18 +25,75 @@ struct Event: Codable, Identifiable {
     let createdAt: String
     let isOwner: Bool
     let isParticipant: Bool
-    let participantStatus: String?
+    let participantStatus: ParticipantStatus?
     let canJoin: Bool
     let daysUntilEvent: Int
     let daysUntilRegistrationDeadline: Int
     
+    // Custom CodingKeys for participantStatus
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, eventType, eventTypeName, sport, owner
+        case participants, eventDate, registrationDeadline, maxParticipants
+        case currentParticipants, location, entryFee, status, statusName
+        case imageUrl, isPrivate, createdAt, isOwner, isParticipant
+        case participantStatus, canJoin, daysUntilEvent, daysUntilRegistrationDeadline
+    }
+    
+    // Custom decoder for participantStatus
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decode(String.self, forKey: .description)
+        eventType = try container.decode(Int.self, forKey: .eventType)
+        eventTypeName = try container.decode(String.self, forKey: .eventTypeName)
+        sport = try container.decode(Sport.self, forKey: .sport)
+        owner = try container.decode(EventOwner.self, forKey: .owner)
+        participants = try container.decode([ParticipantDto].self, forKey: .participants)
+        eventDate = try container.decode(String.self, forKey: .eventDate)
+        registrationDeadline = try container.decode(String.self, forKey: .registrationDeadline)
+        maxParticipants = try container.decode(Int.self, forKey: .maxParticipants)
+        currentParticipants = try container.decode(Int.self, forKey: .currentParticipants)
+        location = try container.decode(String.self, forKey: .location)
+        entryFee = try container.decode(Double.self, forKey: .entryFee)
+        status = try container.decode(Int.self, forKey: .status)
+        statusName = try container.decode(String.self, forKey: .statusName)
+        imageUrl = try container.decodeIfPresent(String.self, forKey: .imageUrl)
+        isPrivate = try container.decode(Bool.self, forKey: .isPrivate)
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        isOwner = try container.decode(Bool.self, forKey: .isOwner)
+        isParticipant = try container.decode(Bool.self, forKey: .isParticipant)
+        canJoin = try container.decode(Bool.self, forKey: .canJoin)
+        daysUntilEvent = try container.decode(Int.self, forKey: .daysUntilEvent)
+        daysUntilRegistrationDeadline = try container.decode(Int.self, forKey: .daysUntilRegistrationDeadline)
+        
+        // Handle participantStatus - can be null, number, or string
+        if let statusInt = try? container.decodeIfPresent(Int.self, forKey: .participantStatus) {
+            participantStatus = ParticipantStatus(rawValue: statusInt)
+        } else if let statusString = try? container.decodeIfPresent(String.self, forKey: .participantStatus) {
+            // If it comes as string, try to parse to int or handle special cases
+            if let statusInt = Int(statusString) {
+                participantStatus = ParticipantStatus(rawValue: statusInt)
+            } else {
+                participantStatus = nil
+            }
+        } else {
+            participantStatus = nil
+        }
+    }
+    
     // Computed properties for UI
     var eventDateTime: Date? {
-        ISO8601DateFormatter().date(from: eventDate)
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: eventDate) ?? ISO8601DateFormatter().date(from: eventDate)
     }
     
     var registrationDeadlineDate: Date? {
-        ISO8601DateFormatter().date(from: registrationDeadline)
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: registrationDeadline) ?? ISO8601DateFormatter().date(from: registrationDeadline)
     }
     
     var isUpcoming: Bool {
@@ -56,8 +113,31 @@ struct Event: Codable, Identifiable {
         guard maxParticipants > 0 else { return 0 }
         return Double(currentParticipants) / Double(maxParticipants) * 100
     }
+    
+    // Formatted date for UI display
+    var formattedEventDate: String {
+        guard let date = eventDateTime else { return "TBD" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    var formattedEventDay: String {
+        guard let date = eventDateTime else { return "TBD" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+    
+    var formattedEventTime: String {
+        guard let date = eventDateTime else { return "TBD" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
 }
-// MARK: - Sport Model
+
+// MARK: - Sport Model - Updated
 struct Sport: Codable, Identifiable, Equatable, Hashable {
     let id: Int
     let name: String
@@ -76,23 +156,52 @@ struct Sport: Codable, Identifiable, Equatable, Hashable {
     }
 }
 
-struct ParticipantDto: Codable {
+// MARK: - Participant DTO - Updated
+struct ParticipantDto: Codable, Identifiable {
     let id: Int
     let username: String
     let firstName: String?
     let lastName: String?
-    let imageUrl: String?
+    let profileImageUrl: String?
+    
+    // Computed property for display name
+    var displayName: String {
+        let first = firstName ?? ""
+        let last = lastName ?? ""
+        let fullName = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+        return fullName.isEmpty ? username : fullName
+    }
 }
-// MARK: - Event Owner Model
-struct EventOwner: Codable {
-    let id: Int
+
+// MARK: - Event Owner Model - Updated
+struct EventOwner: Codable, Identifiable {
+    let id: String
     let username: String
     let firstName: String?
     let lastName: String?
     let fullName: String
     let profileImageUrl: String?
-    let experienceLevel: Int?
-    let experienceLevelName: String?
+    
+    // Computed property for display name
+    var displayName: String {
+        let trimmedFullName = fullName.trimmingCharacters(in: .whitespaces)
+        return trimmedFullName.isEmpty ? username : trimmedFullName
+    }
+    
+    // CodingKeys to handle missing fields
+    enum CodingKeys: String, CodingKey {
+        case id, username, firstName, lastName, fullName, profileImageUrl
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        username = try container.decode(String.self, forKey: .username)
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
+        fullName = try container.decode(String.self, forKey: .fullName)
+        profileImageUrl = try container.decodeIfPresent(String.self, forKey: .profileImageUrl)
+    }
 }
 
 // MARK: - Events Response Model
@@ -176,6 +285,23 @@ struct EventFilter: Codable {
         params["SortDescending"] = String(sortDescending)
         
         return params
+    }
+}
+
+// MARK: - Participant Status Enum
+enum ParticipantStatus: Int, Codable, CaseIterable {
+    case pending = 1
+    case approved = 2
+    case rejected = 3
+    case cancelled = 4
+    
+    var displayName: String {
+        switch self {
+        case .pending: return "Pending"
+        case .approved: return "Approved"
+        case .rejected: return "Rejected"
+        case .cancelled: return "Cancelled"
+        }
     }
 }
 

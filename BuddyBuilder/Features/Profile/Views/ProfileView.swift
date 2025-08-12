@@ -206,7 +206,6 @@ struct ProfileView: View {
     @StateObject private var profileViewModel = ProfileViewModel()
     @Environment(\.presentationMode) var presentationMode
     @State private var showLogoutConfirmation = false
-    @State private var showLogoutLoading = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var navigateToMySports = false
     @State private var navigateToProfileDetails = false
@@ -244,7 +243,7 @@ struct ProfileView: View {
                     logoutConfirmationOverlay
                 }
                 
-                if showLogoutLoading {
+                if authViewModel.isLoading {
                     logoutLoadingOverlay
                 }
             }
@@ -632,16 +631,10 @@ struct ProfileView: View {
                         // Confirm Button
                         Button(action: {
                             showLogoutConfirmation = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showLogoutLoading = true
-                                }
-                                
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    //showLogoutLoading = true
                                     authViewModel.logout()
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        showLogoutLoading = false
-                                    }
                                 }
                             }
                         }) {
@@ -669,7 +662,7 @@ struct ProfileView: View {
     
     // MARK: - Logout Loading Overlay - Dark Mode Adaptive
     private var logoutLoadingOverlay: some View {
-        LogoutLoadingOverlay(isVisible: showLogoutLoading)
+        LogoutLoadingOverlay(isVisible: authViewModel.isLoading)
     }
     
     // MARK: - ENHANCED Helper Methods

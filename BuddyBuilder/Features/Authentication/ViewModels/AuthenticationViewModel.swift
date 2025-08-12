@@ -178,14 +178,19 @@ class AuthenticationViewModel: ObservableObject {
         let refreshToken = UserDefaults.standard.string(forKey: "refresh_token") ?? ""
         let accessToken = UserDefaults.standard.string(forKey: "auth_token") ?? ""
         
+        isLoading = true
+        
         authService.logout(refreshToken: refreshToken, accessToken: accessToken)
             .sink(
-                receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        print("✅ Logout başarılı")
-                    case .failure(let error):
-                        print("❌ Logout hatası: \(error)")
+                receiveCompletion: { [weak self] completion in
+                    DispatchQueue.main.async {
+                        switch completion {
+                        case .finished:
+                            print("✅ Logout başarılı")
+                        case .failure(let error):
+                            print("❌ Logout hatası: \(error)")
+                        }
+                        self?.isLoading = false
                     }
                 },
                 receiveValue: { [weak self] _ in

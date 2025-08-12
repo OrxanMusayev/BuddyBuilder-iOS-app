@@ -238,14 +238,14 @@ struct UpdatedSportsPreferencesStepView: View {
                         .padding(.top, 10) // ADDED: Top padding to prevent overlap
                     }
                 }
-                .frame(minHeight: 250, maxHeight: 350) // INCREASED height for better experience
+                .frame(minHeight: 250, maxHeight: 320) // Adjusted maxHeight to leave more space at bottom
                 .background(Color.clear) // ADDED: Explicit background
                 .clipped() // Prevent content overflow
             }
             
             // Bottom spacer to prevent button overlap
             Spacer()
-                .frame(height: 40) // INCREASED from 30
+                .frame(height: 60) // Increased to add more space before the button
         }
     }
 }

@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/CachedEventsView.swift
+// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - CORRECT TAB MAPPING FIX
 
 import SwiftUI
 
@@ -42,9 +42,23 @@ struct CachedEventsView: View {
         .onAppear {
             handleViewAppear()
         }
+        // 🔴 FIXED: CORRECT TAB MAPPING
         .onChange(of: selectedTab) { oldValue, newTab in
-            let viewModelTab: EventTab = newTab == .all ? .all : .my
+            print("🔄 CachedEvents UI Tab changed from \(oldValue.rawValue) to \(newTab.rawValue)")
+            
+            // 🟢 CORRECT MAPPING:
+            // UI .all -> ViewModel .all (All Events API)
+            // UI .my -> ViewModel .my (My Events API)
+            let viewModelTab: EventTab = (newTab == .all) ? .all : .my
+            print("📱 Setting CachedEvents ViewModel tab to: \(viewModelTab.rawValue)")
+            print("🔍 Expected API: \(newTab == .all ? "All Events" : "My Events")")
+            
             viewModel.changeTab(to: viewModelTab)
+        }
+        // Debug ViewModel tab changes
+        .onChange(of: viewModel.selectedTab) { oldValue, newViewModelTab in
+            print("📊 CachedEvents ViewModel tab changed to: \(newViewModelTab.rawValue)")
+            print("🔍 This should call: \(newViewModelTab == .all ? "All Events API" : "My Events API")")
         }
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") {
@@ -195,6 +209,7 @@ struct CachedEventsView: View {
         HStack(spacing: 0) {
             ForEach(EventsTab.allCases, id: \.self) { tab in
                 Button(action: {
+                    print("🎯 CachedEvents Tab button tapped: \(tab.rawValue)")
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
                     }

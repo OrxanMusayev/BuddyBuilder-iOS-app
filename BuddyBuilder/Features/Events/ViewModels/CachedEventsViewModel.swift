@@ -133,7 +133,8 @@ class CachedEventsViewModel: EventsFilterProtocol {
         
         // Tab değişikliklerini dinle
         $selectedTab
-            .sink { [weak self] _ in
+            .sink { [weak self] newTab in
+                print("📊 CachedEventsViewModel: selectedTab changed to \(newTab.rawValue)")
                 self?.handleTabChange()
             }
             .store(in: &cancellables)
@@ -225,6 +226,24 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
     }
     
+    // 🔴 FIXED: changeTab method with debug logging
+    func changeTab(to newTab: EventTab) {
+        print("🔄 CachedEventsViewModel.changeTab called with: \(newTab.rawValue)")
+        print("📊 Current selectedTab: \(selectedTab.rawValue)")
+        
+        // Only change if different
+        guard selectedTab != newTab else {
+            print("⚠️ Tab is the same, skipping change")
+            return
+        }
+        
+        // Update selected tab
+        selectedTab = newTab
+        print("✅ selectedTab updated to: \(selectedTab.rawValue)")
+        
+        // handleTabChange will be called automatically via $selectedTab observer
+    }
+    
     // MARK: - Public Methods
     func loadEvents(strategy: CacheStrategy = .cacheFirst, resetPagination: Bool = true) {
         if resetPagination {
@@ -232,6 +251,8 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
         
         updateCurrentFilter()
+        
+        print("🌐 Loading events for tab: \(selectedTab.rawValue) with strategy: \(strategy)")
         
         eventsService.fetchEventsWithCache(
             filter: currentFilter,
@@ -242,10 +263,12 @@ class CachedEventsViewModel: EventsFilterProtocol {
         .sink(
             receiveCompletion: { [weak self] completion in
                 if case .failure(let error) = completion {
+                    print("❌ Events loading failed: \(error)")
                     self?.handleError(error)
                 }
             },
             receiveValue: { [weak self] (response, fromCache) in
+                print("📥 Received \(response.events.count) events for tab: \(self?.selectedTab.rawValue ?? "unknown")")
                 self?.handleEventsResponse(response, resetPagination: resetPagination)
                 
                 if fromCache {
@@ -354,10 +377,6 @@ class CachedEventsViewModel: EventsFilterProtocol {
         searchText = ""
         
         applyFilters()
-    }
-    
-    func changeTab(to newTab: EventTab) {
-        selectedTab = newTab
     }
     
     // MARK: - Cache Management

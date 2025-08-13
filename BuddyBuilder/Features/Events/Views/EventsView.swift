@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/EventsView.swift
+// BuddyBuilder/Features/Events/Views/EventsView.swift - CORRECT TAB MAPPING FIX
 
 import SwiftUI
 
@@ -15,14 +15,12 @@ enum EventsTab: String, CaseIterable {
     }
 }
 
-// MARK: - Events View - Modern & Multilingual
+// MARK: - Events View - FIXED TAB TIMING ISSUE
 struct EventsView: View {
-    @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService()) // Change to EventsService() in production
+    @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService())
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var selectedTab: EventsTab = .all
     @State private var showingFilters = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var isDragging = false
     
     var body: some View {
         NavigationView {
@@ -38,8 +36,8 @@ struct EventsView: View {
                     // Tab Selection
                     tabSelectionSection
                     
-                    // Events List with TabView for swipe
-                    eventsTabView
+                    // Content based on tab - NO TABVIEW!
+                    contentSection
                 }
             }
             .navigationBarHidden(true)
@@ -49,14 +47,24 @@ struct EventsView: View {
                  .environmentObject(localizationManager)
         }
         .onAppear {
+            // Sadece ilk açılışta load et
             if eventsViewModel.events.isEmpty {
+                print("🚀 Initial load for tab: \(selectedTab.rawValue)")
+                setViewModelTab(selectedTab)
                 eventsViewModel.loadEvents()
             }
         }
-        .onChange(of: selectedTab) { oldValue, newTab in
-            let viewModelTab: EventTab = newTab == .all ? .all : .my
-            eventsViewModel.changeTab(to: viewModelTab) // Direct method call
-        }
+    }
+    
+    // MARK: - FIXED: Direct tab setting instead of onChange
+    private func setViewModelTab(_ uiTab: EventsTab) {
+        let viewModelTab: EventTab = (uiTab == .all) ? .all : .my
+        
+        print("🔄 Setting ViewModel tab directly: \(uiTab.rawValue) → \(viewModelTab.rawValue)")
+        print("🎯 This should call: \(uiTab == .all ? "All Events API" : "My Events API")")
+        
+        // Directly call changeTab
+        eventsViewModel.changeTab(to: viewModelTab)
     }
     
     // MARK: - Header Section
@@ -99,14 +107,17 @@ struct EventsView: View {
         .background(Color.formBackground)
     }
     
-    // MARK: - Tab Selection Section
+    // MARK: - Tab Selection Section - FIXED: Direct button action
     private var tabSelectionSection: some View {
         HStack(spacing: 0) {
             ForEach(EventsTab.allCases, id: \.self) { tab in
                 Button(action: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
+                    print("🎯 Tab button tapped: \(tab.rawValue)")
+                    
+                    // FIXED: Direct tab change without animation conflicts
+                    selectedTab = tab
+                    setViewModelTab(tab)
+                    
                 }) {
                     VStack(spacing: 8) {
                         Text(tab.title.localized(using: localizationManager))
@@ -116,7 +127,6 @@ struct EventsView: View {
                         Rectangle()
                             .fill(selectedTab == tab ? Color.primaryOrange : Color.clear)
                             .frame(height: 2)
-                            .animation(.easeInOut(duration: 0.2), value: selectedTab)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -125,21 +135,12 @@ struct EventsView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
         .background(Color.formBackground)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
     }
     
-    // MARK: - Events Tab View with Swipe
-    private var eventsTabView: some View {
-        TabView(selection: $selectedTab) {
-            // All Events Tab
-            eventsListContent
-                .tag(EventsTab.all)
-            
-            // My Events Tab
-            eventsListContent
-                .tag(EventsTab.my)
-        }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-        .animation(.easeInOut(duration: 0.2), value: selectedTab)
+    // MARK: - Content Section (Replace TabView with simple content)
+    private var contentSection: some View {
+        eventsListContent
     }
     
     // MARK: - Events List Content
@@ -165,7 +166,6 @@ struct EventsView: View {
                         )
                         .environmentObject(localizationManager)
                         .onTapGesture {
-                            // Handle event tap - navigate to event details
                             print("Tapped event: \(event.name)")
                         }
                     }
@@ -177,9 +177,10 @@ struct EventsView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 100) // Account for tab bar
+            .padding(.bottom, 100)
         }
         .refreshable {
+            print("🔄 Pull to refresh - Current tab: \(selectedTab.rawValue)")
             eventsViewModel.refreshEvents()
         }
         .background(Color.formBackground)
@@ -273,31 +274,6 @@ struct EventsView: View {
         }
     }
 }
-//
-//// MARK: - Simple Events Filter View
-//struct EventsFilterView: View {
-//    @ObservedObject var viewModel: EventsViewModel
-//    @EnvironmentObject var localizationManager: LocalizationManager
-//    @Environment(\.presentationMode) var presentationMode
-//    
-//    var body: some View {
-//        NavigationView {
-//            EventFiltersSheet(viewModel: viewModel)
-//                .environmentObject(localizationManager)
-//                .navigationTitle("Filters")
-//                .navigationBarTitleDisplayMode(.inline)
-//                .navigationBarItems(
-//                    leading: Button("Clear All") {
-//                        viewModel.clearFilters()
-//                        presentationMode.wrappedValue.dismiss()
-//                    },
-//                    trailing: Button("Done") {
-//                        presentationMode.wrappedValue.dismiss()
-//                    }
-//                )
-//        }
-//    }
-//}
 
 // MARK: - Preview
 #Preview {

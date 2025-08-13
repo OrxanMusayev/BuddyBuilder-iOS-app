@@ -84,6 +84,7 @@ class EventsViewModel: EventsFilterProtocol {
         self.eventsService = eventsService
         setupSearchDebounce()
         setupFilterObservers()
+        // 🔴 REMOVED: setupFilterObservers içindeki $selectedTab observer'ı kaldırdık
     }
     
     // MARK: - Setup Methods
@@ -97,15 +98,8 @@ class EventsViewModel: EventsFilterProtocol {
     }
     
     private func setupFilterObservers() {
-        // Observe tab changes
-        $selectedTab
-            .sink { [weak self] _ in
-                self?.resetPagination()
-                self?.loadEvents()
-            }
-            .store(in: &cancellables)
-        
-        // Observe filter changes
+        // 🔴 REMOVED: $selectedTab observer - bu conflict yaratıyordu
+        // Sadece filter değişikliklerini dinle
         Publishers.CombineLatest4(
             $selectedEventType,
             $selectedSportId,
@@ -119,31 +113,51 @@ class EventsViewModel: EventsFilterProtocol {
         .store(in: &cancellables)
     }
     
+    // 🔴 FIXED: changeTab metodu - sadece manuel çağrıldığında çalışır
     func changeTab(to newTab: EventTab) {
+        print("🔄 EventsViewModel.changeTab called: \(selectedTab.rawValue) → \(newTab.rawValue)")
+        
+        // Only change if different
+        guard selectedTab != newTab else {
+            print("⚠️ Tab is the same, skipping change")
+            return
+        }
+        
+        // Update selected tab
         selectedTab = newTab
+        print("✅ selectedTab updated to: \(selectedTab.rawValue)")
+        
+        // Reset and load
         resetPagination()
-        loadEvents() // Immediately load for new tab
+        loadEvents()
     }
     
     // MARK: - Public Methods
-    // ESKİ loadEvents FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func loadEvents(resetPagination: Bool = true) {
         if resetPagination {
             self.resetPagination()
         }
         
-        guard !isLoading else { return }
+        guard !isLoading else {
+            print("⚠️ Already loading, skipping request")
+            return
+        }
         
         isLoading = true
         errorMessage = ""
+        
+        // 🔴 DEBUG: Current state
+        print("🌐 Loading events for tab: \(selectedTab.rawValue)")
         
         let publisher: AnyPublisher<EventsResponse, Error>
         
         switch selectedTab {
         case .all:
-            publisher = eventsService.fetchEventsWithAutoRefresh(filter: currentFilter) // 🔴 DEĞİŞTİ
+            print("📡 Calling fetchEventsWithAutoRefresh for ALL events")
+            publisher = eventsService.fetchEventsWithAutoRefresh(filter: currentFilter)
         case .my:
-            publisher = eventsService.fetchMyEventsWithAutoRefresh(filter: currentFilter) // 🔴 DEĞİŞTİ
+            print("📡 Calling fetchMyEventsWithAutoRefresh for MY events")
+            publisher = eventsService.fetchMyEventsWithAutoRefresh(filter: currentFilter)
         }
         
         publisher
@@ -153,12 +167,15 @@ class EventsViewModel: EventsFilterProtocol {
                     self?.isLoading = false
                     switch completion {
                     case .failure(let error):
+                        print("❌ Events loading failed: \(error)")
                         self?.handleError(error)
                     case .finished:
+                        print("✅ Events loading completed")
                         break
                     }
                 },
                 receiveValue: { [weak self] response in
+                    print("📥 Received \(response.events.count) events for tab: \(self?.selectedTab.rawValue ?? "unknown")")
                     self?.handleEventsResponse(response, resetPagination: resetPagination)
                 }
             )
@@ -173,16 +190,16 @@ class EventsViewModel: EventsFilterProtocol {
     }
     
     func refreshEvents() {
+        print("🔄 Refresh events for current tab: \(selectedTab.rawValue)")
         resetPagination()
         loadEvents()
     }
     
-    // ESKİ joinEvent FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func joinEvent(_ event: Event) {
         guard !isLoading else { return }
         
         isLoading = true
-        eventsService.joinEventWithAutoRefresh(eventId: event.id) // 🔴 DEĞİŞTİ
+        eventsService.joinEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -203,12 +220,11 @@ class EventsViewModel: EventsFilterProtocol {
             .store(in: &cancellables)
     }
     
-    // ESKİ leaveEvent FONKSİYONUNU BUL VE ŞU ŞEKILDE DEĞİŞTİR:
     func leaveEvent(_ event: Event) {
         guard !isLoading else { return }
         
         isLoading = true
-        eventsService.leaveEventWithAutoRefresh(eventId: event.id) // 🔴 DEĞİŞTİ
+        eventsService.leaveEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
@@ -303,19 +319,3 @@ class EventsViewModel: EventsFilterProtocol {
         print("❌ Events Error: \(error.localizedDescription)")
     }
 }
-
-// MARK: - File Import Order Reminder
-/*
-Bu dosyanın çalışması için şu dosyaların projeye eklenmesi gerekir:
-
-1. EventModels.swift - Event, EventsResponse, EventFilter modelleri
-2. EventsService.swift - EventsServiceProtocol ve implementasyonları
-3. AdditionalEventModels.swift - EventType, ExperienceLevel, Gender enum'ları
-
-Import sırası:
-1. Foundation
-2. Combine
-3. SwiftUI
-
-Bu dosyalar olmadan EventsViewModel compile olmayacaktır.
-*/

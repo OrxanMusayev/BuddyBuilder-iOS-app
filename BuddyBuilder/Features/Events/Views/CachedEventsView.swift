@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - CORRECT TAB MAPPING FIX
+// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - SMOOTH SWIPE EXPERIENCE
 
 import SwiftUI
 
@@ -7,7 +7,11 @@ struct CachedEventsView: View {
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var selectedTab: EventsTab = .all
     @State private var showingFilters = false
-    @State private var showRefreshHint = false
+    
+    // MARK: - Smooth Swipe State
+    @GestureState private var dragState = DragState.inactive
+    @State private var viewOffset: CGFloat = 0
+    @State private var isSwipeInProgress = false
     
     var body: some View {
         NavigationView {
@@ -26,14 +30,11 @@ struct CachedEventsView: View {
                     // Search Bar
                     searchSection
                     
-                    // Content based on loading state
-                    contentSection
+                    // Smooth Swipeable Content - FIXED
+                    smoothSwipeableContent
                 }
             }
             .navigationBarHidden(true)
-            .refreshable {
-                await performManualRefresh()
-            }
         }
         .sheet(isPresented: $showingFilters) {
             GenericEventsFilterView(viewModel: viewModel)
@@ -42,24 +43,6 @@ struct CachedEventsView: View {
         .onAppear {
             handleViewAppear()
         }
-        // 🔴 FIXED: CORRECT TAB MAPPING
-        .onChange(of: selectedTab) { oldValue, newTab in
-            print("🔄 CachedEvents UI Tab changed from \(oldValue.rawValue) to \(newTab.rawValue)")
-            
-            // 🟢 CORRECT MAPPING:
-            // UI .all -> ViewModel .all (All Events API)
-            // UI .my -> ViewModel .my (My Events API)
-            let viewModelTab: EventTab = (newTab == .all) ? .all : .my
-            print("📱 Setting CachedEvents ViewModel tab to: \(viewModelTab.rawValue)")
-            print("🔍 Expected API: \(newTab == .all ? "All Events" : "My Events")")
-            
-            viewModel.changeTab(to: viewModelTab)
-        }
-        // Debug ViewModel tab changes
-        .onChange(of: viewModel.selectedTab) { oldValue, newViewModelTab in
-            print("📊 CachedEvents ViewModel tab changed to: \(newViewModelTab.rawValue)")
-            print("🔍 This should call: \(newViewModelTab == .all ? "All Events API" : "My Events API")")
-        }
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") {
                 viewModel.showError = false
@@ -67,6 +50,40 @@ struct CachedEventsView: View {
         } message: {
             Text(viewModel.errorMessage)
         }
+    }
+    
+    // MARK: - Tab switching with smooth animation
+    private func switchToTab(_ newTab: EventsTab, animated: Bool = true) {
+        guard newTab != selectedTab else { return }
+        
+        print("🔄 CachedEvents switching to tab: \(newTab.rawValue)")
+        isSwipeInProgress = true
+        
+        if animated {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                selectedTab = newTab
+                updateViewOffset()
+            }
+        } else {
+            selectedTab = newTab
+            updateViewOffset()
+        }
+        
+        let viewModelTab: EventTab = (newTab == .all) ? .all : .my
+        
+        // FIXED: Sadece farklıysa değiştir
+        if viewModel.selectedTab != viewModelTab {
+            viewModel.changeTab(to: viewModelTab)
+        }
+        
+        // Reset swipe progress after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isSwipeInProgress = false
+        }
+    }
+    
+    private func updateViewOffset() {
+        viewOffset = selectedTab == .all ? 0 : -UIScreen.main.bounds.width
     }
     
     // MARK: - Header Section
@@ -210,9 +227,7 @@ struct CachedEventsView: View {
             ForEach(EventsTab.allCases, id: \.self) { tab in
                 Button(action: {
                     print("🎯 CachedEvents Tab button tapped: \(tab.rawValue)")
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
+                    switchToTab(tab)
                 }) {
                     VStack(spacing: 8) {
                         Text(tab.title.localized(using: localizationManager))
@@ -222,7 +237,6 @@ struct CachedEventsView: View {
                         Rectangle()
                             .fill(selectedTab == tab ? Color.primaryOrange : Color.clear)
                             .frame(height: 2)
-                            .animation(.easeInOut(duration: 0.2), value: selectedTab)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -231,6 +245,7 @@ struct CachedEventsView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
         .background(Color.formBackground)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
     }
     
     // MARK: - Search Section
@@ -292,8 +307,55 @@ struct CachedEventsView: View {
         .opacity(viewModel.uiLoadingState.isLoading ? 0.6 : 1.0)
     }
     
-    // MARK: - Content Section
-    private var contentSection: some View {
+    // MARK: - FIXED: Smooth Swipeable Content
+    private var smoothSwipeableContent: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // FIXED: Sadece aktif tab'ın content'ini göster
+                contentBasedOnState
+                    .opacity(isSwipeInProgress ? 0.8 : 1.0) // Swipe sırasında hafif fade
+                    .animation(.easeInOut(duration: 0.1), value: isSwipeInProgress)
+            }
+            .frame(width: geometry.size.width)
+            .clipped()
+            .gesture(
+                // FIXED: Daha smooth swipe gesture
+                DragGesture(minimumDistance: 20) // Minimum distance ekledik
+                    .updating($dragState) { drag, state, _ in
+                        // Sadece horizontal movement'i kabul et
+                        if abs(drag.translation.width) > abs(drag.translation.height) {
+                            state = .dragging(translation: drag.translation)
+                        }
+                    }
+                    .onEnded { value in
+                        handleSwipeEnd(value: value, screenWidth: geometry.size.width)
+                    }
+            )
+        }
+    }
+    
+    // MARK: - FIXED: Smooth Swipe Handling
+    private func handleSwipeEnd(value: DragGesture.Value, screenWidth: CGFloat) {
+        let threshold: CGFloat = screenWidth * 0.2 // Daha düşük threshold
+        let dragDistance = value.translation.width
+        let dragVelocity = abs(value.translation.width) / max(0.001, abs(value.time.timeIntervalSinceReferenceDate))
+        
+        // FIXED: Daha akıllı swipe detection
+        let shouldSwitch = abs(dragDistance) > threshold || dragVelocity > 800
+        
+        if shouldSwitch {
+            if dragDistance > 0 && selectedTab == .my {
+                // Swipe right: My Events → All Events
+                switchToTab(.all)
+            } else if dragDistance < 0 && selectedTab == .all {
+                // Swipe left: All Events → My Events
+                switchToTab(.my)
+            }
+        }
+    }
+    
+    // MARK: - FIXED: Single Content Based on State (shows current tab's data)
+    private var contentBasedOnState: some View {
         Group {
             switch viewModel.uiLoadingState {
             case .showingSkeleton:
@@ -306,12 +368,14 @@ struct CachedEventsView: View {
                 eventsContentView
             }
         }
+        .refreshable {
+            await performManualRefresh()
+        }
     }
     
     // MARK: - Skeleton Loading View
     private var skeletonLoadingView: some View {
         VStack(spacing: 20) {
-            // Loading indicator
             VStack(spacing: 16) {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
@@ -323,7 +387,6 @@ struct CachedEventsView: View {
             }
             .padding(.top, 40)
             
-            // Skeleton cards
             LazyVStack(spacing: 12) {
                 ForEach(0..<5, id: \.self) { _ in
                     EventCardSkeleton()
@@ -373,7 +436,6 @@ struct CachedEventsView: View {
     // MARK: - Events Content View
     private var eventsContentView: some View {
         ZStack(alignment: .top) {
-            // Main events list
             if viewModel.filteredEvents.isEmpty {
                 emptyStateView
             } else {
@@ -404,12 +466,10 @@ struct CachedEventsView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
                 
-                // Load more section
                 if viewModel.canLoadMore {
                     loadMoreView
                 }
                 
-                // Bottom spacing
                 Color.clear.frame(height: 100)
             }
             .padding(.horizontal, 20)
@@ -465,6 +525,7 @@ struct CachedEventsView: View {
         .padding(.vertical, 20)
     }
     
+    // MARK: - Empty State View
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -578,8 +639,11 @@ struct CachedEventsView: View {
     }
 }
 
+
 // MARK: - Preview
 #Preview {
     CachedEventsView()
         .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
 }
+
+    

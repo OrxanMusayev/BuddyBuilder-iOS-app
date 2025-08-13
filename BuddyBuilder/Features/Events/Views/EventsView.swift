@@ -15,12 +15,18 @@ enum EventsTab: String, CaseIterable {
     }
 }
 
-// MARK: - Events View - FIXED TAB TIMING ISSUE
+
+// MARK: - Events View - Smooth Swipe Experience
 struct EventsView: View {
     @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService())
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var selectedTab: EventsTab = .all
     @State private var showingFilters = false
+    
+    // MARK: - Smooth Swipe State
+    @GestureState private var dragState = DragState.inactive
+    @State private var viewOffset: CGFloat = 0
+    @State private var isSwipeInProgress = false
     
     var body: some View {
         NavigationView {
@@ -36,8 +42,8 @@ struct EventsView: View {
                     // Tab Selection
                     tabSelectionSection
                     
-                    // Content based on tab - NO TABVIEW!
-                    contentSection
+                    // Content with smooth swipe gesture - FIXED
+                    smoothSwipeableContent
                 }
             }
             .navigationBarHidden(true)
@@ -47,7 +53,6 @@ struct EventsView: View {
                  .environmentObject(localizationManager)
         }
         .onAppear {
-            // Sadece ilk açılışta load et
             if eventsViewModel.events.isEmpty {
                 print("🚀 Initial load for tab: \(selectedTab.rawValue)")
                 setViewModelTab(selectedTab)
@@ -56,15 +61,45 @@ struct EventsView: View {
         }
     }
     
-    // MARK: - FIXED: Direct tab setting instead of onChange
+    // MARK: - Direct tab setting
     private func setViewModelTab(_ uiTab: EventsTab) {
         let viewModelTab: EventTab = (uiTab == .all) ? .all : .my
         
-        print("🔄 Setting ViewModel tab directly: \(uiTab.rawValue) → \(viewModelTab.rawValue)")
-        print("🎯 This should call: \(uiTab == .all ? "All Events API" : "My Events API")")
+        print("🔄 Setting ViewModel tab: \(uiTab.rawValue) → \(viewModelTab.rawValue)")
         
-        // Directly call changeTab
-        eventsViewModel.changeTab(to: viewModelTab)
+        // FIXED: Sadece farklıysa değiştir
+        if eventsViewModel.selectedTab != viewModelTab {
+            eventsViewModel.changeTab(to: viewModelTab)
+        }
+    }
+    
+    // MARK: - Tab switching with smooth animation
+    private func switchToTab(_ newTab: EventsTab, animated: Bool = true) {
+        guard newTab != selectedTab else { return }
+        
+        print("🎯 Switching to tab: \(newTab.rawValue)")
+        isSwipeInProgress = true
+        
+        if animated {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                selectedTab = newTab
+                updateViewOffset()
+            }
+        } else {
+            selectedTab = newTab
+            updateViewOffset()
+        }
+        
+        setViewModelTab(newTab)
+        
+        // Reset swipe progress after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            isSwipeInProgress = false
+        }
+    }
+    
+    private func updateViewOffset() {
+        viewOffset = selectedTab == .all ? 0 : -UIScreen.main.bounds.width
     }
     
     // MARK: - Header Section
@@ -90,7 +125,6 @@ struct EventsView: View {
                             .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.primaryOrange)
                         
-                        // Filter count badge
                         if hasActiveFilters {
                             Circle()
                                 .fill(Color.red)
@@ -107,17 +141,13 @@ struct EventsView: View {
         .background(Color.formBackground)
     }
     
-    // MARK: - Tab Selection Section - FIXED: Direct button action
+    // MARK: - Tab Selection Section
     private var tabSelectionSection: some View {
         HStack(spacing: 0) {
             ForEach(EventsTab.allCases, id: \.self) { tab in
                 Button(action: {
                     print("🎯 Tab button tapped: \(tab.rawValue)")
-                    
-                    // FIXED: Direct tab change without animation conflicts
-                    selectedTab = tab
-                    setViewModelTab(tab)
-                    
+                    switchToTab(tab)
                 }) {
                     VStack(spacing: 8) {
                         Text(tab.title.localized(using: localizationManager))
@@ -138,12 +168,54 @@ struct EventsView: View {
         .animation(.easeInOut(duration: 0.2), value: selectedTab)
     }
     
-    // MARK: - Content Section (Replace TabView with simple content)
-    private var contentSection: some View {
-        eventsListContent
+    // MARK: - FIXED: Smooth Swipeable Content
+    private var smoothSwipeableContent: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // FIXED: Sadece aktif tab'ın content'ini göster
+                eventsListContent
+                    .opacity(isSwipeInProgress ? 0.8 : 1.0) // Swipe sırasında hafif fade
+                    .animation(.easeInOut(duration: 0.1), value: isSwipeInProgress)
+            }
+            .frame(width: geometry.size.width)
+            .clipped()
+            .gesture(
+                // FIXED: Daha smooth swipe gesture
+                DragGesture(minimumDistance: 20) // Minimum distance ekledik
+                    .updating($dragState) { drag, state, _ in
+                        // Sadece horizontal movement'i kabul et
+                        if abs(drag.translation.width) > abs(drag.translation.height) {
+                            state = .dragging(translation: drag.translation)
+                        }
+                    }
+                    .onEnded { value in
+                        handleSwipeEnd(value: value, screenWidth: geometry.size.width)
+                    }
+            )
+        }
     }
     
-    // MARK: - Events List Content
+    // MARK: - FIXED: Smooth Swipe Handling
+    private func handleSwipeEnd(value: DragGesture.Value, screenWidth: CGFloat) {
+        let threshold: CGFloat = screenWidth * 0.2 // Daha düşük threshold
+        let dragDistance = value.translation.width
+        let dragVelocity = abs(value.translation.width) / max(0.001, abs(value.time.timeIntervalSinceReferenceDate))
+        
+        // FIXED: Daha akıllı swipe detection
+        let shouldSwitch = abs(dragDistance) > threshold || dragVelocity > 800
+        
+        if shouldSwitch {
+            if dragDistance > 0 && selectedTab == .my {
+                // Swipe right: My Events → All Events
+                switchToTab(.all)
+            } else if dragDistance < 0 && selectedTab == .all {
+                // Swipe left: All Events → My Events
+                switchToTab(.my)
+            }
+        }
+    }
+    
+    // MARK: - FIXED: Single Events List Content (shows current tab's data)
     private var eventsListContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
@@ -170,7 +242,6 @@ struct EventsView: View {
                         }
                     }
                     
-                    // Load more button
                     if eventsViewModel.canLoadMore {
                         loadMoreView
                     }
@@ -271,6 +342,21 @@ struct EventsView: View {
             return "events.empty.all.subtitle".localized(using: localizationManager)
         } else {
             return "events.empty.my.subtitle".localized(using: localizationManager)
+        }
+    }
+}
+
+// MARK: - Drag State Enum
+enum DragState {
+    case inactive
+    case dragging(translation: CGSize)
+    
+    var translation: CGSize {
+        switch self {
+        case .inactive:
+            return .zero
+        case .dragging(let translation):
+            return translation
         }
     }
 }

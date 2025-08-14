@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/EventsView.swift - CORRECT TAB MAPPING FIX
+// BuddyBuilder/Features/Events/Views/EventsView.swift - PAGINATION FIX
 
 import SwiftUI
 
@@ -15,8 +15,7 @@ enum EventsTab: String, CaseIterable {
     }
 }
 
-
-// MARK: - Events View - Smooth Swipe Experience
+// MARK: - Events View - Smooth Swipe Experience + PAGINATION FIX
 struct EventsView: View {
     @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService())
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -215,7 +214,7 @@ struct EventsView: View {
         }
     }
     
-    // MARK: - FIXED: Single Events List Content (shows current tab's data)
+    // MARK: - FIXED: Single Events List Content (shows current tab's data) + PAGINATION
     private var eventsListContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
@@ -242,6 +241,7 @@ struct EventsView: View {
                         }
                     }
                     
+                    // PAGINATION: Load More sadece gerektiğinde göster
                     if eventsViewModel.canLoadMore {
                         loadMoreView
                     }
@@ -257,26 +257,57 @@ struct EventsView: View {
         .background(Color.formBackground)
     }
     
-    // MARK: - Load More View
+    // MARK: - Load More View - PAGINATION FIX
     private var loadMoreView: some View {
         VStack(spacing: 12) {
             if eventsViewModel.isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                
-                Text("events.loading.more".localized(using: localizationManager))
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-            } else {
-                Button("events.load.more".localized(using: localizationManager)) {
-                    eventsViewModel.loadMoreEvents()
+                // Loading state
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+                    
+                    Text("events.loading.more".localized(using: localizationManager))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.textSecondary)
                 }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primaryOrange)
+                .padding(.vertical, 20)
+            } else {
+                // Load More Button
+                Button(action: {
+                    print("🔄 Load More tapped - Current page: \(eventsViewModel.currentPage), Total pages: \(eventsViewModel.totalPages)")
+                    print("🔄 Can load more: \(eventsViewModel.canLoadMore)")
+                    print("🔄 Events count: \(eventsViewModel.events.count)")
+                    eventsViewModel.loadMoreEvents()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        Text("events.load.more".localized(using: localizationManager))
+                            .font(.system(size: 16, weight: .semibold))
+                        
+                        // PAGINATION DEBUG INFO (development only)
+                        Text("(\(eventsViewModel.currentPage)/\(eventsViewModel.totalPages))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    .foregroundColor(.primaryOrange)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.primaryOrange.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(Color.primaryOrange, lineWidth: 1.5)
+                            )
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
     }
     
     // MARK: - Empty State View
@@ -358,6 +389,36 @@ enum DragState {
         case .dragging(let translation):
             return translation
         }
+    }
+}
+
+// MARK: - PAGINATION DEBUG VIEW (Test amaçlı - Production'da kaldırın)
+struct LoadMoreDebugView: View {
+    @ObservedObject var viewModel: EventsViewModel
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("PAGINATION DEBUG")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white)
+            
+            HStack(spacing: 8) {
+                Text("Page: \(viewModel.currentPage)/\(viewModel.totalPages)")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Text("Events: \(viewModel.events.count)")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.white)
+                
+                Text("Load More: \(viewModel.canLoadMore ? "YES" : "NO")")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(viewModel.canLoadMore ? .green : .red)
+            }
+        }
+        .padding(8)
+        .background(Color.black.opacity(0.7))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

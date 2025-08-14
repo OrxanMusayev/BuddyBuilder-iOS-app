@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/UserProfile/Views/UserProfileView.swift - SearchAsyncImage İLE GÜNCELLENMİŞ
+// BuddyBuilder/Features/UserProfile/Views/UserProfileView.swift - DARK MODE UYUMLU GÜNCELLEMESİ
 
 import SwiftUI
 import Combine
@@ -17,11 +17,12 @@ struct UserProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background
-                LoginBackgroundView()
+                // Background - DARK MODE UYUMLU
+                Color.dynamicBackground
+                    .ignoresSafeArea(.all)
                 
                 VStack(spacing: 0) {
-                    // Custom Header
+                    // Custom Header - DARK MODE UYUMLU
                     customHeader
                     
                     // Content
@@ -78,7 +79,7 @@ struct UserProfileView: View {
         }
     }
     
-    // MARK: - Custom Header
+    // MARK: - Custom Header - DARK MODE UYUMLU
     private var customHeader: some View {
         HStack {
             // Back button
@@ -95,7 +96,7 @@ struct UserProfileView: View {
             // Title
             Text("user.profile.title".localized(using: localizationManager))
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
             
             Spacer()
             
@@ -105,31 +106,31 @@ struct UserProfileView: View {
             }) {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground.opacity(0.95)) // DARK MODE UYUMLU
     }
     
-    // MARK: - Loading View
+    // MARK: - Loading View - YENİ SKELETON CARD İLE
     private var loadingView: some View {
         VStack(spacing: 20) {
             Spacer()
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                .scaleEffect(1.5)
-            Text("user.profile.loading".localized(using: localizationManager))
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textSecondary)
+            
+            // Profile skeleton
+            UserProfileSkeleton()
+                .padding(.horizontal, 20)
+            
             Spacer()
         }
+        .padding(.top, 20)
     }
     
-    // MARK: - Error State View
+    // MARK: - Error State View - DARK MODE UYUMLU
     private var errorStateView: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -138,7 +139,7 @@ struct UserProfileView: View {
                 .foregroundColor(.red.opacity(0.6))
             Text("user.profile.error.load_failed".localized(using: localizationManager))
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
             Button("common.try_again".localized(using: localizationManager)) {
                 viewModel.refresh()
             }
@@ -204,19 +205,19 @@ struct UserProfileView: View {
             VStack(spacing: 8) {
                 Text(viewModel.userDisplayName)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText) // DARK MODE UYUMLU
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 
                 Text("@\(viewModel.profileDetails?.username ?? "")")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     .lineLimit(1)
                 
                 if !viewModel.userBio.isEmpty && viewModel.userBio != "user.profile.no_bio_available" {
                     Text(viewModel.userBio)
                         .font(.system(size: 16))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
                         .padding(.horizontal, 20)
@@ -227,7 +228,7 @@ struct UserProfileView: View {
         .padding(.top, 20)
     }
     
-    // MARK: - Profile Stats Section (like ProfileView)
+    // MARK: - Profile Stats Section (like ProfileView) - DARK MODE UYUMLU
     private var profileStatsSection: some View {
         HStack(spacing: 0) {
             ProfileStatCard(
@@ -239,7 +240,7 @@ struct UserProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // DARK MODE UYUMLU
             
             ProfileStatCard(
                 title: "user.profile.stats.matches".localized(using: localizationManager),
@@ -250,7 +251,7 @@ struct UserProfileView: View {
             
             Divider()
                 .frame(height: 50)
-                .background(Color.formBorder.opacity(0.3))
+                .background(Color.dynamicBorder.opacity(0.3)) // DARK MODE UYUMLU
             
             ProfileStatCard(
                 title: "user.profile.stats.score".localized(using: localizationManager),
@@ -260,9 +261,9 @@ struct UserProfileView: View {
             )
         }
         .padding(10)
-        .background(Color.white)
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 25))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // DARK MODE UYUMLU
     }
     
     // MARK: - User Info Cards
@@ -278,7 +279,7 @@ struct UserProfileView: View {
         }
     }
     
-    // MARK: - Basic Info Card
+    // MARK: - Basic Info Card - DARK MODE UYUMLU
     private var basicInfoCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "user.profile.section.basic_info".localized(using: localizationManager), icon: "person.circle")
@@ -303,12 +304,12 @@ struct UserProfileView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // DARK MODE UYUMLU
     }
     
-    // MARK: - About Me Card
+    // MARK: - About Me Card - DARK MODE UYUMLU
     private var aboutMeCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "user.profile.section.about_me".localized(using: localizationManager), icon: "text.quote")
@@ -317,16 +318,16 @@ struct UserProfileView: View {
                  "user.profile.no_additional_info".localized(using: localizationManager) :
                  viewModel.userAboutMe)
                 .font(.system(size: 16))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
                 .lineLimit(nil)
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // DARK MODE UYUMLU
     }
     
-    // MARK: - Sports Section - YENİ: SearchAsyncImage KULLANIMI
+    // MARK: - Sports Section - DARK MODE UYUMLU
     private var sportsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(title: "user.profile.section.sports".localized(using: localizationManager), icon: "sportscourt")
@@ -340,15 +341,15 @@ struct UserProfileView: View {
             } else {
                 Text("user.profile.no_sports".localized(using: localizationManager))
                     .font(.system(size: 16))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 20)
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4) // DARK MODE UYUMLU
     }
     
     // MARK: - Action Buttons Section
@@ -439,11 +440,11 @@ struct UserProfileView: View {
             
             Text("user.profile.status.match_request_sent".localized(using: localizationManager))
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
             
             Text("user.profile.status.waiting_response".localized(using: localizationManager))
                 .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -460,7 +461,7 @@ struct UserProfileView: View {
             
             Text("user.profile.status.user_blocked".localized(using: localizationManager))
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -468,7 +469,7 @@ struct UserProfileView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
     
-    // MARK: - Helper Views
+    // MARK: - Helper Views - DARK MODE UYUMLU
     private func sectionHeader(title: String, icon: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -477,7 +478,7 @@ struct UserProfileView: View {
             
             Text(title)
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
             
             Spacer()
         }
@@ -492,18 +493,165 @@ struct UserProfileView: View {
             
             Text(title)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
             
             Spacer()
             
             Text(value)
                 .font(.system(size: 16))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
         }
     }
 }
 
-// MARK: - User Report Action Sheet Component
+// MARK: - YENİ: User Profile Skeleton (EventCard Skeleton Tarzında)
+struct UserProfileSkeleton: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Profile header skeleton
+            VStack(spacing: 20) {
+                // Profile image skeleton
+                Circle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 120, height: 120)
+                    .shimmer(isAnimating: isAnimating)
+                
+                // Name and username skeleton
+                VStack(spacing: 8) {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 200, height: 24)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .shimmer(isAnimating: isAnimating)
+                    
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 150, height: 18)
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                        .shimmer(isAnimating: isAnimating)
+                    
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 250, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shimmer(isAnimating: isAnimating)
+                }
+            }
+            
+            // Stats skeleton
+            HStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { index in
+                    VStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 30, height: 30)
+                            .shimmer(isAnimating: isAnimating)
+                        
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 40, height: 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .shimmer(isAnimating: isAnimating)
+                        
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 60, height: 12)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .shimmer(isAnimating: isAnimating)
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    if index < 2 {
+                        Divider()
+                            .frame(height: 50)
+                            .background(Color.gray.opacity(0.2))
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
+            
+            // Action buttons skeleton
+            HStack(spacing: 12) {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shimmer(isAnimating: isAnimating)
+                
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shimmer(isAnimating: isAnimating)
+            }
+            
+            // Info cards skeleton
+            VStack(spacing: 16) {
+                ForEach(0..<2, id: \.self) { _ in
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Section header skeleton
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 18, height: 18)
+                                .shimmer(isAnimating: isAnimating)
+                            
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 120, height: 18)
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
+                                .shimmer(isAnimating: isAnimating)
+                            
+                            Spacer()
+                        }
+                        
+                        // Content skeleton
+                        VStack(spacing: 12) {
+                            ForEach(0..<3, id: \.self) { _ in
+                                HStack(spacing: 12) {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 16, height: 16)
+                                        .shimmer(isAnimating: isAnimating)
+                                    
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 100, height: 16)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .shimmer(isAnimating: isAnimating)
+                                    
+                                    Spacer()
+                                    
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(width: 80, height: 16)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                        .shimmer(isAnimating: isAnimating)
+                                }
+                            }
+                        }
+                    }
+                    .padding(20)
+                    .background(Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
+                }
+            }
+        }
+        .onAppear {
+            withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                isAnimating = true
+            }
+        }
+    }
+}
+
+// MARK: - User Report Action Sheet Component - DARK MODE UYUMLU
 struct UserReportActionSheet: View {
     let userName: String
     let onBlockUser: () -> Void
@@ -524,11 +672,11 @@ struct UserReportActionSheet: View {
                 // Title
                 Text(String(format: "user.profile.report.title".localized(using: localizationManager), userName))
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.primaryText)
+                    .foregroundColor(.primaryText) // DARK MODE UYUMLU
                 
                 Text("user.profile.report.subtitle".localized(using: localizationManager))
                     .font(.system(size: 14))
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
             }
             .padding(.bottom, 24)
             
@@ -555,22 +703,22 @@ struct UserReportActionSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("user.profile.report.block_user".localized(using: localizationManager))
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.primaryText)
+                                .foregroundColor(.primaryText) // DARK MODE UYUMLU
                             
                             Text("user.profile.report.block_description".localized(using: localizationManager))
                                 .font(.system(size: 12))
-                                .foregroundColor(.secondaryText)
+                                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.tertiaryText)
+                            .foregroundColor(.tertiaryText) // DARK MODE UYUMLU
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.dynamicSecondaryBackground.opacity(0.5))
+                    .background(Color.formBackground.opacity(0.5)) // DARK MODE UYUMLU
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -596,22 +744,22 @@ struct UserReportActionSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("user.profile.report.report_user".localized(using: localizationManager))
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.primaryText) // DARK MODE UYUMLU
                             
                             Text("user.profile.report.report_description".localized(using: localizationManager))
                                 .font(.system(size: 12))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.formBackground.opacity(0.5))
+                    .background(Color.formBackground.opacity(0.5)) // DARK MODE UYUMLU
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -624,24 +772,24 @@ struct UserReportActionSheet: View {
             }) {
                 Text("common.cancel".localized(using: localizationManager))
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondaryText)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color.formBackground)
+                    .background(Color.formBackground) // DARK MODE UYUMLU
                     .clipShape(RoundedRectangle(cornerRadius: 22))
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
             .padding(.bottom, 20)
         }
-        .background(Color.cardBackground) 
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(280)])
         .presentationDragIndicator(.hidden)
     }
 }
 
-// MARK: - User Unblock Action Sheet Component
+// MARK: - User Unblock Action Sheet Component - DARK MODE UYUMLU
 struct UserUnblockActionSheet: View {
     let userName: String
     let onUnblockUser: () -> Void
@@ -661,11 +809,11 @@ struct UserUnblockActionSheet: View {
                 // Title
                 Text("user.profile.report.blocked_title".localized(using: localizationManager))
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText) // DARK MODE UYUMLU
                 
                 Text(String(format: "user.profile.report.blocked_subtitle".localized(using: localizationManager), userName))
                     .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
             }
             .padding(.bottom, 24)
             
@@ -691,22 +839,22 @@ struct UserUnblockActionSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("user.profile.report.unblock_user".localized(using: localizationManager))
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.primaryText) // DARK MODE UYUMLU
                             
                             Text(String(format: "user.profile.report.unblock_description".localized(using: localizationManager), userName))
                                 .font(.system(size: 12))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                         }
                         
                         Spacer()
                         
                         Image(systemName: "chevron.right")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.formBackground.opacity(0.5))
+                    .background(Color.formBackground.opacity(0.5)) // DARK MODE UYUMLU
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -719,24 +867,24 @@ struct UserUnblockActionSheet: View {
             }) {
                 Text("common.cancel".localized(using: localizationManager))
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color.formBackground)
+                    .background(Color.formBackground) // DARK MODE UYUMLU
                     .clipShape(RoundedRectangle(cornerRadius: 22))
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
             .padding(.bottom, 20)
         }
-        .background(Color.white)
+        .background(Color.cardBackground) // DARK MODE UYUMLU
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(200)])
         .presentationDragIndicator(.hidden)
     }
 }
 
-// MARK: - Sport Card Component - YENİ: SearchAsyncImage KULLANIMI
+// MARK: - Sport Card Component - DARK MODE UYUMLU
 struct SportCard: View {
     let sport: PreferredSportDetails
     
@@ -755,31 +903,32 @@ struct SportCard: View {
             
             Text(sport.sportName)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.primaryText)
+                .foregroundColor(.primaryText) // DARK MODE UYUMLU
                 .lineLimit(1)
             
             Text("Level \(sport.experienceLevel)")
                 .font(.system(size: 12))
-                .foregroundColor(.secondaryText)
+                .foregroundColor(.secondaryText) // DARK MODE UYUMLU
             
             if let notes = sport.notes, !notes.isEmpty {
                 Text(notes)
                     .font(.system(size: 10))
-                    .foregroundColor(.tertiaryText)
+                    .foregroundColor(.tertiaryText) // DARK MODE UYUMLU
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 120)
-        .background(Color.formBackground) // ✅ Updated (zaten adaptive)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.dynamicBorder, lineWidth: 1) // ✅ Updated
+        .background(Color.formBackground) // DARK MODE UYUMLU
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.dynamicBorder, lineWidth: 1) // DARK MODE UYUMLU
         )
     }
 }
+
 
 // MARK: - Preview
 #Preview {

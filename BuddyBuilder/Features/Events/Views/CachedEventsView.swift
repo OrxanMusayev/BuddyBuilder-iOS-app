@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - SMOOTH SWIPE EXPERIENCE
+// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - PAGINATION FIX
 
 import SwiftUI
 
@@ -449,6 +449,7 @@ struct CachedEventsView: View {
         }
     }
     
+    // MARK: - Events List View - PAGINATION FIX
     private var eventsListView: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
@@ -466,6 +467,7 @@ struct CachedEventsView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
                 
+                // PAGINATION: Load More sadece gerektiğinde göster
                 if viewModel.canLoadMore {
                     loadMoreView
                 }
@@ -476,6 +478,59 @@ struct CachedEventsView: View {
             .padding(.top, 16)
         }
         .animation(.easeInOut(duration: 0.3), value: viewModel.filteredEvents.count)
+    }
+    
+    // MARK: - Load More View - PAGINATION FIX
+    private var loadMoreView: some View {
+        VStack(spacing: 12) {
+            if viewModel.uiLoadingState.isLoading {
+                // Loading state
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
+                    
+                    Text("events.loading.more".localized(using: localizationManager))
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                }
+                .padding(.vertical, 20)
+            } else {
+                // Load More Button
+                Button(action: {
+                    print("🔄 Cached Load More tapped - Current page: \(viewModel.currentPage), Total pages: \(viewModel.totalPages)")
+                    print("🔄 Can load more: \(viewModel.canLoadMore)")
+                    print("🔄 Events count: \(viewModel.events.count)")
+                    viewModel.loadMoreEvents()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        Text("events.load.more".localized(using: localizationManager))
+                            .font(.system(size: 16, weight: .semibold))
+                        
+                        // PAGINATION DEBUG INFO (development only)
+                        Text("(\(viewModel.currentPage)/\(viewModel.totalPages))")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                    .foregroundColor(.primaryOrange)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 25)
+                            .fill(Color.primaryOrange.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .stroke(Color.primaryOrange, lineWidth: 1.5)
+                            )
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
     
     private var backgroundRefreshIndicator: some View {
@@ -502,27 +557,6 @@ struct CachedEventsView: View {
             
             Spacer()
         }
-    }
-    
-    private var loadMoreView: some View {
-        VStack(spacing: 12) {
-            if viewModel.uiLoadingState.isLoading {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                
-                Text("events.loading.more".localized(using: localizationManager))
-                    .font(.system(size: 14))
-                    .foregroundColor(.textSecondary)
-            } else {
-                Button("events.load.more".localized(using: localizationManager)) {
-                    viewModel.loadMoreEvents()
-                }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.primaryOrange)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
     }
     
     // MARK: - Empty State View
@@ -595,6 +629,11 @@ struct CachedEventsView: View {
             • Manual refresh: Force API
             • Filters: Force API
             
+            Pagination:
+            • Page: \(viewModel.currentPage)/\(viewModel.totalPages)
+            • Events: \(viewModel.events.count)
+            • Can Load More: \(viewModel.canLoadMore ? "YES" : "NO")
+            
             Actions:
             """,
             preferredStyle: .actionSheet
@@ -639,11 +678,8 @@ struct CachedEventsView: View {
     }
 }
 
-
 // MARK: - Preview
 #Preview {
     CachedEventsView()
         .environmentObject(LocalizationManager(localizationService: MockLocalizationService()))
 }
-
-    

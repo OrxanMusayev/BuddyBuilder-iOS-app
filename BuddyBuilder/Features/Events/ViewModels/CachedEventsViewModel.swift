@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/ViewModels/CachedEventsViewModel.swift
+// BuddyBuilder/Features/Events/ViewModels/CachedEventsViewModel.swift - PAGINATION FIX
 
 import Foundation
 import Combine
@@ -59,7 +59,7 @@ class CachedEventsViewModel: EventsFilterProtocol {
     @Published var showAvailableOnly: Bool = false
     @Published var showOpenRegistrationOnly: Bool = false
     
-    // Pagination
+    // Pagination - FIXED
     @Published var currentPage = 1
     @Published var totalPages = 1
     @Published var canLoadMore = false
@@ -252,7 +252,10 @@ class CachedEventsViewModel: EventsFilterProtocol {
         
         updateCurrentFilter()
         
-        print("🌐 Loading events for tab: \(selectedTab.rawValue) with strategy: \(strategy)")
+        print("🌐 Loading cached events for tab: \(selectedTab.rawValue) with strategy: \(strategy)")
+        print("   Page: \(currentFilter.page)")
+        print("   PageSize: \(currentFilter.pageSize)")
+        print("   Reset pagination: \(resetPagination)")
         
         eventsService.fetchEventsWithCache(
             filter: currentFilter,
@@ -263,12 +266,12 @@ class CachedEventsViewModel: EventsFilterProtocol {
         .sink(
             receiveCompletion: { [weak self] completion in
                 if case .failure(let error) = completion {
-                    print("❌ Events loading failed: \(error)")
+                    print("❌ Cached events loading failed: \(error)")
                     self?.handleError(error)
                 }
             },
             receiveValue: { [weak self] (response, fromCache) in
-                print("📥 Received \(response.events.count) events for tab: \(self?.selectedTab.rawValue ?? "unknown")")
+                print("📥 Received \(response.events.count) cached events for tab: \(self?.selectedTab.rawValue ?? "unknown")")
                 self?.handleEventsResponse(response, resetPagination: resetPagination)
                 
                 if fromCache {
@@ -352,11 +355,27 @@ class CachedEventsViewModel: EventsFilterProtocol {
             .store(in: &cancellables)
     }
     
+    // MARK: - FIXED: Load More Events with Proper Debug
     func loadMoreEvents() {
         guard canLoadMore,
-              case .idle = uiLoadingState else { return }
+              case .idle = uiLoadingState else {
+            print("❌ Cannot load more:")
+            print("   canLoadMore: \(canLoadMore)")
+            print("   uiLoadingState: \(uiLoadingState)")
+            print("   currentPage: \(currentPage)")
+            print("   totalPages: \(totalPages)")
+            return
+        }
+        
+        print("📄 Loading more cached events...")
+        print("   Current page: \(currentPage)")
+        print("   Total pages: \(totalPages)")
+        print("   Current events count: \(events.count)")
+        print("   Filter page before increment: \(currentFilter.page)")
         
         currentFilter.page = currentPage + 1
+        print("   Filter page after increment: \(currentFilter.page)")
+        
         loadEvents(strategy: .apiFirst, resetPagination: false)
     }
     
@@ -399,9 +418,11 @@ class CachedEventsViewModel: EventsFilterProtocol {
     
     // MARK: - Private Methods
     private func resetPagination() {
+        print("🔄 Resetting cached pagination...")
         currentPage = 1
         currentFilter.page = 1
         canLoadMore = false
+        print("   Reset to: page=1, canLoadMore=false")
     }
     
     private func updateSearchFilter(_ searchTerm: String) {
@@ -424,16 +445,50 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
     }
     
+    // MARK: - FIXED: Handle Events Response with Detailed Debug
     private func handleEventsResponse(_ response: EventsResponse, resetPagination: Bool) {
+        print("📥 ========== HANDLING CACHED EVENTS RESPONSE ==========")
+        print("📥 API Response Details:")
+        print("   - Response page: \(response.page)")
+        print("   - Response total pages: \(response.totalPages)")
+        print("   - Response events count: \(response.events.count)")
+        print("   - Response total count: \(response.totalCount)")
+        print("   - Reset pagination: \(resetPagination)")
+        
+        print("📥 Current UI State (BEFORE):")
+        print("   - Current events in UI: \(events.count)")
+        print("   - Current page: \(currentPage)")
+        print("   - Total pages: \(totalPages)")
+        print("   - Can load more: \(canLoadMore)")
+        
         if resetPagination {
             events = response.events
+            print("   ✅ Events RESET to \(events.count) items")
         } else {
+            let oldCount = events.count
             events.append(contentsOf: response.events)
+            print("   ✅ Events APPENDED: \(oldCount) + \(response.events.count) = \(events.count)")
         }
         
+        // PAGINATION FIX: API response değerlerini kullan
         currentPage = response.page
         totalPages = response.totalPages
         canLoadMore = currentPage < totalPages
+        
+        print("📥 Final UI State (AFTER):")
+        print("   - Final events in UI: \(events.count)")
+        print("   - Final current page: \(currentPage)")
+        print("   - Final total pages: \(totalPages)")
+        print("   - Final can load more: \(canLoadMore)")
+        
+        // PAGINATION LOGIC CHECK
+        if canLoadMore {
+            print("✅ PAGINATION: Load More will be SHOWN (page \(currentPage) of \(totalPages))")
+        } else {
+            print("❌ PAGINATION: Load More will be HIDDEN (all pages loaded)")
+        }
+        
+        print("📥 ===============================================")
     }
     
     private func updateEventParticipation(eventId: Int, isParticipant: Bool) {
@@ -447,7 +502,7 @@ class CachedEventsViewModel: EventsFilterProtocol {
         errorMessage = error.localizedDescription
         showError = true
         uiLoadingState = .error(error.localizedDescription)
-        print("❌ Events Error: \(error.localizedDescription)")
+        print("❌ Cached Events Error: \(error.localizedDescription)")
     }
     
     private func startBackgroundRefreshAnimation() {

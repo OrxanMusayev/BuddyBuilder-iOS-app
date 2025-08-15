@@ -433,9 +433,9 @@ struct ProfileView: View {
                 .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
-                title: "profile.stats.followers".localized(using: localizationManager),
+                title: "profile.stats.score".localized(using: localizationManager),
                 value: "856",
-                icon: "person.2.circle",
+                icon: "star",
                 color: .primaryOrange
             )
         }

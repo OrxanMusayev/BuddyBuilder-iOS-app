@@ -21,19 +21,19 @@ struct SearchAsyncImage: View {
                     .aspectRatio(contentMode: .fill)
                     .transition(.opacity)
             } else if isLoading {
-                // Loading state - light gray background with spinner
-                Color.dynamicTertiaryBackground
+                // Loading state - near-white background with spinner
+                Color(.systemGray6)
                 
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
                     .scaleEffect(0.8)
             } else {
-                // Fallback placeholder - icon with lighter gray color for better visibility
+                // Fallback placeholder - very light gray background with subtle icon
                 Image(systemName: placeholder)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundColor(.tertiaryText) // ✅ Updated (daha görünür)
-                    .background(Color.dynamicSecondaryBackground)
+                    .foregroundColor(Color(.systemGray4))
+                    .background(Color(.systemGray6))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: loadedImage)

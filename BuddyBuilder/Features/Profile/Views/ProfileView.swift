@@ -325,77 +325,27 @@ struct ProfileView: View {
                 profileViewModel.showPhotoOptions = true
             }) {
                 ZStack {
-                    if profileViewModel.isLoadingPhoto {
-                        // Loading state
-                        Circle()
-                            .fill(Color.gray.opacity(0.1))
-                            .frame(width: 110, height: 110)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .primaryOrange))
-                            )
-                    } else if let profileImage = profileViewModel.profilePhotoImage {
-                        // Display cached image directly - NO NETWORK CALL
-                        Image(uiImage: profileImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 110, height: 110)
-                            .clipShape(Circle())
-                        
-                        // Camera edit icon for existing photo
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundColor(.primaryOrange)
-                            )
-                            .offset(x: 38, y: 38)
-                            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    } else {
-                        // Modern default profile icon
-                        ZStack {
-                            // Soft background circle
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.gray.opacity(0.08),
-                                            Color.gray.opacity(0.12)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 110, height: 110)
-                            
-                            // Subtle border
-                            Circle()
-                                .stroke(
-                                    Color.gray.opacity(0.15),
-                                    lineWidth: 1
-                                )
-                                .frame(width: 110, height: 110)
-                            
-                            // Modern person icon
-                            Image(systemName: "person.crop.circle")
-                                .font(.system(size: 50, weight: .ultraLight))
-                                .foregroundColor(.gray.opacity(0.3))
-                        }
-                        
-                        // Add photo icon
-                        Circle()
-                            .fill(Color.primaryOrange)
-                            .frame(width: 34, height: 34)
-                            .overlay(
-                                Image(systemName: "plus")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundColor(.white)
-                            )
-                            .offset(x: 38, y: 38)
-                            .shadow(color: .primaryOrange.opacity(0.3), radius: 6, x: 0, y: 3)
-                    }
+                    SearchAsyncImage(
+                        url: profileViewModel.profilePhotoURL,
+                        placeholder: "person.crop.circle.fill"
+                    )
+                    .frame(width: 110, height: 110)
+                    .clipShape(Circle())
+                    
+                    // Edit/Add photo icon
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 34, height: 34)
+                        .overlay(
+                            Image(systemName: profileViewModel.profilePhotoURL != nil ? "pencil" : "plus")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.primaryOrange)
+                        )
+                        .offset(x: 38, y: 38)
+                        .shadow(color: profileViewModel.profilePhotoURL != nil ? Color.black.opacity(0.1) : Color.primaryOrange.opacity(0.3), 
+                               radius: profileViewModel.profilePhotoURL != nil ? 4 : 6, 
+                               x: 0, 
+                               y: profileViewModel.profilePhotoURL != nil ? 2 : 3)
                 }
                 .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
             }
@@ -463,7 +413,7 @@ struct ProfileView: View {
             ProfileStatCard(
                 title: "profile.stats.events".localized(using: localizationManager),
                 value: "12",
-                icon: "calendar.circle.fill",
+                icon: "calendar.badge.clock",
                 color: .primaryOrange
             )
             
@@ -472,9 +422,9 @@ struct ProfileView: View {
                 .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
-                title: "profile.stats.activities".localized(using: localizationManager),
+                title: "profile.stats.matches".localized(using: localizationManager),
                 value: "28",
-                icon: "figure.run.circle.fill",
+                icon: "person.2",
                 color: .primaryOrange
             )
             
@@ -483,9 +433,9 @@ struct ProfileView: View {
                 .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
             
             ProfileStatCard(
-                title: "profile.stats.score".localized(using: localizationManager),
+                title: "profile.stats.followers".localized(using: localizationManager),
                 value: "856",
-                icon: "star.circle.fill",
+                icon: "person.2.circle",
                 color: .primaryOrange
             )
         }
@@ -499,9 +449,9 @@ struct ProfileView: View {
     private var menuSection: some View {
         VStack(spacing: 0) {
             ProfileMenuRow(
-                icon: "person.crop.circle",
+                icon: "person",
                 title: "profile.menu.profile".localized(using: localizationManager),
-                color: .primaryOrange, // Orange kalacak
+                color: .primaryOrange,
                 action: {
                     navigateToProfileDetails = true
                 }
@@ -510,9 +460,9 @@ struct ProfileView: View {
             ProfileMenuDivider()
             
             ProfileMenuRow(
-                icon: "figure.run.circle",
+                icon: "figure.handball",
                 title: "profile.menu.my_sports".localized(using: localizationManager),
-                color: .primaryOrange, // Orange kalacak
+                color: .primaryOrange,
                 action: {
                     navigateToMySports = true
                 }
@@ -521,9 +471,9 @@ struct ProfileView: View {
             ProfileMenuDivider()
             
             ProfileMenuRow(
-                icon: "gearshape.circle",
+                icon: "gearshape",
                 title: "profile.menu.settings".localized(using: localizationManager),
-                color: .secondaryText, // ✅ Updated (gray yerine adaptive)
+                color: .primaryOrange,
                 action: {
                     navigateToSettings = true
                 }
@@ -544,19 +494,20 @@ struct ProfileView: View {
                     } else {
                         Image(systemName: "arrow.right.square")
                             .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.red) // Kırmızı kalacak
+                            .foregroundColor(.red)
                             .frame(width: 24, height: 24)
                     }
                     
                     Text("auth.logout".localized(using: localizationManager))
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.red) // Kırmızı kalacak
+                        .foregroundColor(.red)
                         .lineLimit(1)
                     
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+                .contentShape(Rectangle())  // Makes entire row tappable
             }
             .disabled(authViewModel.isLoading)
             .opacity(authViewModel.isLoading ? 0.7 : 1.0)
@@ -873,8 +824,8 @@ struct ProfileStatCard: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundColor(.primaryOrange) // Orange kalacak
+                .font(.system(size: 24, weight: .regular))
+                .foregroundColor(.primaryOrange)
             
             Text(value)
                 .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -901,22 +852,23 @@ struct ProfileMenuRow: View {
             HStack(spacing: 16) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(color) // Color parametre olarak geliyor (orange/adaptive)
+                    .foregroundColor(color)
                     .frame(width: 24, height: 24)
                 
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primaryText) // ✅ Updated
+                    .foregroundColor(.primaryText)
                     .lineLimit(1)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.tertiaryText) // ✅ Updated
+                    .foregroundColor(color)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
+            .contentShape(Rectangle()) // This makes the entire row tappable
         }
         .buttonStyle(PlainButtonStyle())
     }

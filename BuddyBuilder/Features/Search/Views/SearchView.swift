@@ -469,11 +469,11 @@ struct SearchView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(Color(.systemGray2))
                     
                     TextField("Search sports, users, locations...", text: $viewModel.searchText)
                         .font(.system(size: 16))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(Color(.label))
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .onSubmit {
@@ -484,7 +484,7 @@ struct SearchView: View {
                         Button(action: { viewModel.searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(Color(.systemGray2))
                         }
                     }
                     
@@ -496,13 +496,12 @@ struct SearchView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.white)
+                .background(Color(.systemGray5))
                 .clipShape(RoundedRectangle(cornerRadius: 25))
-                .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 2)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color.white.opacity(0.95))
+            .background(Color(.systemBackground))
         }
     }
     
@@ -519,12 +518,12 @@ struct SearchView: View {
                         HStack {
                             Image(systemName: getSuggestionIcon(for: suggestion))
                                 .font(.system(size: 14))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(Color(.systemGray2))
                                 .frame(width: 20)
                             
                             Text(suggestion)
                                 .font(.system(size: 15))
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(Color(.label))
                             
                             Spacer()
                         }
@@ -539,15 +538,15 @@ struct SearchView: View {
                     }
                 }
             }
-            .background(Color.white)
+            .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+            .shadow(color: Color(.systemFill), radius: 8, x: 0, y: 4)
             .padding(.horizontal, 20)
             
             Spacer()
         }
         .background(
-            Color.black.opacity(0.1)
+            Color(.systemFill).opacity(0.5)
                 .ignoresSafeArea()
                 .onTapGesture {
                     viewModel.searchText = ""

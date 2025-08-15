@@ -1,9 +1,9 @@
 // BuddyBuilder/Features/Events/Views/InstagramStyleActionSheet.swift
-// YENİ DOSYA - Bu dosyayı oluşturun
+// FIXED VERSION - PROPER CARD HEIGHT + SMOOTH DISMISS ANIMATION
 
 import SwiftUI
 
-// MARK: - Instagram Style Action Sheet Overlay
+// MARK: - Instagram Style Action Sheet Overlay (FIXED)
 struct InstagramStyleActionSheetOverlay: View {
     @Binding var isPresented: Bool
     let event: Event
@@ -12,12 +12,14 @@ struct InstagramStyleActionSheetOverlay: View {
     let onFreeze: () -> Void
     let onDelete: () -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
-     
-    // Animation state
+    
+    // Animation state - FIXED: Added proper dismiss animation
     @State private var backgroundOpacity: Double = 0
     @State private var cardScale: CGFloat = 1.0
     @State private var cardOffset: CGFloat = 0
-    @State private var sheetOffset: CGFloat = UIScreen.main.bounds.height
+    @State private var cardOpacity: Double = 1.0 // FIXED: Added opacity control
+    @State private var sheetOpacity: Double = 0
+    @State private var sheetOffset: CGFloat = 100
     
     var body: some View {
         ZStack {
@@ -25,7 +27,7 @@ struct InstagramStyleActionSheetOverlay: View {
                 // Background with blur effect
                 backgroundOverlay
                 
-                // Mini event card in center
+                // Mini event card in center - FIXED: Larger size
                 miniEventCard
                 
                 // Action sheet at bottom
@@ -33,6 +35,11 @@ struct InstagramStyleActionSheetOverlay: View {
             }
         }
         .ignoresSafeArea(.all)
+        .onAppear {
+            if isPresented {
+                presentSheet()
+            }
+        }
         .onChange(of: isPresented) { newValue in
             if newValue {
                 presentSheet()
@@ -44,27 +51,20 @@ struct InstagramStyleActionSheetOverlay: View {
     
     // MARK: - Background Overlay with Blur
     private var backgroundOverlay: some View {
-        ZStack {
-            // Blurred background
-            Color.black
-                .opacity(backgroundOpacity * 0.6)
-                .background(.ultraThinMaterial)
-                .onTapGesture {
-                    dismissSheetAnimated()
-                }
-            
-            // Additional blur effect
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(backgroundOpacity * 0.3)
-        }
-        .ignoresSafeArea(.all)
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .opacity(backgroundOpacity)
+            .onTapGesture {
+                dismissSheetAnimated()
+            }
+            .ignoresSafeArea(.all)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Mini Event Card (Instagram Style)
+    // MARK: - Mini Event Card (FIXED: Much larger + better proportions)
     private var miniEventCard: some View {
         VStack(spacing: 0) {
-            // Event image
+            // Event image - FIXED: Optimal image height
             AsyncImage(url: URL(string: event.imageUrl ?? defaultImageUrl(for: event.sport.name))) { image in
                 image
                     .resizable()
@@ -80,141 +80,122 @@ struct InstagramStyleActionSheetOverlay: View {
                     )
                     .overlay(
                         Image(systemName: "calendar")
-                            .font(.system(size: 20, weight: .light))
+                            .font(.system(size: 32, weight: .light)) // FIXED: Smaller placeholder icon
                             .foregroundColor(.primaryOrange.opacity(0.6))
                     )
             }
-            .frame(height: 80)
+            .frame(height: 170) // FIXED: Reduced from 200 to 170 (balanced size)
             .clipped()
             
-            // Event info
-            VStack(alignment: .leading, spacing: 6) {
+            // Event info - FIXED: Balanced content space
+            VStack(alignment: .leading, spacing: 12) { // FIXED: Reduced spacing
                 Text(event.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold)) // FIXED: Balanced title size
                     .foregroundColor(.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) { // FIXED: Reduced spacing
+                    HStack(spacing: 8) {
                         Image(systemName: "calendar")
-                            .font(.system(size: 10))
+                            .font(.system(size: 16)) // FIXED: Standard icon size
                             .foregroundColor(.textSecondary)
+                            .frame(width: 18) // FIXED: Smaller icon width
                         
                         Text(event.formattedEventDate)
-                            .font(.system(size: 10))
+                            .font(.system(size: 15)) // FIXED: Standard text size
                             .foregroundColor(.textSecondary)
                     }
                     
-                    HStack(spacing: 4) {
+                    HStack(spacing: 8) {
                         Image(systemName: "location")
-                            .font(.system(size: 10))
+                            .font(.system(size: 16)) // FIXED: Standard icon size
                             .foregroundColor(.textSecondary)
+                            .frame(width: 18) // FIXED: Smaller icon width
                         
                         Text(event.location)
-                            .font(.system(size: 10))
+                            .font(.system(size: 15)) // FIXED: Standard text size
                             .foregroundColor(.textSecondary)
-                            .lineLimit(1)
+                            .lineLimit(1) // FIXED: Back to 1 line for compact size
                     }
-                    
-                    Spacer()
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 24) // FIXED: Balanced horizontal padding
+            .padding(.vertical, 18) // FIXED: Reduced vertical padding
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 200)
+        .frame(width: 350) // FIXED: Balanced card width
         .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+        .clipShape(RoundedRectangle(cornerRadius: 18)) // FIXED: Slightly larger corner radius
+        .shadow(color: .black.opacity(0.25), radius: 15, x: 0, y: 8) // FIXED: Better shadow
         .scaleEffect(cardScale)
+        .opacity(cardOpacity) // FIXED: Added opacity control
         .offset(y: cardOffset)
+        .position(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2 - 100) // FIXED: Better centering
         .onTapGesture {
             dismissSheetAnimated()
         }
     }
     
-    // MARK: - Action Sheet (FIXED: Positioning)
+    // MARK: - Action Sheet
     private var actionSheet: some View {
-        VStack {
-            Spacer() // Push to bottom
-            
+        VStack(spacing: 0) {
             VStack(spacing: 0) {
-                // Handle bar
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(Color.textSecondary.opacity(0.3))
-                    .frame(width: 36, height: 5)
-                    .padding(.top, 12)
-                    .padding(.bottom, 20)
+                actionButton(
+                    icon: "square.and.arrow.up",
+                    title: "Share",
+                    action: {
+                        onShare()
+                        dismissSheetAnimated()
+                    }
+                )
                 
-                // Action buttons with Instagram style
-                VStack(spacing: 0) {
-                    instagramActionButton(
-                        icon: "square.and.arrow.up",
-                        title: "events.share".localized(using: localizationManager),
-                        action: {
-                            onShare()
-                            dismissSheetAnimated()
-                        }
-                    )
-                    
-                    instagramDivider
-                    
-                    instagramActionButton(
-                        icon: "pencil",
-                        title: "events.edit".localized(using: localizationManager),
-                        action: {
-                            onEdit()
-                            dismissSheetAnimated()
-                        }
-                    )
-                    
-                    instagramDivider
-                    
-                    instagramActionButton(
-                        icon: "pause.circle",
-                        title: "events.freeze".localized(using: localizationManager),
-                        action: {
-                            onFreeze()
-                            dismissSheetAnimated()
-                        }
-                    )
-                    
-                    instagramDivider
-                    
-                    instagramActionButton(
-                        icon: "trash",
-                        title: "events.delete".localized(using: localizationManager),
-                        isDestructive: true,
-                        action: {
-                            onDelete()
-                            dismissSheetAnimated()
-                        }
-                    )
-                }
-                .padding(.bottom, 20)
+                actionDivider
                 
-                // Cancel button (Instagram style)
-                Button(action: {
-                    dismissSheetAnimated()
-                }) {
-                    Text("events.cancel".localized(using: localizationManager))
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.formBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, max(20, UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                    .first?.windows.first?.safeAreaInsets.bottom ?? 0))
+                actionButton(
+                    icon: "pencil",
+                    title: "Edit",
+                    action: {
+                        onEdit()
+                        dismissSheetAnimated()
+                    }
+                )
+                
+                actionDivider
+                
+                actionButton(
+                    icon: "pause.circle",
+                    title: "Freeze",
+                    action: {
+                        onFreeze()
+                        dismissSheetAnimated()
+                    }
+                )
+                
+                actionDivider
+                
+                actionButton(
+                    icon: "trash",
+                    title: "Delete",
+                    isDestructive: true,
+                    action: {
+                        onDelete()
+                        dismissSheetAnimated()
+                    }
+                )
             }
-            .background(Color.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: -5)
+            .padding(.vertical, 8)
         }
+        .frame(width: 200)
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 2)
+        .opacity(sheetOpacity)
         .offset(y: sheetOffset)
+        .position(
+            x: UIScreen.main.bounds.width / 2 - 50,
+            y: UIScreen.main.bounds.height / 2 + 140 // FIXED: Adjusted for larger card
+        )
         .gesture(
             DragGesture()
                 .onChanged { value in
@@ -223,10 +204,10 @@ struct InstagramStyleActionSheetOverlay: View {
                     }
                 }
                 .onEnded { value in
-                    if value.translation.height > 100 {
+                    if value.translation.height > 60 {
                         dismissSheetAnimated()
                     } else {
-                        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             sheetOffset = 0
                         }
                     }
@@ -234,81 +215,108 @@ struct InstagramStyleActionSheetOverlay: View {
         )
     }
     
-    // MARK: - Instagram Style Action Button
-    private func instagramActionButton(
+    // MARK: - Action Button
+    private func actionButton(
         icon: String,
         title: String,
         isDestructive: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 16) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .regular))
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundColor(isDestructive ? .red : .textPrimary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 20, height: 20)
                 
                 Text(title)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(isDestructive ? .red : .textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Spacer()
             }
-            .padding(.horizontal, 24)
-            .frame(height: 60)
+            .padding(.horizontal, 12)
+            .frame(height: 44)
             .background(Color.clear)
         }
         .buttonStyle(PlainButtonStyle())
     }
     
-    private var instagramDivider: some View {
+    private var actionDivider: some View {
         Rectangle()
             .fill(Color.dynamicBorder.opacity(0.15))
             .frame(height: 0.5)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 12)
     }
     
-    // MARK: - Animation Methods (FIXED: Initial positioning)
+    // MARK: - Animation Methods (FIXED: Proper dismiss with smooth resize)
     private func presentSheet() {
-        // FIXED: Initial state with better positioning
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Reset initial state
         backgroundOpacity = 0
         cardScale = 1.0
         cardOffset = 0
-        sheetOffset = UIScreen.main.bounds.height // Start completely off screen
+        cardOpacity = 1.0
+        sheetOpacity = 0
+        sheetOffset = 0
         
-        withAnimation(.easeOut(duration: 0.4)) {
+        // Present animations
+        withAnimation(.easeOut(duration: 0.3)) {
             backgroundOpacity = 1.0
         }
         
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
-            cardScale = 0.85
-            cardOffset = -120
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1)) {
+            cardScale = 0.92 // FIXED: Slightly smaller scale for larger card
         }
         
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2)) {
-            sheetOffset = 0 // Slide up to normal position
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.15)) {
+            sheetOpacity = 1.0
         }
     }
     
     private func dismissSheet() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        // FIXED: Smooth coordinated dismiss animation
+        withAnimation(.easeOut(duration: 0.15)) {
+            sheetOpacity = 0
             backgroundOpacity = 0
-            cardScale = 1.0
+        }
+        
+        // FIXED: Card smoothly returns to normal size and fades out
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            cardScale = 1.0 // Return to full size
             cardOffset = 0
-            sheetOffset = UIScreen.main.bounds.height
+        }
+        
+        // FIXED: Fade out card after slight delay for smooth transition
+        withAnimation(.easeOut(duration: 0.2).delay(0.1)) {
+            cardOpacity = 0
         }
     }
     
     private func dismissSheetAnimated() {
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+        // FIXED: Smooth coordinated dismiss animation
+        withAnimation(.easeOut(duration: 0.15)) {
+            sheetOpacity = 0
             backgroundOpacity = 0
-            cardScale = 1.0
-            cardOffset = 0
-            sheetOffset = UIScreen.main.bounds.height
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        // FIXED: Card smoothly grows back to original size
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            cardScale = 1.0 // Restore to full original size
+            cardOffset = 0
+        }
+        
+        // FIXED: Fade out card for smooth transition back to list
+        withAnimation(.easeOut(duration: 0.2).delay(0.1)) {
+            cardOpacity = 0
+        }
+        
+        // FIXED: Slightly longer delay to allow smooth animation completion
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             isPresented = false
         }
     }
@@ -325,109 +333,9 @@ struct InstagramStyleActionSheetOverlay: View {
         case "basketball":
             return "https://images.unsplash.com/photo-1546519638-68e109498ffc"
         default:
-            return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b"
+            return "https://buddybuilderdevstorage.blob.core.windows.net/profile-images/photo-1546519638-68e109498ffc.jpeg"
         }
     }
 }
 
-
-//DEBUGGING
-// DEBUG VERSION - Test için basit bir action sheet
-
-import SwiftUI
-
-struct DebugActionSheetOverlay: View {
-    @Binding var isPresented: Bool
-    let event: Event
-    let onShare: () -> Void
-    let onEdit: () -> Void
-    let onFreeze: () -> Void
-    let onDelete: () -> Void
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        ZStack {
-            if isPresented {
-                // Background
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea(.all)
-                    .onTapGesture {
-                        isPresented = false
-                    }
-                
-                // TEST: Simple action sheet at bottom
-                VStack {
-                    Spacer()
-                    
-                    VStack(spacing: 0) {
-                        // Header
-                        Text("ACTION SHEET - DEBUG")
-                            .font(.headline)
-                            .padding()
-                            .background(Color.yellow) // Debug color
-                        
-                        // Actions
-                        Button("Share") {
-                            onShare()
-                            isPresented = false
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        
-                        Button("Edit") {
-                            onEdit()
-                            isPresented = false
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        
-                        Button("Delete") {
-                            onDelete()
-                            isPresented = false
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        
-                        Button("Cancel") {
-                            isPresented = false
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.gray)
-                        .foregroundColor(.white)
-                    }
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 50)
-                }
-                .transition(.move(edge: .bottom))
-            }
-        }
-        .animation(.easeInOut(duration: 0.3), value: isPresented)
-    }
-}
-
-// CachedEventsView veya EventsView'da test için kullanın:
-/*
-// ESKİ:
-InstagramStyleActionSheetOverlay(...)
-
-// TEST İÇİN:
-DebugActionSheetOverlay(
-    isPresented: $showingActionSheet,
-    event: event,
-    onShare: { handleShareEvent(event) },
-    onEdit: { handleEditEvent(event) },
-    onFreeze: { handleDeactivateEvent(event) },
-    onDelete: { handleDeleteEvent(event) }
-)
-.environmentObject(localizationManager)
-.zIndex(1000)
-*/
+// MARK: - PREVIEW REMOVED

@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - PAGINATION FIX
+// BuddyBuilder/Features/Events/Views/CachedEventsView.swift - COMPLETE UPDATED VERSION
 
 import SwiftUI
 
@@ -449,22 +449,49 @@ struct CachedEventsView: View {
         }
     }
     
-    // MARK: - Events List View - PAGINATION FIX
+    // MARK: - UPDATED: Events List View with Enhanced EventCard
     private var eventsListView: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(viewModel.filteredEvents) { event in
-                    EventCard(
-                        event: event,
-                        onJoin: {
-                            viewModel.joinEvent(event)
-                        },
-                        onLeave: {
-                            viewModel.leaveEvent(event)
-                        }
-                    )
-                    .environmentObject(localizationManager)
-                    .transition(.scale.combined(with: .opacity))
+                    // UPDATED: Enhanced EventCard with proper actions based on tab
+                    if selectedTab == .all {
+                        EventCard.forAllEvents(
+                            event: event,
+                            onJoin: {
+                                viewModel.joinEvent(event)
+                            },
+                            onLeave: {
+                                viewModel.leaveEvent(event)
+                            },
+                            onToggleFavorite: {
+                                handleToggleFavorite(event)
+                            }
+                        )
+                        .environmentObject(localizationManager)
+                        .transition(.scale.combined(with: .opacity))
+                    } else {
+                        EventCard.forMyEvents(
+                            event: event,
+                            onShare: {
+                                handleShareEvent(event)
+                            },
+                            onDelete: {
+                                handleDeleteEvent(event)
+                            },
+                            onEdit: {
+                                handleEditEvent(event)
+                            },
+                            onDeactivate: {
+                                handleDeactivateEvent(event)
+                            },
+                            onToggleFavorite: {
+                                handleToggleFavorite(event)
+                            }
+                        )
+                        .environmentObject(localizationManager)
+                        .transition(.scale.combined(with: .opacity))
+                    }
                 }
                 
                 // PAGINATION: Load More sadece gerektiğinde göster
@@ -674,6 +701,106 @@ struct CachedEventsView: View {
             return "events.empty.all.subtitle".localized(using: localizationManager)
         } else {
             return "events.empty.my.subtitle".localized(using: localizationManager)
+        }
+    }
+}
+
+// MARK: - NEW: Event Action Handlers Extension
+extension CachedEventsView {
+    
+    // MARK: - Event Action Handlers
+    private func handleToggleFavorite(_ event: Event) {
+        print("Toggle favorite for event: \(event.name)")
+        // Add your favorite toggle logic here
+        // Example: viewModel.toggleFavorite(event.id)
+    }
+    
+    private func handleShareEvent(_ event: Event) {
+        let shareText = "events.share.text".localized(using: localizationManager)
+            .replacingOccurrences(of: "{eventName}", with: event.name)
+            .replacingOccurrences(of: "{location}", with: event.location)
+            .replacingOccurrences(of: "{date}", with: event.formattedEventDate)
+        
+        let activityVC = UIActivityViewController(
+            activityItems: [shareText],
+            applicationActivities: nil
+        )
+        
+        // For iPad compatibility
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = rootVC.view
+                popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+            }
+            
+            rootVC.present(activityVC, animated: true)
+        }
+    }
+    
+    private func handleDeleteEvent(_ event: Event) {
+        let alert = UIAlertController(
+            title: "events.delete.confirm.title".localized(using: localizationManager),
+            message: "events.delete.confirm.message".localized(using: localizationManager)
+                .replacingOccurrences(of: "{eventName}", with: event.name),
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(
+            title: "events.delete".localized(using: localizationManager),
+            style: .destructive
+        ) { _ in
+            print("Delete event: \(event.name)")
+            // Implement your delete logic here
+            // viewModel.deleteEvent(event.id)
+        })
+        
+        alert.addAction(UIAlertAction(
+            title: "events.cancel".localized(using: localizationManager),
+            style: .cancel
+        ))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
+    }
+    
+    private func handleEditEvent(_ event: Event) {
+        print("Edit event: \(event.name)")
+        // Add navigation to edit screen
+        // Example: navigationRouter.navigate(to: .editEvent(event))
+    }
+    
+    private func handleDeactivateEvent(_ event: Event) {
+        let alert = UIAlertController(
+            title: "events.freeze.confirm.title".localized(using: localizationManager),
+            message: "events.freeze.confirm.message".localized(using: localizationManager)
+                .replacingOccurrences(of: "{eventName}", with: event.name),
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(
+            title: "events.freeze".localized(using: localizationManager),
+            style: .default
+        ) { _ in
+            print("Deactivate event: \(event.name)")
+            // Implement your deactivate logic here
+            // viewModel.deactivateEvent(event.id)
+        })
+        
+        alert.addAction(UIAlertAction(
+            title: "events.cancel".localized(using: localizationManager),
+            style: .cancel
+        ))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            rootVC.present(alert, animated: true)
         }
     }
 }

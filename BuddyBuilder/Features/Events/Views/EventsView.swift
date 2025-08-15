@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/EventsView.swift - PAGINATION FIX
+// BuddyBuilder/Features/Events/Views/EventsView.swift - COMPLETE UPDATED VERSION
 
 import SwiftUI
 
@@ -15,7 +15,7 @@ enum EventsTab: String, CaseIterable {
     }
 }
 
-// MARK: - Events View - Smooth Swipe Experience + PAGINATION FIX
+// MARK: - Events View - Complete Updated with Enhanced EventCard
 struct EventsView: View {
     @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService())
     @EnvironmentObject var localizationManager: LocalizationManager
@@ -214,7 +214,7 @@ struct EventsView: View {
         }
     }
     
-    // MARK: - FIXED: Single Events List Content (shows current tab's data) + PAGINATION
+    // MARK: - UPDATED: Events List Content with Enhanced EventCard
     private var eventsListContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
@@ -226,18 +226,47 @@ struct EventsView: View {
                     emptyStateView
                 } else {
                     ForEach(eventsViewModel.filteredEvents) { event in
-                        EventCard(
-                            event: event,
-                            onJoin: {
-                                eventsViewModel.joinEvent(event)
-                            },
-                            onLeave: {
-                                eventsViewModel.leaveEvent(event)
+                        // UPDATED: Enhanced EventCard with proper actions based on tab
+                        if selectedTab == .all {
+                            EventCard.forAllEvents(
+                                event: event,
+                                onJoin: {
+                                    eventsViewModel.joinEvent(event)
+                                },
+                                onLeave: {
+                                    eventsViewModel.leaveEvent(event)
+                                },
+                                onToggleFavorite: {
+                                    handleToggleFavorite(event)
+                                }
+                            )
+                            .environmentObject(localizationManager)
+                            .onTapGesture {
+                                print("Tapped event: \(event.name)")
                             }
-                        )
-                        .environmentObject(localizationManager)
-                        .onTapGesture {
-                            print("Tapped event: \(event.name)")
+                        } else {
+                            EventCard.forMyEvents(
+                                event: event,
+                                onShare: {
+                                    handleShareEvent(event)
+                                },
+                                onDelete: {
+                                    handleDeleteEvent(event)
+                                },
+                                onEdit: {
+                                    handleEditEvent(event)
+                                },
+                                onDeactivate: {
+                                    handleDeactivateEvent(event)
+                                },
+                                onToggleFavorite: {
+                                    handleToggleFavorite(event)
+                                }
+                            )
+                            .environmentObject(localizationManager)
+                            .onTapGesture {
+                                print("Tapped my event: \(event.name)")
+                            }
                         }
                     }
                     
@@ -377,6 +406,110 @@ struct EventsView: View {
     }
 }
 
+// MARK: - NEW: Event Action Handlers Extension
+extension EventsView {
+    
+    // MARK: - Event Action Handlers
+    private func handleToggleFavorite(_ event: Event) {
+        // TODO: Implement favorite toggle logic
+        print("Toggle favorite for event: \(event.name)")
+        // You can add API call here to toggle favorite status
+        // Example: eventsViewModel.toggleFavorite(event.id)
+    }
+    
+    private func handleShareEvent(_ event: Event) {
+        let shareText = "events.share.text".localized(using: localizationManager)
+            .replacingOccurrences(of: "{eventName}", with: event.name)
+            .replacingOccurrences(of: "{location}", with: event.location)
+            .replacingOccurrences(of: "{date}", with: event.formattedEventDate)
+        
+        let activityVC = UIActivityViewController(
+            activityItems: [shareText],
+            applicationActivities: nil
+        )
+        
+        // For iPad compatibility
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = rootVC.view
+                popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+            }
+            
+            rootVC.present(activityVC, animated: true)
+        }
+    }
+    
+    private func handleDeleteEvent(_ event: Event) {
+        let alert = UIAlertController(
+            title: "events.delete.confirm.title".localized(using: localizationManager),
+            message: "events.delete.confirm.message".localized(using: localizationManager)
+                .replacingOccurrences(of: "{eventName}", with: event.name),
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(
+            title: "events.delete".localized(using: localizationManager),
+            style: .destructive
+        ) { _ in
+            // TODO: Implement delete API call
+            print("Delete event: \(event.name)")
+            // Call your delete event API here
+            // eventsViewModel.deleteEvent(event.id)
+        })
+        
+        alert.addAction(UIAlertAction(
+            title: "events.cancel".localized(using: localizationManager),
+            style: .cancel
+        ))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
+    }
+    
+    private func handleEditEvent(_ event: Event) {
+        // TODO: Navigate to edit event screen
+        print("Edit event: \(event.name)")
+        // You can add navigation to edit screen here
+        // Example: navigationRouter.navigate(to: .editEvent(event))
+    }
+    
+    private func handleDeactivateEvent(_ event: Event) {
+        let alert = UIAlertController(
+            title: "events.freeze.confirm.title".localized(using: localizationManager),
+            message: "events.freeze.confirm.message".localized(using: localizationManager)
+                .replacingOccurrences(of: "{eventName}", with: event.name),
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(
+            title: "events.freeze".localized(using: localizationManager),
+            style: .default
+        ) { _ in
+            // TODO: Implement deactivate API call
+            print("Deactivate event: \(event.name)")
+            // Call your deactivate event API here
+            // eventsViewModel.deactivateEvent(event.id)
+        })
+        
+        alert.addAction(UIAlertAction(
+            title: "events.cancel".localized(using: localizationManager),
+            style: .cancel
+        ))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
+    }
+}
+
 // MARK: - Drag State Enum
 enum DragState {
     case inactive
@@ -389,36 +522,6 @@ enum DragState {
         case .dragging(let translation):
             return translation
         }
-    }
-}
-
-// MARK: - PAGINATION DEBUG VIEW (Test amaçlı - Production'da kaldırın)
-struct LoadMoreDebugView: View {
-    @ObservedObject var viewModel: EventsViewModel
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("PAGINATION DEBUG")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.white)
-            
-            HStack(spacing: 8) {
-                Text("Page: \(viewModel.currentPage)/\(viewModel.totalPages)")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.white)
-                
-                Text("Events: \(viewModel.events.count)")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.white)
-                
-                Text("Load More: \(viewModel.canLoadMore ? "YES" : "NO")")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(viewModel.canLoadMore ? .green : .red)
-            }
-        }
-        .padding(8)
-        .background(Color.black.opacity(0.7))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

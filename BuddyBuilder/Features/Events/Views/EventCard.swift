@@ -1,263 +1,491 @@
 import SwiftUI
-
-// MARK: - Event Card
 struct EventCard: View {
     let event: Event
     let onJoin: () -> Void
     let onLeave: () -> Void
+    let isMyEvent: Bool
+    
+    // Swipe ve action callbacks
+    let onShare: (() -> Void)?
+    let onDelete: (() -> Void)?
+    let onEdit: (() -> Void)?
+    let onDeactivate: (() -> Void)?
+    let onToggleFavorite: (() -> Void)?
+    
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var isJoining = false
+    @State private var showingMyEventActions = false
+    @State private var dragOffset: CGSize = .zero
+    @State private var isFavorite = false
+    @State private var showingCustomActionSheet = false
+    
+    // Swipe threshold
+    private let swipeThreshold: CGFloat = 60
+    
+    init(
+        event: Event,
+        onJoin: @escaping () -> Void,
+        onLeave: @escaping () -> Void,
+        isMyEvent: Bool = false,
+        onShare: (() -> Void)? = nil,
+        onDelete: (() -> Void)? = nil,
+        onEdit: (() -> Void)? = nil,
+        onDeactivate: (() -> Void)? = nil,
+        onToggleFavorite: (() -> Void)? = nil
+    ) {
+        self.event = event
+        self.onJoin = onJoin
+        self.onLeave = onLeave
+        self.isMyEvent = isMyEvent
+        self.onShare = onShare
+        self.onDelete = onDelete
+        self.onEdit = onEdit
+        self.onDeactivate = onDeactivate
+        self.onToggleFavorite = onToggleFavorite
+    }
     
     var body: some View {
+        ZStack {
+            // Swipe Action Background (My Events için)
+            if isMyEvent && showingMyEventActions {
+                myEventSwipeBackground
+            }
+            
+            // Main Card Content - FIXED: Radius changes based on swipe state
+            mainCardContent
+                .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : 16))
+                .offset(x: dragOffset.width)
+                .gesture(
+                    isMyEvent ? swipeGesture : nil
+                )
+                .simultaneousGesture(
+                    isMyEvent ? longPressGesture : nil
+                )
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16)) // Outer container keeps rounded
+        .overlay(
+            // Custom Action Sheet
+            CustomEventActionSheet(
+                isPresented: $showingCustomActionSheet,
+                event: event,
+                onShare: { onShare?() },
+                onEdit: { onEdit?() },
+                onFreeze: { onDeactivate?() },
+                onDelete: { onDelete?() }
+            )
+            .environmentObject(localizationManager)
+        )
+        .onTapGesture {
+            // FIXED: Close more menu when tapping anywhere
+            if showingMyEventActions {
+                resetSwipe()
+            }
+        }
+    }
+    
+    // MARK: - Main Card Content
+    private var mainCardContent: some View {
         VStack(spacing: 0) {
-            // Event Image and Type Badge
-            ZStack(alignment: .topTrailing) {
-                let imageUrlString = event.imageUrl ?? defaultImageUrl(for: event.sport.name)
+            // Event Image and Badges
+            ZStack {
+                eventImageSection
                 
-                AsyncImage(url: URL(string: imageUrlString)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.primaryOrange.opacity(0.3), .primaryOrange.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay(
-                            Image(systemName: "calendar")
-                                .font(.system(size: 30, weight: .light))
-                                .foregroundColor(.primaryOrange.opacity(0.6))
-                        )
-                }
-                .frame(height: 120)
-                .clipped()
-                
-                // Event Type Badge
-                HStack(spacing: 4) {
-                    Image(systemName: eventTypeIcon(for: event.eventTypeName))
-                        .font(.system(size: 10, weight: .medium))
+                // Top overlay with badges
+                VStack {
+                    HStack {
+                        eventTypeBadge
+                        Spacer()
+                        // FIXED: Favorite only for All Events
+                        if !isMyEvent {
+                            favoriteButton
+                        }
+                    }
+                    .padding(.top, 12)
+                    .padding(.horizontal, 12)
                     
-                    Text(event.eventTypeName)
-                        .font(.system(size: 10, weight: .medium))
+                    Spacer()
+                }
+            }
+            
+            // Event Details
+            eventDetailsSection
+        }
+        .background(Color.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : 16)
+                .stroke(Color.dynamicBorder.opacity(0.3), lineWidth: 0.5)
+        )
+        .shadow(
+            color: Color.dynamicShadow.opacity(0.15),
+            radius: 8,
+            x: 0,
+            y: 2
+        )
+    }
+    
+    // MARK: - Event Image Section
+    private var eventImageSection: some View {
+        let imageUrlString = event.imageUrl ?? defaultImageUrl(for: event.sport.name)
+        
+        return AsyncImage(url: URL(string: imageUrlString)) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } placeholder: {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [.primaryOrange.opacity(0.3), .primaryOrange.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    Image(systemName: "calendar")
+                        .font(.system(size: 30, weight: .light))
+                        .foregroundColor(.primaryOrange.opacity(0.6))
+                )
+        }
+        .frame(height: 120)
+        .clipped()
+    }
+    
+    // MARK: - Event Type Badge
+    private var eventTypeBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: eventTypeIcon(for: event.eventTypeName))
+                .font(.system(size: 10, weight: .medium))
+            
+            Text(localizedEventTypeName)
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.7))
+        )
+    }
+    
+    // MARK: - FIXED: Bigger Favorite Button (Only for All Events)
+    private var favoriteButton: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isFavorite.toggle()
+                onToggleFavorite?()
+            }
+        }) {
+            Image(systemName: isFavorite ? "heart.fill" : "heart")
+                .font(.system(size: 20, weight: .medium)) // FIXED: Bigger size 16 -> 20
+                .foregroundColor(isFavorite ? .primaryOrange : .white)
+                .background(
+                    Circle()
+                        .fill(Color.clear)
+                        .frame(width: 32, height: 32) // FIXED: Bigger touch area 28 -> 32
+                )
+        }
+        .scaleEffect(isFavorite ? 1.2 : 1.0) // FIXED: More scale effect 1.1 -> 1.2
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFavorite)
+    }
+    
+    // MARK: - Event Details Section
+    private var eventDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Title and Participation Status
+            HStack {
+                Text(event.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primaryText)
+                    .lineLimit(2)
+                
+                Spacer()
+                
+                if event.isParticipant {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.green)
+                }
+            }
+            
+            // Date and Location
+            HStack(spacing: 16) {
+                // Date
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondaryText)
+                    
+                    Text(event.formattedEventDate)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primaryText)
+                }
+                
+                // Location
+                HStack(spacing: 6) {
+                    Image(systemName: "location")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    Text(event.location)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
                         .lineLimit(1)
                 }
-                .foregroundColor(.white)
+                
+                Spacer()
+            }
+            
+            // Entry Fee
+            entryFeeSection
+            
+            // Participants and Action
+            participantsAndActionSection
+            
+            // Days until event
+            if event.daysUntilEvent >= 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    Text(daysUntilText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                }
+            }
+        }
+        .padding(16)
+    }
+    
+    // MARK: - Entry Fee Section
+    private var entryFeeSection: some View {
+        Group {
+            if event.entryFee > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "dollarsign.circle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    Text("$\(String(format: "%.0f", event.entryFee))")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.primaryOrange)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "gift.circle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.green)
+                    
+                    Text("events.free".localized(using: localizationManager))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.green)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Participants and Action Section
+    private var participantsAndActionSection: some View {
+        HStack {
+            // Participant Avatars
+            HStack(spacing: -8) {
+                ForEach(event.participants.prefix(3), id: \.id) { participant in
+                    AsyncImage(url: URL(string: participant.profileImageUrl ?? "")) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle()
+                            .fill(Color.primaryOrange.opacity(0.3))
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 8, weight: .medium))
+                                    .foregroundColor(.primaryOrange)
+                            )
+                    }
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+                }
+                
+                if event.currentParticipants > 3 {
+                    Circle()
+                        .fill(Color.textSecondary.opacity(0.2))
+                        .frame(width: 24, height: 24)
+                        .overlay(
+                            Text("+\(event.currentParticipants - 3)")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(.textSecondary)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("events.participants.count".localized(using: localizationManager)
+                     .replacingOccurrences(of: "{current}", with: "\(event.currentParticipants)")
+                     .replacingOccurrences(of: "{max}", with: "\(event.maxParticipants)"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.textSecondary)
+                
+                if event.availableSpots > 0 {
+                    Text("events.spots.left".localized(using: localizationManager)
+                         .replacingOccurrences(of: "{count}", with: "\(event.availableSpots)"))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.green)
+                } else {
+                    Text("events.full".localized(using: localizationManager))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.red)
+                }
+            }
+            
+            Spacer()
+            
+            // Join/Leave Button (sadece My Events değilse)
+            if !isMyEvent && (event.canJoin || event.isParticipant) {
+                joinLeaveButton
+            }
+            
+            // Sport Tag
+            Text(event.sport.name)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.primaryOrange)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(Color.black.opacity(0.6))
+                        .fill(Color.primaryOrange.opacity(0.1))
                 )
-                .padding(.top, 12)
-                .padding(.trailing, 12)
+        }
+    }
+    
+    // MARK: - Join/Leave Button
+    private var joinLeaveButton: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isJoining = true
             }
             
-            // Event Details
-            VStack(alignment: .leading, spacing: 12) {
-                // Title and Participation Status
-                HStack {
-                    Text(event.name)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primaryText)
-                        .lineLimit(2)
-                    
-                    Spacer()
-                    
-                    if event.isParticipant {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.green)
-                    }
-                }
-                
-                // Date and Location
-                HStack(spacing: 16) {
-                    // Date
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondaryText)
-                        
-                        Text(event.formattedEventDate)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.primaryText)
-                    }
-                    
-                    // Location
-                    HStack(spacing: 6) {
-                        Image(systemName: "location")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                        
-                        Text(event.location)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(1)
-                    }
-                    
-                    Spacer()
-                }
-                
-                // Entry Fee (if applicable)
-                if event.entryFee > 0 {
-                    HStack(spacing: 6) {
-                        Image(systemName: "dollarsign.circle")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                        
-                        Text("$\(String(format: "%.0f", event.entryFee))")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primaryOrange)
-                    }
-                }
-                
-                // Participants and Action
-                HStack {
-                    // Participant Avatars
-                    HStack(spacing: -8) {
-                        ForEach(event.participants.prefix(3), id: \.id) { participant in
-                            AsyncImage(url: URL(string: participant.profileImageUrl ?? "")) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } placeholder: {
-                                Circle()
-                                    .fill(Color.primaryOrange.opacity(0.3))
-                                    .overlay(
-                                        Image(systemName: "person.fill")
-                                            .font(.system(size: 8, weight: .medium))
-                                            .foregroundColor(.primaryOrange)
-                                    )
-                            }
-                            .frame(width: 24, height: 24)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                            )
-                        }
-                        
-                        if event.currentParticipants > 3 {
-                            Circle()
-                                .fill(Color.textSecondary.opacity(0.2))
-                                .frame(width: 24, height: 24)
-                                .overlay(
-                                    Text("+\(event.currentParticipants - 3)")
-                                        .font(.system(size: 8, weight: .semibold))
-                                        .foregroundColor(.textSecondary)
-                                )
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 2)
-                                )
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("\(event.currentParticipants)/\(event.maxParticipants) participants")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                        
-                        if event.availableSpots > 0 {
-                            Text("\(event.availableSpots) spots left")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.green)
-                        } else {
-                            Text("Full")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.red)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Join/Leave Button
-                    if event.canJoin || event.isParticipant {
-                        Button(action: {
-                            Task {
-                                isJoining = true
-                                // TODO: Implement join/leave functionality
-                                // This should be handled by the parent view
-                                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                                isJoining = false
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                if isJoining {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.6)
-                                } else {
-                                    Image(systemName: event.isParticipant ? "minus.circle" : "plus.circle")
-                                        .font(.system(size: 12, weight: .medium))
-                                }
-                                
-                                Text(event.isParticipant ?
-                                     ("events.leave".localized(using: localizationManager) ?? "Leave") :
-                                        ("events.join".localized(using: localizationManager) ?? "Join"))
-                                .font(.system(size: 12, weight: .medium))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(event.isParticipant ? Color.red : Color.primaryOrange)
-                            )
-                        }
-                        .disabled(isJoining)
-                        .opacity(isJoining ? 0.7 : 1.0)
-                    }
-                    
-                    // Sport Tag
-                    Text(event.sport.name.localized(using: localizationManager) ?? event.sport.name)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.primaryOrange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.primaryOrange.opacity(0.1))
-                        )
-                }
-                
-                if event.daysUntilEvent >= 0 {
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                        
-                        Text(daysUntilText)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                    }
+            if event.isParticipant {
+                onLeave()
+            } else {
+                onJoin()
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isJoining = false
                 }
             }
-            .padding(16)
+        }) {
+            HStack(spacing: 4) {
+                if isJoining {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.6)
+                } else {
+                    Image(systemName: event.isParticipant ? "minus.circle" : "plus.circle")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                
+                Text(event.isParticipant ?
+                     "events.leave".localized(using: localizationManager) :
+                     "events.join".localized(using: localizationManager))
+                .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(event.isParticipant ? Color.red : Color.primaryOrange)
+            )
         }
-        .background(Color.cardBackground)
+        .disabled(isJoining)
+        .opacity(isJoining ? 0.7 : 1.0)
+    }
+    
+    // MARK: - Horizontal Three Dots (Left to Right), No Text
+    private var myEventSwipeBackground: some View {
+        HStack {
+            Spacer()
+            
+            // Horizontal Three Dots Button (No text, horizontal layout)
+            Button(action: {
+                showingCustomActionSheet = true
+                resetSwipe()
+            }) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundColor(.white)
+                    .frame(width: 80)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.primaryOrange)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
-        //        .onTapGesture {
-        //            onTap()
-        //        }
+    }
+    
+    // MARK: - Gestures
+    private var swipeGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                if value.translation.width < 0 {
+                    dragOffset.width = max(value.translation.width, -80)
+                }
+            }
+            .onEnded { value in
+                if value.translation.width < -swipeThreshold {
+                    dragOffset.width = -80
+                    showingMyEventActions = true
+                } else {
+                    resetSwipe()
+                }
+            }
+    }
+    
+    private var longPressGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.1)
+            .onEnded { _ in
+                showingCustomActionSheet = true
+            }
+    }
+    
+    // MARK: - Helper Methods
+    private func resetSwipe() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            dragOffset.width = 0
+            showingMyEventActions = false
+        }
     }
     
     private var daysUntilText: String {
         switch event.daysUntilEvent {
         case 0:
-            return "Today"
+            return "events.today".localized(using: localizationManager)
         case 1:
-            return "Tomorrow"
+            return "events.tomorrow".localized(using: localizationManager)
         case let days where days > 1:
-            return "In \(days) days"
+            return "events.in.days".localized(using: localizationManager)
+                .replacingOccurrences(of: "{count}", with: "\(days)")
         default:
-            return "Event passed"
+            return "events.passed".localized(using: localizationManager)
         }
+    }
+    
+    private var localizedEventTypeName: String {
+        let key = "events.type.\(event.eventTypeName.lowercased())"
+        return key.localized(using: localizationManager)
     }
     
     private func defaultImageUrl(for sportType: String) -> String {
@@ -285,56 +513,82 @@ struct EventCard: View {
         }
     }
     
-    private var formattedEventDate: String {
-        guard let date = event.eventDateTime else {
-            return "TBD"
+    private func eventTypeIcon(for eventTypeName: String) -> String {
+        switch eventTypeName.lowercased() {
+        case "normal":
+            return "calendar"
+        case "tournament":
+            return "trophy"
+        case "featured":
+            return "star"
+        default:
+            return "calendar"
         }
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, HH:mm"
-        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Factory Methods
+extension EventCard {
+    static func forAllEvents(
+        event: Event,
+        onJoin: @escaping () -> Void,
+        onLeave: @escaping () -> Void,
+        onToggleFavorite: @escaping () -> Void
+    ) -> EventCard {
+        return EventCard(
+            event: event,
+            onJoin: onJoin,
+            onLeave: onLeave,
+            isMyEvent: false,
+            onToggleFavorite: onToggleFavorite
+        )
     }
     
-    private func sportIcon(for sportName: String) -> String {
-            switch sportName.lowercased() {
-            case "basketball":
-                return "basketball"
-            case "tennis":
-                return "tennis.racket"
-            case "soccer", "football":
-                return "soccer.ball"
-            case "swimming":
-                return "figure.pool.swim"
-            case "volleyball":
-                return "volleyball"
-            case "running":
-                return "figure.run"
-            case "cycling":
-                return "bicycle"
-            case "fitness":
-                return "dumbbell"
-            case "golf":
-                return "figure.golf"
-            default:
-                return "figure.run"
-            }
-        }
-        
-        // 🔴 NEDEN EKLENEN: API'de eventTypeName string olarak geliyor
-        // Bu fonksiyon her event type için uygun ikon sağlıyor
-        private func eventTypeIcon(for eventTypeName: String) -> String {
-            switch eventTypeName.lowercased() {
-            case "normal":
-                return "calendar"
-            case "tournament":
-                return "trophy"
-            case "featured":
-                return "star"
-            default:
-                return "calendar"
-            }
-        }
+    static func forMyEvents(
+        event: Event,
+        onShare: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        onEdit: @escaping () -> Void,
+        onDeactivate: @escaping () -> Void,
+        onToggleFavorite: @escaping () -> Void
+    ) -> EventCard {
+        return EventCard(
+            event: event,
+            onJoin: {},
+            onLeave: {},
+            isMyEvent: true,
+            onShare: onShare,
+            onDelete: onDelete,
+            onEdit: onEdit,
+            onDeactivate: onDeactivate,
+            onToggleFavorite: onToggleFavorite
+        )
+    }
+}
+
+// MARK: - Screen Level Action Sheet Component for My Events
+struct MyEventsActionSheetOverlay: View {
+    @Binding var isPresented: Bool
+    @Binding var selectedEvent: Event?
+    let onShare: (Event) -> Void
+    let onEdit: (Event) -> Void
+    let onDeactivate: (Event) -> Void
+    let onDelete: (Event) -> Void
+    @EnvironmentObject var localizationManager: LocalizationManager
     
+    var body: some View {
+        if let event = selectedEvent {
+            CustomEventActionSheet(
+                isPresented: $isPresented,
+                event: event,
+                onShare: { onShare(event) },
+                onEdit: { onEdit(event) },
+                onFreeze: { onDeactivate(event) },
+                onDelete: { onDelete(event) }
+            )
+            .environmentObject(localizationManager)
+        }
+    }
 }
 
 // MARK: - Event Card Skeleton

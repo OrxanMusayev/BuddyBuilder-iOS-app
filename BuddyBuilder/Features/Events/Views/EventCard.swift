@@ -1,4 +1,5 @@
 import SwiftUI
+
 struct EventCard: View {
     let event: Event
     let onJoin: () -> Void
@@ -17,7 +18,7 @@ struct EventCard: View {
     @State private var showingMyEventActions = false
     @State private var dragOffset: CGSize = .zero
     @State private var isFavorite = false
-    @State private var showingCustomActionSheet = false
+    // REMOVED: @State private var showingCustomActionSheet = false
     
     // Swipe threshold
     private let swipeThreshold: CGFloat = 60
@@ -51,7 +52,7 @@ struct EventCard: View {
                 myEventSwipeBackground
             }
             
-            // Main Card Content - FIXED: Radius changes based on swipe state
+            // Main Card Content
             mainCardContent
                 .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : 16))
                 .offset(x: dragOffset.width)
@@ -63,25 +64,14 @@ struct EventCard: View {
                 )
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16)) // Outer container keeps rounded
-        .overlay(
-            // Custom Action Sheet
-            CustomEventActionSheet(
-                isPresented: $showingCustomActionSheet,
-                event: event,
-                onShare: { onShare?() },
-                onEdit: { onEdit?() },
-                onFreeze: { onDeactivate?() },
-                onDelete: { onDelete?() }
-            )
-            .environmentObject(localizationManager)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture {
-            // FIXED: Close more menu when tapping anywhere
+            // Close more menu when tapping anywhere
             if showingMyEventActions {
                 resetSwipe()
             }
         }
+        // REMOVED: .overlay() with CustomEventActionSheet
     }
     
     // MARK: - Main Card Content
@@ -96,7 +86,6 @@ struct EventCard: View {
                     HStack {
                         eventTypeBadge
                         Spacer()
-                        // FIXED: Favorite only for All Events
                         if !isMyEvent {
                             favoriteButton
                         }
@@ -170,7 +159,7 @@ struct EventCard: View {
         )
     }
     
-    // MARK: - FIXED: Bigger Favorite Button (Only for All Events)
+    // MARK: - Favorite Button (Only for All Events)
     private var favoriteButton: some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -179,15 +168,15 @@ struct EventCard: View {
             }
         }) {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
-                .font(.system(size: 20, weight: .medium)) // FIXED: Bigger size 16 -> 20
+                .font(.system(size: 20, weight: .medium))
                 .foregroundColor(isFavorite ? .primaryOrange : .white)
                 .background(
                     Circle()
                         .fill(Color.clear)
-                        .frame(width: 32, height: 32) // FIXED: Bigger touch area 28 -> 32
+                        .frame(width: 32, height: 32)
                 )
         }
-        .scaleEffect(isFavorite ? 1.2 : 1.0) // FIXED: More scale effect 1.1 -> 1.2
+        .scaleEffect(isFavorite ? 1.2 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFavorite)
     }
     
@@ -415,14 +404,23 @@ struct EventCard: View {
         .opacity(isJoining ? 0.7 : 1.0)
     }
     
-    // MARK: - Horizontal Three Dots (Left to Right), No Text
+    // MARK: - FIXED: Horizontal Three Dots Button - Triggers parent callback
     private var myEventSwipeBackground: some View {
         HStack {
             Spacer()
             
-            // Horizontal Three Dots Button (No text, horizontal layout)
+            // Horizontal Three Dots Button
             Button(action: {
-                showingCustomActionSheet = true
+                // FIXED: Trigger parent callback instead of internal action sheet
+                if let onShare = onShare {
+                    onShare() // This will trigger the parent's screen level action sheet
+                } else if let onEdit = onEdit {
+                    onEdit()
+                } else if let onDelete = onDelete {
+                    onDelete()
+                } else if let onDeactivate = onDeactivate {
+                    onDeactivate()
+                }
                 resetSwipe()
             }) {
                 Image(systemName: "ellipsis")
@@ -454,10 +452,20 @@ struct EventCard: View {
             }
     }
     
+    // FIXED: Long press gesture triggers parent callback
     private var longPressGesture: some Gesture {
         LongPressGesture(minimumDuration: 0.1)
             .onEnded { _ in
-                showingCustomActionSheet = true
+                // FIXED: Trigger parent callback instead of internal action sheet
+                if let onShare = onShare {
+                    onShare()
+                } else if let onEdit = onEdit {
+                    onEdit()
+                } else if let onDelete = onDelete {
+                    onDelete()
+                } else if let onDeactivate = onDeactivate {
+                    onDeactivate()
+                }
             }
     }
     
@@ -563,31 +571,6 @@ extension EventCard {
             onDeactivate: onDeactivate,
             onToggleFavorite: onToggleFavorite
         )
-    }
-}
-
-// MARK: - Screen Level Action Sheet Component for My Events
-struct MyEventsActionSheetOverlay: View {
-    @Binding var isPresented: Bool
-    @Binding var selectedEvent: Event?
-    let onShare: (Event) -> Void
-    let onEdit: (Event) -> Void
-    let onDeactivate: (Event) -> Void
-    let onDelete: (Event) -> Void
-    @EnvironmentObject var localizationManager: LocalizationManager
-    
-    var body: some View {
-        if let event = selectedEvent {
-            CustomEventActionSheet(
-                isPresented: $isPresented,
-                event: event,
-                onShare: { onShare(event) },
-                onEdit: { onEdit(event) },
-                onFreeze: { onDeactivate(event) },
-                onDelete: { onDelete(event) }
-            )
-            .environmentObject(localizationManager)
-        }
     }
 }
 

@@ -792,7 +792,11 @@ struct UserCard: View {
         .background(Color.cardBackground
             .animation(.easeInOut(duration: 0.2), value: isPressed))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .dynamicShadow.opacity(isPressed ? 0.05 : 0.1), radius: 8, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(isPressed ? 0.05 : 0.1), radius: 10, x: 0, y: 5)
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
@@ -826,103 +830,54 @@ struct SkeletonUserCard: View {
     @State private var isAnimating = false
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             // Profile Image Skeleton
-            ZStack {
-                RoundedRectangle(cornerRadius: 45)
-                    .fill(Color.dynamicTertiaryBackground)
-                    .frame(width: 90, height: 90)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 45)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                
-                // Shimmer effect
-                RoundedRectangle(cornerRadius: 45)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.clear,
-                                Color.white.opacity(0.3),
-                                Color.clear
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: 90, height: 90)
-                    .offset(x: isAnimating ? 90 : -90)
-                    .animation(
-                        Animation.linear(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                        value: isAnimating
-                    )
-            }
-            .frame(height: 100)
+            Circle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 90, height: 90)
+                .clipShape(Circle())
+                .shimmer(isAnimating: isAnimating)
             
-            // User Info Skeleton
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 // Name skeleton
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 80, height: 14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
-                    )
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 80, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .shimmer(isAnimating: isAnimating)
                 
                 // Username skeleton
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.gray.opacity(0.15))
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
                     .frame(width: 60, height: 12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .shimmer(isAnimating: isAnimating)
                 
-                // Bio skeleton (2 lines)
-                VStack(spacing: 3) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(width: 100, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
-                    
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(width: 70, height: 10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .stroke(Color.gray.opacity(0.2), lineWidth: 0.5)
-                        )
-                }
+                // Bio skeleton
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 100, height: 10)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .shimmer(isAnimating: isAnimating)
                 
                 // Location skeleton
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.gray.opacity(0.1))
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
                     .frame(width: 50, height: 10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
-                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .shimmer(isAnimating: isAnimating)
             }
-            .frame(height: 80)
             
             Spacer()
             
-            // Button skeleton
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.1))
-                .frame(height: 32)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                )
+            // Connect Button skeleton
+            Capsule()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 80, height: 28)
+                .shimmer(isAnimating: isAnimating)
         }
-        .frame(width: 140, height: 240)
         .padding(16)
+        .frame(width: 160, height: 280)
         .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 4)

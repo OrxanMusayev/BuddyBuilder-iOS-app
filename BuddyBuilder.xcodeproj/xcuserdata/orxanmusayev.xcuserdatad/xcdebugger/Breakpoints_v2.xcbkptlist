@@ -210,36 +210,6 @@
             endingLineNumber = "520"
             landmarkName = "joinEventWithAutoRefresh(eventId:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "F94BB567-19A2-40EA-BF00-B07BCF849C0D - 9cfb36376df0eee3"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BuddyBuilder.CompleteEventsService.joinEventWithAutoRefresh(eventId: Swift.Int) -&gt; Combine.AnyPublisher&lt;Swift.Bool, Swift.Error&gt;"
-                  moduleName = "BuddyBuilder.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/orxanmusayev/Projects%20-%20Important/BuddyBuilder/ios/BuddyBuilder/BuddyBuilder/Features/Events/Services/EventsService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "520"
-                  endingLineNumber = "520">
-               </Location>
-               <Location
-                  uuid = "F94BB567-19A2-40EA-BF00-B07BCF849C0D - 24c07c1a0febd38"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BuddyBuilder.CompleteEventsService.fetchMyEventsWithAutoRefresh(filter: BuddyBuilder.EventFilter) -&gt; Combine.AnyPublisher&lt;BuddyBuilder.EventsResponse, Swift.Error&gt;"
-                  moduleName = "BuddyBuilder.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/orxanmusayev/Projects%20-%20Important/BuddyBuilder/ios/BuddyBuilder/BuddyBuilder/Features/Events/Services/EventsService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "522"
-                  endingLineNumber = "522">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -256,36 +226,6 @@
             endingLineNumber = "518"
             landmarkName = "joinEventWithAutoRefresh(eventId:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "0F093B1C-AFB6-47BC-9AFC-35AF80EFF798 - 9cfb36376df0eec2"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BuddyBuilder.CompleteEventsService.joinEventWithAutoRefresh(eventId: Swift.Int) -&gt; Combine.AnyPublisher&lt;Swift.Bool, Swift.Error&gt;"
-                  moduleName = "BuddyBuilder.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/orxanmusayev/Projects%20-%20Important/BuddyBuilder/ios/BuddyBuilder/BuddyBuilder/Features/Events/Services/EventsService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "519"
-                  endingLineNumber = "519">
-               </Location>
-               <Location
-                  uuid = "0F093B1C-AFB6-47BC-9AFC-35AF80EFF798 - 6efedc349b7077f"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "BuddyBuilder.CompleteEventsService.fetchEventsWithAutoRefresh(filter: BuddyBuilder.EventFilter) -&gt; Combine.AnyPublisher&lt;BuddyBuilder.EventsResponse, Swift.Error&gt;"
-                  moduleName = "BuddyBuilder.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/orxanmusayev/Projects%20-%20Important/BuddyBuilder/ios/BuddyBuilder/BuddyBuilder/Features/Events/Services/EventsService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "518"
-                  endingLineNumber = "518">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

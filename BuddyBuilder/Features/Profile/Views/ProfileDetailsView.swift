@@ -333,7 +333,7 @@ struct ProfileDetailsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground.opacity(0.95))
     }
     
     // MARK: - Loading View
@@ -403,7 +403,7 @@ struct ProfileDetailsView: View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(
                 title: "profile.section.personal_info".localized(using: localizationManager),
-                icon: "person.badge.plus"
+                icon: "person.text.rectangle"
             )
             
             VStack(spacing: 16) {
@@ -411,7 +411,7 @@ struct ProfileDetailsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     CustomTextFieldNoTitle(
                         text: $viewModel.editUsername,
-                        icon: "person.fill",
+                        icon: "at",
                         placeholder: "profile.field.username".localized(using: localizationManager),
                         hasError: viewModel.usernameError
                     )
@@ -442,21 +442,21 @@ struct ProfileDetailsView: View {
                 // First Name Field
                 CustomTextFieldNoTitle(
                     text: $viewModel.editFirstName,
-                    icon: "person.fill",
+                    icon: "person",
                     placeholder: "profile.field.first_name".localized(using: localizationManager)
                 )
                 
                 // Last Name Field
                 CustomTextFieldNoTitle(
                     text: $viewModel.editLastName,
-                    icon: "person.fill",
+                    icon: "person.2",
                     placeholder: "profile.field.last_name".localized(using: localizationManager)
                 )
                 
                 // Gender Picker
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
-                        Image(systemName: "person.2.fill")
+                        Image(systemName: "person.2.circle")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.textSecondary)
                             .frame(width: 20)
@@ -478,9 +478,13 @@ struct ProfileDetailsView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.dynamicBorder.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 2)
     }
     
     // MARK: - Experience Level Card - FIXED: Broken into smaller expressions
@@ -488,7 +492,7 @@ struct ProfileDetailsView: View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(
                 title: "profile.section.experience".localized(using: localizationManager),
-                icon: "star.circle"
+                icon: "chart.bar"
             )
             
             VStack(alignment: .leading, spacing: 16) {
@@ -500,9 +504,13 @@ struct ProfileDetailsView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.dynamicBorder.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 2)
     }
     
     // MARK: - Experience Grid (Broken out to fix compiler issue)
@@ -612,24 +620,13 @@ struct ProfileDetailsView: View {
             )
             
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    Image(systemName: "text.quote")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
-                        .frame(width: 20)
-                    
-                    Text("profile.field.bio_description".localized(using: localizationManager))
-                        .font(.system(size: 16))
-                        .foregroundColor(.textSecondary)
-                }
-                .padding(.leading, 16)
-                .padding(.top, 2)
+
                 
                 // ENHANCED: TextEditor with proper white background and consistent border
                 ZStack(alignment: .topLeading) {
                     // Background with consistent styling
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white) // WHITE background instead of formBackground
+                        .fill(Color.formBackground)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color.formBorder, lineWidth: 1)
@@ -658,9 +655,13 @@ struct ProfileDetailsView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color.dynamicBorder.opacity(0.1), lineWidth: 1)
+        )
+        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 2)
     }
     
     // MARK: - Helper function for experience icons

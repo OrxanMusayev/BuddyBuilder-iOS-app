@@ -8,8 +8,6 @@ protocol EventsServiceProtocol {
     func fetchEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
     func fetchMyEventsWithAutoRefresh(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
     func fetchMyEvents(filter: EventFilter) -> AnyPublisher<EventsResponse, Error>
-    func joinEvent(eventId: Int) -> AnyPublisher<Bool, Error>
-    func leaveEvent(eventId: Int) -> AnyPublisher<Bool, Error>
     func joinEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error>
     func leaveEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error>
     func fetchEventDetails(eventId: Int) -> AnyPublisher<Event, Error>
@@ -97,30 +95,6 @@ class CompleteEventsService: CompleteEventsServiceProtocol {
                 }
             }
         )
-        .eraseToAnyPublisher()
-    }
-    
-    func joinEvent(eventId: Int) -> AnyPublisher<Bool, Error> {
-        return networkManager.request(
-            endpoint: "\(baseURL)/\(eventId)/join",
-            method: .POST,
-            type: APIResponse<Bool>.self
-        )
-        .map { response in
-            response.success && (response.data ?? false)
-        }
-        .eraseToAnyPublisher()
-    }
-    
-    func leaveEvent(eventId: Int) -> AnyPublisher<Bool, Error> {
-        return networkManager.request(
-            endpoint: "\(baseURL)/\(eventId)/leave",
-            method: .POST,
-            type: APIResponse<Bool>.self
-        )
-        .map { response in
-            response.success && (response.data ?? false)
-        }
         .eraseToAnyPublisher()
     }
     
@@ -540,9 +514,16 @@ extension CompleteEventsService {
     }
     
     func joinEventWithAutoRefresh(eventId: Int) -> AnyPublisher<Bool, Error> {
+        let requestBody = JoinEventRequest(note: nil)
+        
+        guard let jsonData = try? JSONEncoder().encode(requestBody) else {
+            return Fail(error: NetworkError.decodingError).eraseToAnyPublisher()
+        }
+        
         return networkManager.requestWithAutoRefresh(
             endpoint: "\(baseURL)/\(eventId)/join",
             method: .POST,
+            body: jsonData,
             type: APIResponse<Bool>.self
         )
         .map { response in

@@ -368,3 +368,7 @@ enum EventTab: String, CaseIterable {
         }
     }
 }
+
+struct JoinEventRequest: Codable {
+    let note: String?
+}

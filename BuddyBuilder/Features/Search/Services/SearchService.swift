@@ -7,9 +7,9 @@ import Combine
 struct SearchUser: Codable, Identifiable {
     let id: String
     let username: String
-    let firstName: String
-    let lastName: String
-    let fullName: String
+    let firstName: String?  // ✅ Made optional
+    let lastName: String?   // ✅ Made optional
+    let fullName: String?   // ✅ Made optional
     let profileImageUrl: String?
     let overallExperienceLevel: Int
     let city: String?
@@ -33,12 +33,15 @@ struct SearchUser: Codable, Identifiable {
     
     // Computed properties for compatibility
     var name: String {
-        if !fullName.isEmpty {
+        // ✅ Handle optional fullName
+        if let fullName = fullName, !fullName.isEmpty {
             return fullName
-        } else if !firstName.isEmpty || !lastName.isEmpty {
-            return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
         } else {
-            return username
+            // ✅ Handle optional firstName and lastName
+            let first = firstName ?? ""
+            let last = lastName ?? ""
+            let combined = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+            return combined.isEmpty ? username : combined
         }
     }
     
@@ -87,9 +90,9 @@ struct SearchUser: Codable, Identifiable {
 struct SearchTrainer: Codable, Identifiable {
     let id: String
     let username: String
-    let firstName: String
-    let lastName: String
-    let fullName: String
+    let firstName: String?  // ✅ Made optional
+    let lastName: String?   // ✅ Made optional
+    let fullName: String?   // ✅ Made optional
     let profileImageUrl: String?
     let overallExperienceLevel: Int
     let city: String?
@@ -113,12 +116,15 @@ struct SearchTrainer: Codable, Identifiable {
     
     // Computed properties for compatibility
     var name: String {
-        if !fullName.isEmpty {
+        // ✅ Handle optional fullName
+        if let fullName = fullName, !fullName.isEmpty {
             return fullName
-        } else if !firstName.isEmpty || !lastName.isEmpty {
-            return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
         } else {
-            return username
+            // ✅ Handle optional firstName and lastName
+            let first = firstName ?? ""
+            let last = lastName ?? ""
+            let combined = "\(first) \(last)".trimmingCharacters(in: .whitespaces)
+            return combined.isEmpty ? username : combined
         }
     }
     
@@ -392,4 +398,3 @@ class SearchService: SearchServiceProtocol {
         ]
     }
 }
-

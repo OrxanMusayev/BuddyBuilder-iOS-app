@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct EventCard: View {
     let event: Event
@@ -19,6 +20,10 @@ struct EventCard: View {
     @State private var dragOffset: CGSize = .zero
     @State private var isFavorite = false
     // REMOVED: @State private var showingCustomActionSheet = false
+    
+    // API Service and Combine
+    private let eventsService = CompleteEventsService()
+    @State private var cancellables = Set<AnyCancellable>()
     
     // Swipe threshold
     private let swipeThreshold: CGFloat = 60
@@ -358,7 +363,7 @@ struct EventCard: View {
         }
     }
     
-    // MARK: - Join/Leave Button
+    // MARK: - Join/Leave Button - WITH API CALLS ADDED
     private var joinLeaveButton: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -366,15 +371,11 @@ struct EventCard: View {
             }
             
             if event.isParticipant {
-                onLeave()
+                // Call API to leave event
+                leaveEventAPI()
             } else {
-                onJoin()
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isJoining = false
-                }
+                // Call API to join event
+                joinEventAPI()
             }
         }) {
             HStack(spacing: 4) {
@@ -402,6 +403,81 @@ struct EventCard: View {
         }
         .disabled(isJoining)
         .opacity(isJoining ? 0.7 : 1.0)
+    }
+    
+    // MARK: - API CALLS ADDED HERE
+    private func joinEventAPI() {
+        eventsService.joinEventWithAutoRefresh(eventId: event.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isJoining = false
+                    }
+                    
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        print("❌ Failed to join event \(event.id): \(error)")
+                        // Call original callback on failure for UI fallback
+                        onJoin()
+                    }
+                },
+                receiveValue: { success in
+                    if success {
+                        print("✅ Successfully joined event \(event.id)")
+                        // Call original callback on success
+                        onJoin()
+                        
+                        // Haptic feedback
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                    } else {
+                        print("⚠️ Join event API returned false for event \(event.id)")
+                        // Call original callback for UI handling
+                        onJoin()
+                    }
+                }
+            )
+            .store(in: &cancellables)
+    }
+    
+    private func leaveEventAPI() {
+        eventsService.leaveEventWithAutoRefresh(eventId: event.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isJoining = false
+                    }
+                    
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        print("❌ Failed to leave event \(event.id): \(error)")
+                        // Call original callback on failure for UI fallback
+                        onLeave()
+                    }
+                },
+                receiveValue: { success in
+                    if success {
+                        print("✅ Successfully left event \(event.id)")
+                        // Call original callback on success
+                        onLeave()
+                        
+                        // Haptic feedback
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                        impactFeedback.impactOccurred()
+                    } else {
+                        print("⚠️ Leave event API returned false for event \(event.id)")
+                        // Call original callback for UI handling
+                        onLeave()
+                    }
+                }
+            )
+            .store(in: &cancellables)
     }
     
     // MARK: - FIXED: Horizontal Three Dots Button - Triggers parent callback

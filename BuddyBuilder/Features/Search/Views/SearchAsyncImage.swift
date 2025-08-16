@@ -32,7 +32,7 @@ struct SearchAsyncImage: View {
                 Image(systemName: placeholder)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundColor(Color(.systemGray4))
+                    .foregroundColor(Color(.systemGray2))
                     .background(Color(.systemGray6))
             }
         }

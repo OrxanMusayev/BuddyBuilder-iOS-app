@@ -422,8 +422,8 @@ struct SkeletonDetailUserCard: View {
             Circle()
                 .fill(Color.gray.opacity(0.3))
                 .frame(width: 90, height: 90)
-                .clipShape(Circle())
                 .shimmer(isAnimating: isAnimating)
+                .clipShape(Circle())
             
             // User Info Skeleton
             VStack(spacing: 8) {
@@ -510,30 +510,11 @@ struct SkeletonDetailTrainerCard: View {
         VStack(spacing: 12) {
             // Profile Image Skeleton with badge
             ZStack {
-                RoundedRectangle(cornerRadius: 45)
-                    .fill(Color.gray.opacity(0.2))
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
                     .frame(width: 90, height: 90)
-                
-                // Shimmer effect
-                RoundedRectangle(cornerRadius: 45)
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.clear,
-                                Color.white.opacity(0.3),
-                                Color.clear
-                            ]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: 90, height: 90)
-                    .offset(x: isAnimating ? 90 : -90)
-                    .animation(
-                        Animation.linear(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                        value: isAnimating
-                    )
+                    .shimmer(isAnimating: isAnimating)
+                    .clipShape(Circle())
                 
                 // Badge skeleton
                 VStack {

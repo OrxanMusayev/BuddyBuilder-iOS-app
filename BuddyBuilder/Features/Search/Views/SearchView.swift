@@ -843,8 +843,8 @@ struct SkeletonUserCard: View {
             Circle()
                 .fill(Color.gray.opacity(0.3))
                 .frame(width: 90, height: 90)
-                .clipShape(Circle())
                 .shimmer(isAnimating: isAnimating)
+                .clipShape(Circle())
             
             VStack(spacing: 8) {
                 // Name skeleton

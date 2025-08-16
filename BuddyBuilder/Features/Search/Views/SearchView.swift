@@ -794,9 +794,17 @@ struct UserCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                .stroke(
+                    Color(.systemGray4),
+                    lineWidth: 1
+                )
         )
-        .shadow(color: .black.opacity(isPressed ? 0.05 : 0.1), radius: 10, x: 0, y: 5)
+        .shadow(
+            color: Color.black.opacity(isPressed ? 0.05 : 0.08),
+            radius: isPressed ? 8 : 10,
+            x: 0,
+            y: isPressed ? 3 : 5
+        )
         .scaleEffect(isPressed ? 0.97 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {

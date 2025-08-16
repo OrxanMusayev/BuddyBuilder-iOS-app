@@ -94,17 +94,9 @@ struct SectionDetailView: View {
             
             Spacer()
             
-            VStack(spacing: 4) {
-                if section != .newJoiners {
-                    Image(systemName: section.icon)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.gray.opacity(0.8))
-                }
-                
-                Text(section.title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.primary)
-            }
+            Text(section.title)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.primary)
             
             Spacer()
             
@@ -227,13 +219,21 @@ struct DetailUserCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260) // Reduced card height
         .padding(16)
-        .background(Color(.systemBackground))
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                .stroke(
+                    Color(.systemGray4),
+                    lineWidth: 1
+                )
         )
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .shadow(
+            color: Color.black.opacity(isPressed ? 0.05 : 0.08),
+            radius: isPressed ? 8 : 10,
+            x: 0,
+            y: isPressed ? 3 : 5
+        )
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
@@ -375,13 +375,21 @@ struct DetailTrainerCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260) // Same as user cards
         .padding(16)
-        .background(Color(.systemBackground))
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+                .stroke(
+                    Color(.systemGray4),
+                    lineWidth: 1
+                )
         )
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 5)
+        .shadow(
+            color: Color.black.opacity(isPressed ? 0.05 : 0.08),
+            radius: isPressed ? 8 : 10,
+            x: 0,
+            y: isPressed ? 3 : 5
+        )
         .scaleEffect(isPressed ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
         .onTapGesture {
@@ -470,11 +478,23 @@ struct SkeletonDetailUserCard: View {
                 .frame(width: 80, height: 28)
                 .shimmer(isAnimating: isAnimating)
         }
-        .frame(width: 160, height: 280)
+        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
         .padding(16)
         .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 4)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    Color(.systemGray4),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.08),
+            radius: 10,
+            x: 0,
+            y: 5
+        )
         .onAppear {
             withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 isAnimating = true
@@ -576,7 +596,21 @@ struct SkeletonDetailTrainerCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
         .padding(16)
-        .background(Color(.systemBackground))
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    Color(.systemGray4),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.08),
+            radius: 10,
+            x: 0,
+            y: 5
+        )
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         .onAppear {

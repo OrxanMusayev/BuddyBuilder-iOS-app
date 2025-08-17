@@ -657,7 +657,7 @@ struct SportRowCard: View {
                 .foregroundColor(.white.opacity(0.8))
             
             // Level buttons in horizontal row
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 ForEach(ExperienceLevel.allCases, id: \.self) { level in
                     Button(action: {
                         // Auto-select sport if level is changed
@@ -669,12 +669,12 @@ struct SportRowCard: View {
                         }
                     }) {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: 5)
                                 .fill(level == currentLevel ? .primaryOrange : Color.white.opacity(0.2))
-                                .frame(width: 28, height: 28)
+                                .frame(width: 24, height: 24)
                             
                             Text("\(level.rawValue)")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(level == currentLevel ? .white : .white.opacity(0.7))
                         }
                     }

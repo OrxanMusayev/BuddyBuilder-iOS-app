@@ -16,43 +16,48 @@ struct BuddyBuilderApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                // Ana içerik (her zaman arka planda hazır)
-                if authViewModel.isAuthenticated {
-                    MainTabView()
-                        .environmentObject(authViewModel)
+            // 🔄 UPDATED: ToastContainer ile tüm içeriği sardık
+            ToastContainer {
+                ZStack {
+                    // Ana içerik (her zaman arka planda hazır)
+                    if authViewModel.isAuthenticated {
+                        MainTabView()
+                            .environmentObject(authViewModel)
+                            .environmentObject(localizationManager)
+                            .environmentObject(tokenManager)
+                            .environment(\.localizationManager, localizationManager)
+                            .opacity(showMainContent ? 1.0 : 0.0)
+                            .scaleEffect(showMainContent ? 1.0 : 0.9)
+                    } else {
+                        LoginView()
+                            .environmentObject(authViewModel)
+                            .environmentObject(localizationManager)
+                            .environmentObject(tokenManager)
+                            .environment(\.localizationManager, localizationManager)
+                            .opacity(showMainContent ? 1.0 : 0.0)
+                            .scaleEffect(showMainContent ? 1.0 : 0.9)
+                    }
+                    
+                    // Splash Screen (overlay olarak)
+                    if isInitializing {
+                        SplashScreenView(onAnimationComplete: {
+                            splashAnimationCompleted = true
+                        })
                         .environmentObject(localizationManager)
-                        .environmentObject(tokenManager)
-                        .environment(\.localizationManager, localizationManager)
-                        .opacity(showMainContent ? 1.0 : 0.0)
-                        .scaleEffect(showMainContent ? 1.0 : 0.9)
-                } else {
-                    LoginView()
-                        .environmentObject(authViewModel)
-                        .environmentObject(localizationManager)
-                        .environmentObject(tokenManager)
-                        .environment(\.localizationManager, localizationManager)
-                        .opacity(showMainContent ? 1.0 : 0.0)
-                        .scaleEffect(showMainContent ? 1.0 : 0.9)
+                        .opacity(splashOpacity)
+                        .zIndex(1)
+                    }
                 }
-                
-                // Splash Screen (overlay olarak)
-                if isInitializing {
-                    SplashScreenView(onAnimationComplete: {
-                        splashAnimationCompleted = true
-                    })
-                    .environmentObject(localizationManager)
-                    .opacity(splashOpacity)
-                    .zIndex(1)
+                .overlay(AuthErrorAlertView())
+                .onAppear {
+                    authViewModel.setupAuthExpirationListener()
+                }
+                .task {
+                    await setupApp()
                 }
             }
-            .overlay(AuthErrorAlertView()) // 🔴 BU SATIRI EKLEDİK
-            .onAppear {
-                authViewModel.setupAuthExpirationListener() // 🔴 BU SATIRI EKLEDİK
-            }
-            .task {
-                await setupApp()
-            }
+            // 🔄 UPDATED: LocalizationManager'ı ToastContainer'a da veriyoruz
+            .environmentObject(localizationManager)
         }
     }
     

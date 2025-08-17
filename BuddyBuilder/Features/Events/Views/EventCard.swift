@@ -1,83 +1,119 @@
+// BuddyBuilder/Features/Events/Views/EventCard.swift - GÜNCELLENMIŞ
+
 import SwiftUI
 import Combine
 
 struct EventCard: View {
     let event: Event
-    let onJoin: () -> Void
-    let onLeave: () -> Void
-    let isMyEvent: Bool
-    
-    // Swipe ve action callbacks
-    let onShare: (() -> Void)?
-    let onDelete: (() -> Void)?
-    let onEdit: (() -> Void)?
-    let onDeactivate: (() -> Void)?
-    let onToggleFavorite: (() -> Void)?
-    
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @State private var isJoining = false
-    @State private var showingMyEventActions = false
-    @State private var dragOffset: CGSize = .zero
-    @State private var isFavorite = false
-    // REMOVED: @State private var showingCustomActionSheet = false
-    
-    // API Service and Combine
-    private let eventsService = CompleteEventsService()
-    @State private var cancellables = Set<AnyCancellable>()
-    
-    // Swipe threshold
-    private let swipeThreshold: CGFloat = 60
+        let onJoin: () -> Void
+        let onLeave: () -> Void
+        let isMyEvent: Bool
+        
+        // Swipe ve action callbacks
+        let onShare: (() -> Void)?
+        let onDelete: (() -> Void)?
+        let onEdit: (() -> Void)?
+        let onDeactivate: (() -> Void)?
+        let onToggleFavorite: (() -> Void)?
+        
+        @EnvironmentObject var localizationManager: LocalizationManager
+        @State private var isJoining = false
+        @State private var showingMyEventActions = false
+        @State private var dragOffset: CGSize = .zero
+        @State private var isFavorite = false
+        
+        // FIXED: Local state to track participation status
+        @State private var isParticipant: Bool
+        @State private var currentParticipants: Int
+        
+        // API Service and Combine
+        private let eventsService = CompleteEventsService()
+        @State private var cancellables = Set<AnyCancellable>()
+        
+        // Swipe threshold
+        private let swipeThreshold: CGFloat = 60
     
     init(
-        event: Event,
-        onJoin: @escaping () -> Void,
-        onLeave: @escaping () -> Void,
-        isMyEvent: Bool = false,
-        onShare: (() -> Void)? = nil,
-        onDelete: (() -> Void)? = nil,
-        onEdit: (() -> Void)? = nil,
-        onDeactivate: (() -> Void)? = nil,
-        onToggleFavorite: (() -> Void)? = nil
-    ) {
-        self.event = event
-        self.onJoin = onJoin
-        self.onLeave = onLeave
-        self.isMyEvent = isMyEvent
-        self.onShare = onShare
-        self.onDelete = onDelete
-        self.onEdit = onEdit
-        self.onDeactivate = onDeactivate
-        self.onToggleFavorite = onToggleFavorite
-    }
+            event: Event,
+            onJoin: @escaping () -> Void,
+            onLeave: @escaping () -> Void,
+            isMyEvent: Bool = false,
+            onShare: (() -> Void)? = nil,
+            onDelete: (() -> Void)? = nil,
+            onEdit: (() -> Void)? = nil,
+            onDeactivate: (() -> Void)? = nil,
+            onToggleFavorite: (() -> Void)? = nil
+        ) {
+            self.event = event
+            self.onJoin = onJoin
+            self.onLeave = onLeave
+            self.isMyEvent = isMyEvent
+            self.onShare = onShare
+            self.onDelete = onDelete
+            self.onEdit = onEdit
+            self.onDeactivate = onDeactivate
+            self.onToggleFavorite = onToggleFavorite
+            
+            // FIXED: Initialize local state from event
+            self._isParticipant = State(initialValue: event.isParticipant)
+            self._currentParticipants = State(initialValue: event.currentParticipants)
+            
+            print("🎯 EventCard init - Event: \(event.name)")
+            print("   isParticipant: \(event.isParticipant)")
+            print("   currentParticipants: \(event.currentParticipants)")
+        }
     
     var body: some View {
-        ZStack {
-            // Swipe Action Background (My Events için)
-            if isMyEvent && showingMyEventActions {
-                myEventSwipeBackground
+            ZStack {
+                // Swipe Action Background (My Events için)
+                if isMyEvent && showingMyEventActions {
+                    myEventSwipeBackground
+                }
+                
+                // Main Card Content
+                mainCardContent
+                    .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : 16))
+                    .offset(x: dragOffset.width)
+                    .gesture(
+                        isMyEvent ? swipeGesture : nil
+                    )
+                    .simultaneousGesture(
+                        isMyEvent ? longPressGesture : nil
+                    )
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .onTapGesture {
+                // Close more menu when tapping anywhere
+                if showingMyEventActions {
+                    resetSwipe()
+                }
+            }
+            // FIXED: Update local state when event changes
+            .onAppear {
+                updateLocalState()
+            }
+            .onChange(of: event.isParticipant) { newValue in
+                print("🔄 EventCard - event.isParticipant changed to: \(newValue)")
+                updateLocalState()
+            }
+            .onChange(of: event.currentParticipants) { newValue in
+                print("🔄 EventCard - event.currentParticipants changed to: \(newValue)")
+                updateLocalState()
+            }
+        }
+        
+        // MARK: - FIXED: Update Local State
+        private func updateLocalState() {
+            print("🔄 EventCard - Updating local state for event: \(event.name)")
+            print("   From: isParticipant=\(isParticipant), currentParticipants=\(currentParticipants)")
+            print("   To: isParticipant=\(event.isParticipant), currentParticipants=\(event.currentParticipants)")
             
-            // Main Card Content
-            mainCardContent
-                .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : 16))
-                .offset(x: dragOffset.width)
-                .gesture(
-                    isMyEvent ? swipeGesture : nil
-                )
-                .simultaneousGesture(
-                    isMyEvent ? longPressGesture : nil
-                )
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            // Close more menu when tapping anywhere
-            if showingMyEventActions {
-                resetSwipe()
+            DispatchQueue.main.async {
+                isParticipant = event.isParticipant
+                currentParticipants = event.currentParticipants
             }
         }
-        // REMOVED: .overlay() with CustomEventActionSheet
-    }
     
     // MARK: - Main Card Content
     private var mainCardContent: some View {
@@ -283,7 +319,7 @@ struct EventCard: View {
     
     // MARK: - Participants and Action Section
     private var participantsAndActionSection: some View {
-        HStack {
+            HStack {
             // Participant Avatars
             HStack(spacing: -8) {
                 ForEach(event.participants.prefix(3), id: \.id) { participant in
@@ -323,33 +359,34 @@ struct EventCard: View {
                         )
                 }
             }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("events.participants.count".localized(using: localizationManager)
-                     .replacingOccurrences(of: "{current}", with: "\(event.currentParticipants)")
-                     .replacingOccurrences(of: "{max}", with: "\(event.maxParticipants)"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
                 
-                if event.availableSpots > 0 {
-                    Text("events.spots.left".localized(using: localizationManager)
-                         .replacingOccurrences(of: "{count}", with: "\(event.availableSpots)"))
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.green)
-                } else {
-                    Text("events.full".localized(using: localizationManager))
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.red)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("events.participants.count".localized(using: localizationManager)
+                         .replacingOccurrences(of: "{current}", with: "\(currentParticipants)") // FIXED: Use local state
+                         .replacingOccurrences(of: "{max}", with: "\(event.maxParticipants)"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                    
+                    let availableSpots = max(0, event.maxParticipants - currentParticipants) // FIXED: Calculate from local state
+                    if availableSpots > 0 {
+                        Text("events.spots.left".localized(using: localizationManager)
+                             .replacingOccurrences(of: "{count}", with: "\(availableSpots)"))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.green)
+                    } else {
+                        Text("events.full".localized(using: localizationManager))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.red)
+                    }
                 }
-            }
-            
-            Spacer()
-            
-            // Join/Leave Button (sadece My Events değilse)
-            if !isMyEvent && (event.canJoin || event.isParticipant) {
-                joinLeaveButton
-            }
-            
+                
+                Spacer()
+                
+                // Join/Leave Button (sadece My Events değilse)
+                if !isMyEvent && (event.canJoin || isParticipant) { // FIXED: Use local state
+                    joinLeaveButton
+                }
+                
             // Sport Tag
             Text(event.sport.name)
                 .font(.system(size: 12, weight: .medium))
@@ -360,10 +397,10 @@ struct EventCard: View {
                     Capsule()
                         .fill(Color.primaryOrange.opacity(0.1))
                 )
+            }
         }
-    }
     
-    // MARK: - Join/Leave Button - WITH API CALLS ADDED
+    // MARK: - Join/Leave Button - ENHANCED WITH TOAST NOTIFICATIONS
     private var joinLeaveButton: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -371,10 +408,8 @@ struct EventCard: View {
             }
             
             if event.isParticipant {
-                // Call API to leave event
                 leaveEventAPI()
             } else {
-                // Call API to join event
                 joinEventAPI()
             }
         }) {
@@ -405,91 +440,216 @@ struct EventCard: View {
         .opacity(isJoining ? 0.7 : 1.0)
     }
     
-    // MARK: - API CALLS ADDED HERE
-    private func joinEventAPI() {
-        eventsService.joinEventWithAutoRefresh(eventId: event.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { completion in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isJoining = false
-                    }
-                    
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        print("❌ Failed to join event \(event.id): \(error)")
-                        // Call original callback on failure for UI fallback
-                        onJoin()
-                    }
-                },
-                receiveValue: { success in
-                    if success {
-                        print("✅ Successfully joined event \(event.id)")
-                        // Call original callback on success
-                        onJoin()
-                        
-                        // Haptic feedback
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                        impactFeedback.impactOccurred()
-                    } else {
-                        print("⚠️ Join event API returned false for event \(event.id)")
-                        // Call original callback for UI handling
-                        onJoin()
-                    }
+    private var eventTitleSection: some View {
+            HStack {
+                Text(event.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primaryText)
+                    .lineLimit(2)
+                
+                Spacer()
+                
+                // FIXED: Use local state for participation status
+                if isParticipant {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.green)
                 }
-            )
-            .store(in: &cancellables)
+            }
+        }
+    
+    // MARK: - ENHANCED API CALLS WITH TOAST NOTIFICATIONS
+        
+        // MARK: - FIXED: Enhanced API Calls with Immediate UI Update
+        private func joinEventAPI() {
+            print("🚀 Starting joinEventAPI for event \(event.id)")
+            
+            eventsService.joinEventWithAutoRefresh(eventId: event.id)
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { completion in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isJoining = false
+                        }
+                        
+                        switch completion {
+                        case .finished:
+                            print("✅ Join event completed successfully")
+                            break
+                        case .failure(let error):
+                            print("❌ Failed to join event \(event.id): \(error)")
+                            
+                            let errorMessage = mapJoinErrorMessage(error.localizedDescription)
+                            print("🎯 Showing toast with message: '\(errorMessage)'")
+                            
+                            // FIXED: Extended toast duration
+                            ToastManager.shared.show(message: errorMessage, type: .error, duration: 5.0)
+                            print("🍞 Toast show() called with 5 second duration")
+                        }
+                    },
+                    receiveValue: { success in
+                        print("📥 Join event receiveValue: \(success)")
+                        
+                        if success {
+                            print("✅ Successfully joined event \(event.id)")
+                            
+                            // FIXED: Immediate UI update
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isParticipant = true
+                                currentParticipants += 1
+                            }
+                            print("🎯 UI Updated: isParticipant=\(isParticipant), currentParticipants=\(currentParticipants)")
+                            
+                            let successMessage = "Successfully joined the event!"
+                            print("🎯 Showing success toast with message: '\(successMessage)'")
+                            
+                            // FIXED: Extended toast duration for success
+                            ToastManager.shared.show(message: successMessage, type: .success, duration: 4.0)
+                            print("🍞 Success toast show() called with 4 second duration")
+                            
+                            // Call original callback for parent updates
+                            onJoin()
+                            
+                        } else {
+                            print("⚠️ Join event API returned false for event \(event.id)")
+                            let errorMessage = "Failed to join the event. Please try again."
+                            print("🎯 Showing error toast with message: '\(errorMessage)'")
+                            ToastManager.shared.show(message: errorMessage, type: .error, duration: 5.0)
+                            print("🍞 Error toast show() called")
+                        }
+                    }
+                )
+                .store(in: &cancellables)
+        }
+        
+        private func leaveEventAPI() {
+            print("🚀 Starting leaveEventAPI for event \(event.id)")
+            
+            eventsService.leaveEventWithAutoRefresh(eventId: event.id)
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { completion in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isJoining = false
+                        }
+                        
+                        switch completion {
+                        case .finished:
+                            print("✅ Leave event completed successfully")
+                            break
+                        case .failure(let error):
+                            print("❌ Failed to leave event \(event.id): \(error)")
+                            
+                            let errorMessage = mapLeaveErrorMessage(error.localizedDescription)
+                            print("🎯 Showing toast with message: '\(errorMessage)'")
+                            
+                            // FIXED: Extended toast duration
+                            ToastManager.shared.show(message: errorMessage, type: .error, duration: 5.0)
+                            print("🍞 Toast show() called")
+                        }
+                    },
+                    receiveValue: { success in
+                        print("📥 Leave event receiveValue: \(success)")
+                        
+                        if success {
+                            print("✅ Successfully left event \(event.id)")
+                            
+                            // FIXED: Immediate UI update
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isParticipant = false
+                                currentParticipants = max(0, currentParticipants - 1)
+                            }
+                            print("🎯 UI Updated: isParticipant=\(isParticipant), currentParticipants=\(currentParticipants)")
+                            
+                            let successMessage = "Successfully left the event!"
+                            print("🎯 Showing success toast with message: '\(successMessage)'")
+                            
+                            // FIXED: Extended toast duration for success
+                            ToastManager.shared.show(message: successMessage, type: .success, duration: 4.0)
+                            print("🍞 Success toast show() called")
+                            
+                            // Call original callback for parent updates
+                            onLeave()
+                            
+                        } else {
+                            print("⚠️ Leave event API returned false for event \(event.id)")
+                            let errorMessage = "Failed to leave the event. Please try again."
+                            print("🎯 Showing error toast with message: '\(errorMessage)'")
+                            ToastManager.shared.show(message: errorMessage, type: .error, duration: 5.0)
+                            print("🍞 Error toast show() called")
+                        }
+                    }
+                )
+                .store(in: &cancellables)
+        }
+    
+    // MARK: - Enhanced Error Message Mapping
+    private func mapJoinErrorMessage(_ originalMessage: String) -> String {
+        let message = originalMessage.lowercased()
+        
+        switch true {
+        case message.contains("skill level") && message.contains("above"):
+            return "Your skill level is too high for this event."
+        case message.contains("skill level") && message.contains("below"):
+            return "Your skill level is too low for this event."
+        case message.contains("skill level"):
+            return "Your skill level doesn't match the event requirements."
+        case message.contains("maximum allowed"):
+            return "You don't meet the requirements for this event."
+        case message.contains("already registered") || message.contains("already joined"):
+            return "You're already registered for this event."
+        case message.contains("event is full") || message.contains("no more spots"):
+            return "This event is full. No more spots available."
+        case message.contains("registration closed") || message.contains("deadline passed"):
+            return "Registration for this event has closed."
+        case message.contains("gender restriction"):
+            return "This event has gender restrictions."
+        case message.contains("age restriction"):
+            return "You don't meet the age requirements for this event."
+        case message.contains("not found"):
+            return "Event not found. It may have been deleted."
+        case message.contains("unauthorized") || message.contains("permission"):
+            return "You don't have permission to join this event."
+        case message.contains("network") || message.contains("connection"):
+            return "Network error. Please check your connection."
+        case message.contains("server") || message.contains("internal"):
+            return "Server error. Please try again later."
+        default:
+            return originalMessage.isEmpty ? "Failed to join the event. Please try again." : originalMessage
+        }
     }
     
-    private func leaveEventAPI() {
-        eventsService.leaveEventWithAutoRefresh(eventId: event.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { completion in
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isJoining = false
-                    }
-                    
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        print("❌ Failed to leave event \(event.id): \(error)")
-                        // Call original callback on failure for UI fallback
-                        onLeave()
-                    }
-                },
-                receiveValue: { success in
-                    if success {
-                        print("✅ Successfully left event \(event.id)")
-                        // Call original callback on success
-                        onLeave()
-                        
-                        // Haptic feedback
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                        impactFeedback.impactOccurred()
-                    } else {
-                        print("⚠️ Leave event API returned false for event \(event.id)")
-                        // Call original callback for UI handling
-                        onLeave()
-                    }
-                }
-            )
-            .store(in: &cancellables)
+    private func mapLeaveErrorMessage(_ originalMessage: String) -> String {
+        let message = originalMessage.lowercased()
+        
+        switch true {
+        case message.contains("not registered") || message.contains("not joined"):
+            return "You're not registered for this event."
+        case message.contains("cannot leave") && message.contains("started"):
+            return "Cannot leave event that has already started."
+        case message.contains("cannot leave") && message.contains("owner"):
+            return "Event owners cannot leave their own events."
+        case message.contains("not found"):
+            return "Event not found. It may have been deleted."
+        case message.contains("unauthorized") || message.contains("permission"):
+            return "You don't have permission to leave this event."
+        case message.contains("network") || message.contains("connection"):
+            return "Network error. Please check your connection."
+        case message.contains("server") || message.contains("internal"):
+            return "Server error. Please try again later."
+        default:
+            return originalMessage.isEmpty ? "Failed to leave the event. Please try again." : originalMessage
+        }
     }
     
-    // MARK: - FIXED: Horizontal Three Dots Button - Triggers parent callback
+    // MARK: - Swipe Actions
     private var myEventSwipeBackground: some View {
         HStack {
             Spacer()
             
-            // Horizontal Three Dots Button
             Button(action: {
-                // FIXED: Trigger parent callback instead of internal action sheet
                 if let onShare = onShare {
-                    onShare() // This will trigger the parent's screen level action sheet
+                    onShare()
                 } else if let onEdit = onEdit {
                     onEdit()
                 } else if let onDelete = onDelete {
@@ -528,11 +688,9 @@ struct EventCard: View {
             }
     }
     
-    // FIXED: Long press gesture triggers parent callback
     private var longPressGesture: some Gesture {
         LongPressGesture(minimumDuration: 0.1)
             .onEnded { _ in
-                // FIXED: Trigger parent callback instead of internal action sheet
                 if let onShare = onShare {
                     onShare()
                 } else if let onEdit = onEdit {
@@ -650,7 +808,7 @@ extension EventCard {
     }
 }
 
-// MARK: - Event Card Skeleton
+// MARK: - Event Card Skeleton (Unchanged)
 struct EventCardSkeleton: View {
     @State private var isAnimating = false
     
@@ -731,7 +889,7 @@ struct EventCardSkeleton: View {
     }
 }
 
-// MARK: - Shimmer Effect Extension
+// MARK: - Shimmer Effect Extension (Unchanged)
 extension View {
     func shimmer(isAnimating: Bool) -> some View {
         self

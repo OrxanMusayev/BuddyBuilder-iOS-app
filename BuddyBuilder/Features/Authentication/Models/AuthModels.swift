@@ -9,15 +9,6 @@ struct LoginRequest: Codable {
     let rememberMe: Bool
 }
 
-// API Response Wrapper
-struct APIResponse<T: Codable>: Codable {
-    let success: Bool
-    let message: String?
-    let data: T?
-    let errors: [String]?
-    let timestamp: String
-}
-
 // Login Data (API'nin data field'ında dönen exact bilgiler)
 struct LoginData: Codable {
     let userId: String

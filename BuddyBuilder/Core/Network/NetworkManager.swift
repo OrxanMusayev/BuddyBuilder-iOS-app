@@ -1,4 +1,4 @@
-// BuddyBuilder/Core/Network/NetworkManager.swift - RETRY TOKEN DÜZELTMESİ
+// BuddyBuilder/Core/Network/NetworkManager.swift - UPDATED WITH RAW DATA SUPPORT
 
 import Foundation
 import Combine
@@ -104,6 +104,155 @@ class NetworkManager: ObservableObject {
             }
         }
         .eraseToAnyPublisher()
+    }
+    
+    // MARK: - 🆕 NEW: Raw Data Request for Manual JSON Parsing
+    func requestRawDataWithAutoRefresh(
+        endpoint: String,
+        method: HTTPMethod = .GET,
+        body: Data? = nil,
+        headers: [String: String]? = nil,
+        retryCount: Int = 0
+    ) -> AnyPublisher<Data, Error> {
+        
+        return Future<Data, Error> { promise in
+            Task {
+                do {
+                    // Her seferinde fresh token al
+                    let currentToken = TokenManager.shared.accessToken
+                    print("🔵 Raw Data Request - Current token: \(currentToken?.prefix(20) ?? "nil")...")
+                    
+                    // Headers hazırla
+                    var finalHeaders = headers ?? [:]
+                    if let token = currentToken {
+                        finalHeaders["Authorization"] = "Bearer \(token)"
+                    }
+                    
+                    // Dil header'ını ekle
+                    if let currentLanguage = LocalizationManager.shared.currentLanguage {
+                        finalHeaders["Accept-Language"] = currentLanguage.code
+                    }
+                    
+                    // Raw data request yap
+                    let result = try await self.makeAsyncRawDataRequest(
+                        endpoint: endpoint,
+                        method: method,
+                        body: body,
+                        headers: finalHeaders
+                    )
+                    
+                    promise(.success(result))
+                    
+                } catch {
+                    // 401 hatası ve henüz retry yapılmadıysa
+                    if case NetworkError.unauthorized = error, retryCount == 0 {
+                        print("🔐 Raw Data Request - Received 401, attempting token refresh...")
+                        
+                        // Token refresh
+                        let refreshSuccess = await TokenManager.shared.refreshTokenIfNeeded()
+                        
+                        if refreshSuccess {
+                            print("✅ Token refreshed successfully, retrying raw data request...")
+                            
+                            do {
+                                // Refresh'ten sonra yeni token'ı al
+                                let freshToken = TokenManager.shared.accessToken
+                                print("🔄 Fresh token for raw data retry: \(freshToken?.prefix(20) ?? "nil")...")
+                                
+                                guard let newToken = freshToken, !newToken.isEmpty else {
+                                    print("❌ No fresh token available after refresh!")
+                                    promise(.failure(NetworkError.unauthorized))
+                                    return
+                                }
+                                
+                                // Yeni headers ile retry
+                                var retryHeaders = headers ?? [:]
+                                retryHeaders["Authorization"] = "Bearer \(newToken)"
+                                
+                                print("🔄 Retrying raw data request with NEW token...")
+                                let retryResult = try await self.makeAsyncRawDataRequest(
+                                    endpoint: endpoint,
+                                    method: method,
+                                    body: body,
+                                    headers: retryHeaders
+                                )
+                                
+                                print("✅ RAW DATA RETRY SUCCESSFUL!")
+                                promise(.success(retryResult))
+                                
+                            } catch {
+                                print("❌ RAW DATA RETRY FAILED: \(error)")
+                                promise(.failure(error))
+                            }
+                            
+                        } else {
+                            print("❌ Token refresh failed, user needs to login again")
+                            promise(.failure(NetworkError.unauthorized))
+                        }
+                        
+                    } else {
+                        promise(.failure(error))
+                    }
+                }
+            }
+        }
+        .eraseToAnyPublisher()
+    }
+    
+    // MARK: - 🆕 NEW: Async raw data request helper
+    private func makeAsyncRawDataRequest(
+        endpoint: String,
+        method: HTTPMethod,
+        body: Data?,
+        headers: [String: String]
+    ) async throws -> Data {
+        
+        guard let url = URL(string: endpoint) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add headers
+        for (key, value) in headers {
+            request.addValue(value, forHTTPHeaderField: key)
+            
+            if key == "Authorization" {
+                print("🔐 Raw Data Request - Using Authorization header: \(value.prefix(25))...")
+            }
+        }
+        
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        request.timeoutInterval = 30
+        
+        print("🌐 Raw Data Request to: \(endpoint)")
+        print("📤 Method: \(method.rawValue)")
+        if let bodyString = body.flatMap({ String(data: $0, encoding: .utf8) }) {
+            print("📤 Body: \(bodyString)")
+        }
+        
+        let (data, response) = try await session.data(for: request)
+        
+        // Check HTTP status
+        if let httpResponse = response as? HTTPURLResponse {
+            print("📊 Raw Data Response Status: \(httpResponse.statusCode) for \(endpoint)")
+            print("📥 Raw Data Response: \(String(data: data, encoding: .utf8) ?? "Unable to decode")")
+            
+            if httpResponse.statusCode == 401 {
+                print("🔴 401 UNAUTHORIZED in raw data request!")
+                throw NetworkError.unauthorized
+            } else if httpResponse.statusCode >= 400 {
+                print("🔴 Server error \(httpResponse.statusCode) in raw data request!")
+                throw NetworkError.serverError(httpResponse.statusCode)
+            }
+        }
+        
+        return data
     }
     
     // MARK: - Async network request helper

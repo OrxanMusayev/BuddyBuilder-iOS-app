@@ -251,7 +251,7 @@ struct MySportsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.9))
+        .background(Color(UIColor.systemBackground).opacity(0.9))
     }
     
     private var backButton: some View {
@@ -271,7 +271,7 @@ struct MySportsView: View {
     private var headerTitle: some View {
         Text("My Sports")
             .font(.system(size: 20, weight: .bold, design: .rounded))
-            .foregroundColor(.textPrimary)
+            .foregroundColor(Color(UIColor.label))
     }
     
     private var addButton: some View {
@@ -295,7 +295,7 @@ struct MySportsView: View {
                 .scaleEffect(1.5)
             Text("Loading your sports...")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(Color(UIColor.secondaryLabel))
             Spacer()
         }
     }
@@ -305,23 +305,32 @@ struct MySportsView: View {
         VStack(spacing: 24) {
             Spacer()
             
-            ZStack {
-                Circle()
-                    .fill(Color.primaryOrange.opacity(0.1))
-                    .frame(width: 100, height: 100)
-                Image(systemName: "figure.run.circle")
-                    .font(.system(size: 50, weight: .light))
-                    .foregroundColor(.primaryOrange.opacity(0.6))
+            VStack(spacing: -5) {
+                HStack(spacing: -8) {
+                    Image(systemName: "figure.run")
+                        .font(.system(size: 44, weight: .ultraLight))
+                    Image(systemName: "figure.skiing")
+                        .font(.system(size: 44, weight: .ultraLight))
+                }
+                HStack(spacing: -8) {
+                    Image(systemName: "figure.basketball")
+                        .font(.system(size: 44, weight: .ultraLight))
+                    Image(systemName: "figure.tennis")
+                        .font(.system(size: 44, weight: .ultraLight))
+                }
             }
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(Color.primaryOrange)
+            .frame(width: 100, height: 100)
             
             VStack(spacing: 12) {
                 Text("No Sports Added Yet")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(Color(UIColor.label))
                 
                 Text("Add your favorite sports to connect with other players and join events")
                     .font(.system(size: 16))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(Color(UIColor.secondaryLabel))
                     .multilineTextAlignment(.center)
                     .lineLimit(nil)
             }
@@ -628,7 +637,7 @@ struct ExperienceLevelPickerSheet: View {
             levelOptionsSection
             cancelButton
         }
-        .background(Color.white)
+        .background(Color(UIColor.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(400)])
         .presentationDragIndicator(.hidden)
@@ -643,11 +652,11 @@ struct ExperienceLevelPickerSheet: View {
             
             Text("Experience Level")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(Color(UIColor.label))
             
             Text("Select your experience level for \(sportName)")
                 .font(.system(size: 14))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(Color(UIColor.secondaryLabel))
                 .multilineTextAlignment(.center)
         }
         .padding(.bottom, 24)
@@ -673,10 +682,10 @@ struct ExperienceLevelPickerSheet: View {
         Button(action: { dismiss() }) {
             Text("Cancel")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(Color(UIColor.secondaryLabel))
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
-                .background(Color.formBackground)
+                .background(Color(UIColor.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 22))
         }
         .padding(.horizontal, 20)

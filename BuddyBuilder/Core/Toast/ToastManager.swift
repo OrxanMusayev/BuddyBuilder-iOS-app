@@ -1,47 +1,19 @@
-// BuddyBuilder/Core/Toast/ToastManager.swift - FIXED DURATION
+// BuddyBuilder/Core/Toast/ToastManager.swift - STACKED TOASTS
 
 import SwiftUI
 
-// MARK: - Toast Manager (Singleton) - FIXED DURATION
+// MARK: - Toast Manager (Singleton) - STACKED
 class ToastManager: ObservableObject {
     static let shared = ToastManager()
     
-    @Published var currentToast: ToastMessage?
-    @Published var isShowing = false
-    
-    private var dismissTimer: Timer?
+    @Published var toasts: [ToastMessage] = []
+    private var dismissTimers: [UUID: Timer] = [:]
     
     private init() {}
     
-    // FIXED: Default duration increased to 5 seconds
+    // MARK: - Show Toast
     func show(message: String, type: ToastType, duration: Double = 5.0) {
-        print("🍞 ToastManager.show() called with:")
-        print("   message: '\(message)'")
-        print("   type: \(type)")
-        print("   duration: \(duration) seconds")
-        
-        // Cancel existing timer
-        dismissTimer?.invalidate()
-        
-        // Dismiss current toast if any
-        if isShowing {
-            print("🍞 Dismissing existing toast...")
-            dismiss()
-            
-            // Small delay before showing new toast
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.showNewToast(message: message, type: type, duration: duration)
-            }
-        } else {
-            showNewToast(message: message, type: type, duration: duration)
-        }
-    }
-    
-    private func showNewToast(message: String, type: ToastType, duration: Double) {
-        print("🍞 Showing new toast...")
-        
-        // Create new toast
-        currentToast = ToastMessage(
+        let toast = ToastMessage(
             id: UUID(),
             message: message,
             type: type,
@@ -49,69 +21,59 @@ class ToastManager: ObservableObject {
         )
         
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            isShowing = true
+            toasts.append(toast)
         }
         
-        print("🍞 Toast animation started, setting up timer for \(duration) seconds")
+        print("🍞 Showing new toast: '\(message)' (duration \(duration)s)")
         
-        // FIXED: Use timer instead of DispatchQueue for better control
-        dismissTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
-            print("🍞 Timer fired, auto-dismissing toast...")
-            self?.dismiss()
+        // Schedule auto-dismiss
+        let timer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            self?.dismiss(toast)
         }
+        dismissTimers[toast.id] = timer
     }
     
-    func dismiss() {
-        print("🍞 ToastManager.dismiss() called")
-        
-        // Cancel timer
-        dismissTimer?.invalidate()
-        dismissTimer = nil
+    // MARK: - Dismiss Specific Toast
+    func dismiss(_ toast: ToastMessage) {
+        print("🍞 Dismissing toast: '\(toast.message)'")
+        dismissTimers[toast.id]?.invalidate()
+        dismissTimers.removeValue(forKey: toast.id)
         
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            isShowing = false
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            self.currentToast = nil
-            print("🍞 Toast cleared from memory")
+            toasts.removeAll { $0.id == toast.id }
         }
     }
     
-    // MARK: - Manual Dismiss (for swipe or tap)
+    // MARK: - Immediate Dismiss (all)
     func dismissImmediately() {
-        print("🍞 ToastManager.dismissImmediately() called")
-        
-        dismissTimer?.invalidate()
-        dismissTimer = nil
+        print("🍞 Dismissing all toasts immediately")
+        dismissTimers.values.forEach { $0.invalidate() }
+        dismissTimers.removeAll()
         
         withAnimation(.easeOut(duration: 0.2)) {
-            isShowing = false
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            self.currentToast = nil
+            toasts.removeAll()
         }
     }
     
-    // MARK: - Debug Method
+    // MARK: - Debug
     func debugStatus() {
         print("🍞 ToastManager Debug Status:")
-        print("   isShowing: \(isShowing)")
-        print("   currentToast: \(currentToast?.message ?? "nil")")
-        print("   timer active: \(dismissTimer != nil)")
+        print("   active toasts: \(toasts.count)")
+        for toast in toasts {
+            print("   - \(toast.message) (\(toast.id))")
+        }
     }
 }
 
-// MARK: - Toast Message Model (Unchanged)
-struct ToastMessage: Identifiable {
+// MARK: - Toast Message Model
+struct ToastMessage: Identifiable, Equatable {
     let id: UUID
     let message: String
     let type: ToastType
     let duration: Double
 }
 
-// MARK: - Toast Type (Unchanged)
+// MARK: - Toast Type
 enum ToastType {
     case success
     case error
@@ -150,7 +112,7 @@ enum ToastType {
     }
 }
 
-// MARK: - Global Toast Helper Functions (UPDATED DURATIONS)
+// MARK: - Global Toast Helpers
 extension View {
     func showSuccessToast(_ message: String) {
         ToastManager.shared.show(message: message, type: .success, duration: 4.0)

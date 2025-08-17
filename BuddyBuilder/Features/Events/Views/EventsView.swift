@@ -247,7 +247,7 @@ struct EventsView: View {
                             EventCard.forAllEvents(
                                 event: event,
                                 onJoin: {
-                                    eventsViewModel.joinEvent(event)
+                                    // API call is already handled in EventCard
                                 },
                                 onLeave: {
                                     eventsViewModel.leaveEvent(event)

@@ -300,9 +300,9 @@ class EventsViewModel: EventsFilterProtocol {
         // Option 1: Update local state immediately (optimistic update)
         updateLocalEventState(eventId: eventId, joined: joined)
         
-        // Option 2: Full refresh after delay to get server state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            print("🔄 ViewModel: Performing delayed refresh to sync with server")
+        // Option 2: Quick refresh to sync with server for accurate participant list  
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            print("🔄 ViewModel: Performing sync refresh to get updated participant list from server")
             self?.loadEvents(resetPagination: false) // Don't reset pagination
         }
     }
@@ -314,8 +314,35 @@ class EventsViewModel: EventsFilterProtocol {
             return
         }
         
-        print("🔄 ViewModel: Local state will be updated via server refresh for event \(eventId)")
-        // Note: Since Event struct is immutable, we rely on server refresh for accurate state
+        print("🔄 ViewModel: Performing optimistic update for event \(eventId)")
+        
+        let currentEvent = events[index]
+        let newCurrentParticipants = joined ? 
+            currentEvent.currentParticipants + 1 : 
+            max(0, currentEvent.currentParticipants - 1)
+        
+        print("   📊 Before update:")
+        print("      isParticipant: \(currentEvent.isParticipant)")
+        print("      canJoin: \(currentEvent.canJoin)")
+        print("      currentParticipants: \(currentEvent.currentParticipants)")
+        print("      participants count: \(currentEvent.participants.count)")
+        
+        // Create updated event with new participation status
+        let updatedEvent = currentEvent.withUpdatedParticipation(
+            isParticipant: joined,
+            currentParticipants: newCurrentParticipants
+        )
+        
+        print("   📊 After update:")
+        print("      isParticipant: \(updatedEvent.isParticipant)")
+        print("      canJoin: \(updatedEvent.canJoin)")
+        print("      currentParticipants: \(updatedEvent.currentParticipants)")
+        print("      participants count: \(updatedEvent.participants.count)")
+        
+        // Update the event in the array
+        events[index] = updatedEvent
+        
+        print("   ✅ Optimistic update completed")
     }
     
     func applyFilters() {

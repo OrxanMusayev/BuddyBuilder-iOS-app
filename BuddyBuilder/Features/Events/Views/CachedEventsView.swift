@@ -53,8 +53,14 @@ struct CachedEventsView: View {
             }
             .navigationBarHidden(true)
             .navigationDestination(for: Event.self) { event in
-                EventDetailView(event: event)
-                    .environmentObject(localizationManager)
+                if let eventIndex = viewModel.events.firstIndex(where: { $0.id == event.id }) {
+                    EventDetailView(event: $viewModel.events[eventIndex])
+                        .environmentObject(localizationManager)
+                        .environmentObject(viewModel)
+                } else {
+                    EventDetailView(event: event)
+                        .environmentObject(localizationManager)
+                }
             }
         }
         .sheet(isPresented: $showingFilters) {

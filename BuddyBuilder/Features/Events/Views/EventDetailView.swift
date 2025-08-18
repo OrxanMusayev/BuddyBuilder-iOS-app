@@ -4,12 +4,22 @@
 import SwiftUI
 
 struct EventDetailView: View {
-    let event: Event
+    @Binding var event: Event // Changed to @Binding for real-time updates
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var localizationManager: LocalizationManager
-    @State private var isJoining = false
+    @EnvironmentObject var eventsViewModel: EventsViewModel // Add ViewModel
     @State private var showShareSheet = false
     @State private var scrollOffset: CGFloat = 0
+    
+    // Convenience init for cases where we only have an Event value
+    init(event: Event) {
+        self._event = .constant(event)
+    }
+    
+    // Primary init for binding cases
+    init(event: Binding<Event>) {
+        self._event = event
+    }
     
     // MARK: - Constants
     private let headerHeight: CGFloat = 300
@@ -240,6 +250,7 @@ struct EventDetailView: View {
         HStack(spacing: 16) {
             // Participants
             VStack(spacing: 4) {
+                let _ = print("📊 QuickStats - currentParticipants: \(event.currentParticipants), participants.count: \(event.participants.count)")
                 Text("\(event.currentParticipants)")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.primaryOrange)
@@ -388,6 +399,7 @@ struct EventDetailView: View {
             
             // Participants Grid
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                let _ = print("🧑‍🤝‍🧑 Rendering participants: \(event.participants.count) total, showing \(min(event.participants.count, 8))")
                 ForEach(event.participants.prefix(8), id: \.id) { participant in
                     ParticipantCard(participant: participant)
                 }
@@ -526,22 +538,22 @@ struct EventDetailView: View {
             HStack {
                 Spacer()
                 
-                if event.canJoin || event.isParticipant {
+                // Always show button for non-owners (they can either join or leave)
+                if !event.isOwner {
                     Button(action: {
-                        // TODO: Handle join/leave action
-                        isJoining.toggle()
+                        handleJoinLeaveAction()
                     }) {
                         HStack(spacing: 8) {
-                            if isJoining {
+                            if eventsViewModel.isLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                     .scaleEffect(0.8)
                             } else {
-                                Image(systemName: event.isParticipant ? "minus.circle.fill" : "plus.circle.fill")
+                                Image(systemName: getButtonIcon())
                                     .font(.system(size: 18, weight: .semibold))
                             }
                             
-                            Text(event.isParticipant ? "Leave Event" : "Join Event")
+                            Text(getButtonText())
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundColor(.white)
@@ -549,13 +561,13 @@ struct EventDetailView: View {
                         .padding(.vertical, 16)
                         .background(
                             Capsule()
-                                .fill(event.isParticipant ? Color.red : Color.primaryOrange)
+                                .fill(getButtonColor())
                                 .shadow(color: Color.dynamicShadow.opacity(0.3), radius: 8, x: 0, y: 4)
                         )
                     }
-                    .disabled(isJoining)
-                    .scaleEffect(isJoining ? 0.95 : 1.0)
-                    .animation(.easeInOut(duration: 0.1), value: isJoining)
+                    .disabled(eventsViewModel.isLoading || (!event.canJoin && !event.isParticipant))
+                    .scaleEffect(eventsViewModel.isLoading ? 0.95 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: eventsViewModel.isLoading)
                 }
             }
             .padding(.horizontal, 20)
@@ -608,6 +620,59 @@ struct EventDetailView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    // MARK: - Join/Leave Action Handler
+    private func handleJoinLeaveAction() {
+        // Check if we have access to EventsViewModel
+        guard !eventsViewModel.isLoading else {
+            print("⚠️ EventDetailView: Already loading, skipping action")
+            return
+        }
+        
+        if event.isParticipant {
+            print("🚪 EventDetailView: Leaving event \(event.id)")
+            eventsViewModel.leaveEvent(event)
+        } else {
+            print("🚪 EventDetailView: Joining event \(event.id)")
+            eventsViewModel.joinEvent(event)
+        }
+    }
+    
+    // MARK: - Button Helper Methods
+    private func getButtonText() -> String {
+        if eventsViewModel.isLoading {
+            return event.isParticipant ? "Leaving..." : "Joining..."
+        }
+        
+        if event.isParticipant {
+            return "Leave Event"
+        } else if event.canJoin {
+            return "Join Event"
+        } else {
+            return "Event Full"
+        }
+    }
+    
+    private func getButtonIcon() -> String {
+        if eventsViewModel.isLoading {
+            return "circle.dotted"
+        }
+        
+        if event.isParticipant {
+            return "minus.circle.fill"
+        } else if event.canJoin {
+            return "plus.circle.fill"
+        } else {
+            return "exclamationmark.circle.fill"
+        }
+    }
+    
+    private func getButtonColor() -> Color {
+        if !event.canJoin && !event.isParticipant {
+            return Color.gray
+        }
+        return event.isParticipant ? Color.red : Color.primaryOrange
     }
 }
 

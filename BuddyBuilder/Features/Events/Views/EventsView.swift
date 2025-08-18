@@ -73,9 +73,11 @@ struct EventsView: View {
                 .environmentObject(localizationManager)
         }
         .fullScreenCover(isPresented: $showingEventDetail) {
-            if let event = selectedEventForDetail {
-                EventDetailView(event: event)
+            if let event = selectedEventForDetail,
+               let eventIndex = eventsViewModel.events.firstIndex(where: { $0.id == event.id }) {
+                EventDetailView(event: $eventsViewModel.events[eventIndex])
                     .environmentObject(localizationManager)
+                    .environmentObject(eventsViewModel)
                     .ignoresSafeArea(.all) // Tüm safe area'yı ignore et
             }
         }

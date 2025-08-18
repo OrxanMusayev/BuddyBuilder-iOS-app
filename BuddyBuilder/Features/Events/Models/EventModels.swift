@@ -382,3 +382,127 @@ enum EventTab: String, CaseIterable {
 struct JoinEventRequest: Codable {
     let note: String?
 }
+
+// MARK: - Event Extensions for Updating
+extension Event {
+    /// Create a new Event instance with updated participation status
+    func withUpdatedParticipation(isParticipant: Bool, currentParticipants: Int? = nil, updatedParticipants: [ParticipantDto]? = nil) -> Event {
+        let newCurrentParticipants = currentParticipants ?? self.currentParticipants
+        
+        // Update participants list based on join/leave action
+        let newParticipants: [ParticipantDto]
+        if let providedParticipants = updatedParticipants {
+            newParticipants = providedParticipants
+        } else {
+            // Try to update participants list automatically
+            newParticipants = updateParticipantsList(joined: isParticipant)
+        }
+        
+        return Event(
+            id: self.id,
+            name: self.name,
+            description: self.description,
+            eventType: self.eventType,
+            eventTypeName: self.eventTypeName,
+            sport: self.sport,
+            owner: self.owner,
+            participants: newParticipants,
+            eventDate: self.eventDate,
+            registrationDeadline: self.registrationDeadline,
+            maxParticipants: self.maxParticipants,
+            currentParticipants: newCurrentParticipants,
+            location: self.location,
+            entryFee: self.entryFee,
+            status: self.status,
+            statusName: self.statusName,
+            imageUrl: self.imageUrl,
+            isPrivate: self.isPrivate,
+            createdAt: self.createdAt,
+            isOwner: self.isOwner,
+            isParticipant: isParticipant,
+            participantStatus: self.participantStatus,
+            canJoin: !isParticipant && newCurrentParticipants < self.maxParticipants,
+            daysUntilEvent: self.daysUntilEvent,
+            daysUntilRegistrationDeadline: self.daysUntilRegistrationDeadline
+        )
+    }
+    
+    /// Update participants list based on current user's join/leave action
+    private func updateParticipantsList(joined: Bool) -> [ParticipantDto] {
+        guard let currentUserId = UserDefaults.standard.string(forKey: "user_id"),
+              !currentUserId.isEmpty else {
+            print("⚠️ No current user ID found, keeping original participants list")
+            return self.participants
+        }
+        
+        let currentUserIdInt = Int(currentUserId)
+        
+        if joined {
+            // User joined - add them to participants if not already there
+            let alreadyExists = self.participants.contains { participant in
+                return participant.id == currentUserIdInt
+            }
+            
+            if !alreadyExists {
+                // Create a placeholder participant for current user
+                let currentUser = createCurrentUserParticipant(userId: currentUserId)
+                var updatedParticipants = self.participants
+                updatedParticipants.append(currentUser)
+                print("✅ Added current user to participants list")
+                return updatedParticipants
+            }
+        } else {
+            // User left - remove them from participants
+            let filteredParticipants = self.participants.filter { participant in
+                return participant.id != currentUserIdInt
+            }
+            print("✅ Removed current user from participants list")
+            return filteredParticipants
+        }
+        
+        return self.participants
+    }
+    
+    /// Create a placeholder participant for current user
+    private func createCurrentUserParticipant(userId: String) -> ParticipantDto {
+        let username = UserDefaults.standard.string(forKey: "username") ?? "You"
+        let userIdInt = Int(userId) ?? 0
+        
+        return ParticipantDto(
+            id: userIdInt,
+            username: username,
+            firstName: username,
+            lastName: nil,
+            profileImageUrl: nil
+        )
+    }
+    
+    // Manual initializer for creating updated events
+    init(id: Int, name: String, description: String, eventType: Int, eventTypeName: String, sport: Sport, owner: EventOwner, participants: [ParticipantDto], eventDate: String, registrationDeadline: String, maxParticipants: Int, currentParticipants: Int, location: String, entryFee: Double, status: Int, statusName: String, imageUrl: String?, isPrivate: Bool, createdAt: String, isOwner: Bool, isParticipant: Bool, participantStatus: ParticipantStatus?, canJoin: Bool, daysUntilEvent: Int, daysUntilRegistrationDeadline: Int) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.eventType = eventType
+        self.eventTypeName = eventTypeName
+        self.sport = sport
+        self.owner = owner
+        self.participants = participants
+        self.eventDate = eventDate
+        self.registrationDeadline = registrationDeadline
+        self.maxParticipants = maxParticipants
+        self.currentParticipants = currentParticipants
+        self.location = location
+        self.entryFee = entryFee
+        self.status = status
+        self.statusName = statusName
+        self.imageUrl = imageUrl
+        self.isPrivate = isPrivate
+        self.createdAt = createdAt
+        self.isOwner = isOwner
+        self.isParticipant = isParticipant
+        self.participantStatus = participantStatus
+        self.canJoin = canJoin
+        self.daysUntilEvent = daysUntilEvent
+        self.daysUntilRegistrationDeadline = daysUntilRegistrationDeadline
+    }
+}

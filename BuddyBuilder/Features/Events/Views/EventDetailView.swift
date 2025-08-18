@@ -13,7 +13,7 @@ struct EventDetailView: View {
     
     // MARK: - Constants
     private let headerHeight: CGFloat = 300
-    private let imageHeight: CGFloat = 250
+    private let imageHeight: CGFloat = 280
     
     // MARK: - Computed Properties
     private var isOwnerEvent: Bool {
@@ -104,9 +104,10 @@ struct EventDetailView: View {
             .padding(.horizontal, 20)
             .padding(.top, 40) // Azaltıldı: 40 -> 30
             
-            // Event Title and Basic Info (centered at bottom)
+            // Event Title and Basic Info (alt kısımda daha fazla yer için)
             VStack {
                 Spacer()
+                Spacer() // Ekstra spacer ekle ki title daha aşağıda kalsın
                 VStack(alignment: .center, spacing: 8) {
                     Text(event.name)
                         .font(.system(size: 28, weight: .bold))
@@ -139,7 +140,7 @@ struct EventDetailView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 40) // Artırıldı: 20 -> 30
+                .padding(.bottom, 50) // Artırıldı: 40 -> 50
             }
         }
         .frame(height: headerHeight + 20) // Height artırıldı

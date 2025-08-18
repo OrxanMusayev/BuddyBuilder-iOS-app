@@ -320,6 +320,16 @@ enum EventType: Int, CaseIterable, Codable {
     }
 }
 
+extension Event: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Event, rhs: Event) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
 enum ExperienceLevel: Int, CaseIterable, Codable {
     case beginner = 1
     case intermediate = 2

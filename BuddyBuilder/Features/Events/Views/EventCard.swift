@@ -17,6 +17,8 @@ struct EventCard: View {
     let onDeactivate: (() -> Void)?
     let onToggleFavorite: (() -> Void)?
     
+    let onTap: (() -> Void)?
+    
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var isJoining = false
     @State private var showingMyEventActions = false
@@ -47,7 +49,8 @@ struct EventCard: View {
         onDelete: (() -> Void)? = nil,
         onEdit: (() -> Void)? = nil,
         onDeactivate: (() -> Void)? = nil,
-        onToggleFavorite: (() -> Void)? = nil
+        onToggleFavorite: (() -> Void)? = nil,
+        onTap: (() -> Void)? = nil
     ) {
         self.event = event
         self.onJoin = onJoin
@@ -58,6 +61,7 @@ struct EventCard: View {
         self.onEdit = onEdit
         self.onDeactivate = onDeactivate
         self.onToggleFavorite = onToggleFavorite
+        self.onTap = onTap
         
         // Initialize local state from event
         self._isParticipant = State(initialValue: event.isParticipant)
@@ -85,10 +89,11 @@ struct EventCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
         .onTapGesture {
-            // Close more menu when tapping anywhere
+            // UPDATED: Only handle swipe menu close, NavigationLink handles navigation
             if showingMyEventActions {
                 resetSwipe()
             }
+            // onTap callback removed since NavigationLink handles navigation
         }
         .onAppear {
             updateLocalState()
@@ -635,42 +640,54 @@ struct EventCard: View {
 
 // MARK: - Factory Methods (keeping existing implementation)
 extension EventCard {
+    
+    // MARK: - All Events Factory Method
     static func forAllEvents(
         event: Event,
         onJoin: @escaping () -> Void,
         onLeave: @escaping () -> Void,
-        onToggleFavorite: @escaping () -> Void
+        onToggleFavorite: @escaping () -> Void,
+        onTap: @escaping () -> Void // ✅ Navigation callback eklendi
     ) -> EventCard {
         return EventCard(
             event: event,
             onJoin: onJoin,
             onLeave: onLeave,
             isMyEvent: false,
-            onToggleFavorite: onToggleFavorite
+            onShare: nil,         // All Events'ta kullanılmaz
+            onDelete: nil,        // All Events'ta kullanılmaz
+            onEdit: nil,          // All Events'ta kullanılmaz
+            onDeactivate: nil,    // All Events'ta kullanılmaz
+            onToggleFavorite: onToggleFavorite,
+            onTap: onTap          // ✅ Navigation callback
         )
     }
     
+    // MARK: - My Events Factory Method
     static func forMyEvents(
         event: Event,
         onShare: @escaping () -> Void,
         onDelete: @escaping () -> Void,
         onEdit: @escaping () -> Void,
         onDeactivate: @escaping () -> Void,
-        onToggleFavorite: @escaping () -> Void
+        onToggleFavorite: @escaping () -> Void,
+        onTap: @escaping () -> Void // ✅ Navigation callback eklendi
     ) -> EventCard {
         return EventCard(
             event: event,
-            onJoin: {},
-            onLeave: {},
-            isMyEvent: true,
+            onJoin: {},           // My Events'ta kullanılmaz (empty closure)
+            onLeave: {},          // My Events'ta kullanılmaz (empty closure)
+            isMyEvent: true,      // ✅ My Events marker
             onShare: onShare,
             onDelete: onDelete,
             onEdit: onEdit,
             onDeactivate: onDeactivate,
-            onToggleFavorite: onToggleFavorite
+            onToggleFavorite: onToggleFavorite,
+            onTap: onTap          // ✅ Navigation callback
         )
     }
 }
+
 // MARK: - Event Card Skeleton (Unchanged)
 struct EventCardSkeleton: View {
     @State private var isAnimating = false

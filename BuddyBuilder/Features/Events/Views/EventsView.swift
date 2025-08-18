@@ -18,17 +18,20 @@ enum EventsTab: String, CaseIterable {
 // MARK: - Events View - Complete Updated with Enhanced EventCard
 struct EventsView: View {
     @StateObject private var eventsViewModel = EventsViewModel(eventsService: CompleteEventsService())
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @State private var selectedTab: EventsTab = .all
-    @State private var showingFilters = false
-    @State private var showingActionSheet = false
-    @State private var selectedEventForAction: Event?
-    
-    // MARK: - Smooth Swipe State
-    @GestureState private var dragState = DragState.inactive
-    @State private var viewOffset: CGFloat = 0
-    @State private var isSwipeInProgress = false
-    
+       @EnvironmentObject var localizationManager: LocalizationManager
+       @State private var selectedTab: EventsTab = .all
+       @State private var showingFilters = false
+       @State private var showingActionSheet = false
+       @State private var selectedEventForAction: Event?
+       
+       // ADDED: Programmatic navigation
+       @State private var navigationPath = NavigationPath()
+       
+       // MARK: - Smooth Swipe State
+       @GestureState private var dragState = DragState.inactive
+       @State private var viewOffset: CGFloat = 0
+       @State private var isSwipeInProgress = false
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -58,13 +61,13 @@ struct EventsView: View {
                     .environmentObject(localizationManager)
                     .zIndex(1000)
                 }
-
+                
             }
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingFilters) {
             GenericEventsFilterView(viewModel: eventsViewModel)
-                 .environmentObject(localizationManager)
+                .environmentObject(localizationManager)
         }
         .onAppear {
             if eventsViewModel.events.isEmpty {
@@ -73,7 +76,6 @@ struct EventsView: View {
                 eventsViewModel.loadEvents()
             }
         }
-        
     }
     
     // MARK: - Direct tab setting
@@ -242,24 +244,25 @@ struct EventsView: View {
                     emptyStateView
                 } else {
                     ForEach(eventsViewModel.filteredEvents) { event in
-                        // UPDATED: Enhanced EventCard with proper actions based on tab
+                        // UPDATED: EventCard with onTap navigation
                         if selectedTab == .all {
                             EventCard.forAllEvents(
                                 event: event,
                                 onJoin: {
-                                    // API call is already handled in EventCard
+                                    eventsViewModel.joinEvent(event)
                                 },
                                 onLeave: {
                                     eventsViewModel.leaveEvent(event)
                                 },
                                 onToggleFavorite: {
                                     handleToggleFavorite(event)
+                                },
+                                onTap: {
+                                    // ADDED: Programmatic navigation
+                                    navigationPath.append(event)
                                 }
                             )
                             .environmentObject(localizationManager)
-                            .onTapGesture {
-                                print("Tapped event: \(event.name)")
-                            }
                         } else {
                             EventCard.forMyEvents(
                                 event: event,
@@ -281,13 +284,13 @@ struct EventsView: View {
                                 },
                                 onToggleFavorite: {
                                     handleToggleFavorite(event)
+                                },
+                                onTap: {
+                                    // ADDED: Programmatic navigation
+                                    navigationPath.append(event)
                                 }
                             )
-
                             .environmentObject(localizationManager)
-                            .onTapGesture {
-                                print("Tapped my event: \(event.name)")
-                            }
                         }
                     }
                     
@@ -424,6 +427,16 @@ struct EventsView: View {
         } else {
             return "events.empty.my.subtitle".localized(using: localizationManager)
         }
+    }
+}
+
+// MARK: - Custom Button Style for NavigationLink
+struct NavigationLinkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

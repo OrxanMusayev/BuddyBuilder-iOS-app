@@ -4,19 +4,22 @@ import SwiftUI
 
 struct CachedEventsView: View {
     @StateObject private var viewModel = CachedEventsViewModel()
-    @EnvironmentObject var localizationManager: LocalizationManager
-    @State private var selectedTab: EventsTab = .all
-    @State private var showingFilters = false
-    @State private var showingActionSheet = false
-    @State private var selectedEventForAction: Event?
-    
-    // MARK: - Smooth Swipe State
-    @GestureState private var dragState = DragState.inactive
-    @State private var viewOffset: CGFloat = 0
-    @State private var isSwipeInProgress = false
-    
+        @EnvironmentObject var localizationManager: LocalizationManager
+        @State private var selectedTab: EventsTab = .all
+        @State private var showingFilters = false
+        @State private var showingActionSheet = false
+        @State private var selectedEventForAction: Event?
+        
+        // ADDED: Programmatic navigation
+        @State private var navigationPath = NavigationPath()
+        
+        // MARK: - Smooth Swipe State
+        @GestureState private var dragState = DragState.inactive
+        @State private var viewOffset: CGFloat = 0
+        @State private var isSwipeInProgress = false
+
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $navigationPath) {
             ZStack {
                 // Background
                 Color.formBackground
@@ -49,6 +52,10 @@ struct CachedEventsView: View {
                 }
             }
             .navigationBarHidden(true)
+            .navigationDestination(for: Event.self) { event in
+                EventDetailView(event: event)
+                    .environmentObject(localizationManager)
+            }
         }
         .sheet(isPresented: $showingFilters) {
             GenericEventsFilterView(viewModel: viewModel)
@@ -468,7 +475,7 @@ struct CachedEventsView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(viewModel.filteredEvents) { event in
-                    // UPDATED: Enhanced EventCard with proper actions based on tab
+                    // UPDATED: EventCard with onTap navigation
                     if selectedTab == .all {
                         EventCard.forAllEvents(
                             event: event,
@@ -480,10 +487,13 @@ struct CachedEventsView: View {
                             },
                             onToggleFavorite: {
                                 handleToggleFavorite(event)
+                            },
+                            onTap: {
+                                // ADDED: Programmatic navigation
+                                navigationPath.append(event)
                             }
                         )
                         .environmentObject(localizationManager)
-                        .transition(.scale.combined(with: .opacity))
                     } else {
                         EventCard.forMyEvents(
                             event: event,
@@ -505,10 +515,13 @@ struct CachedEventsView: View {
                             },
                             onToggleFavorite: {
                                 handleToggleFavorite(event)
+                            },
+                            onTap: {
+                                // ADDED: Programmatic navigation
+                                navigationPath.append(event)
                             }
                         )
                         .environmentObject(localizationManager)
-                        .transition(.scale.combined(with: .opacity))
                     }
                 }
                 
@@ -723,6 +736,7 @@ struct CachedEventsView: View {
     }
 }
 
+        
 // MARK: - NEW: Event Action Handlers Extension
 extension CachedEventsView {
     

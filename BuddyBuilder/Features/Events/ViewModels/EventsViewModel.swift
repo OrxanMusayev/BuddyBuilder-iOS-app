@@ -301,9 +301,14 @@ class EventsViewModel: EventsFilterProtocol {
         updateLocalEventState(eventId: eventId, joined: joined)
         
         // Option 2: Quick refresh to sync with server for accurate participant list  
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             print("🔄 ViewModel: Performing sync refresh to get updated participant list from server")
             self?.loadEvents(resetPagination: false) // Don't reset pagination
+        }
+        
+        // Option 3: Notify UI components that need to refresh
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.objectWillChange.send()
         }
     }
     
@@ -343,6 +348,11 @@ class EventsViewModel: EventsFilterProtocol {
         events[index] = updatedEvent
         
         print("   ✅ Optimistic update completed")
+        
+        // Force UI update by triggering objectWillChange
+        DispatchQueue.main.async { [weak self] in
+            self?.objectWillChange.send()
+        }
     }
     
     func applyFilters() {

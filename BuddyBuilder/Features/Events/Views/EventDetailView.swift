@@ -66,6 +66,10 @@ struct EventDetailView: View {
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(event: event)
         }
+        .onAppear {
+            // Setup any initial state here if needed
+            print("🎯 EventDetailView appeared for event: \(event.id)")
+        }
     }
     
     // MARK: - Hero Image Section
@@ -429,6 +433,11 @@ struct EventDetailView: View {
                 .fill(Color.cardBackground)
                 .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
         )
+                    .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.cardBackground)
+                    .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
+            )
     }
     
     // MARK: - Location Section
@@ -541,7 +550,9 @@ struct EventDetailView: View {
                 // Always show button for non-owners (they can either join or leave)
                 if !event.isOwner {
                     Button(action: {
-                        handleJoinLeaveAction()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            handleJoinLeaveAction()
+                        }
                     }) {
                         HStack(spacing: 8) {
                             if eventsViewModel.isLoading {
@@ -624,7 +635,12 @@ struct EventDetailView: View {
     
     // MARK: - Join/Leave Action Handler
     private func handleJoinLeaveAction() {
-        // Check if we have access to EventsViewModel
+        print("🎯 EventDetailView: Join/Leave button tapped")
+        print("   Current event isParticipant: \(event.isParticipant)")
+        print("   Current event canJoin: \(event.canJoin)")
+        print("   Current participants: \(event.currentParticipants)")
+        
+        // Check if eventsViewModel is available and not loading
         guard !eventsViewModel.isLoading else {
             print("⚠️ EventDetailView: Already loading, skipping action")
             return

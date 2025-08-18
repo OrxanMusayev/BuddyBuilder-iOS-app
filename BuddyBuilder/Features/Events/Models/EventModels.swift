@@ -158,7 +158,7 @@ struct Sport: Codable, Identifiable, Equatable, Hashable {
 
 // MARK: - Participant DTO - Updated
 struct ParticipantDto: Codable, Identifiable {
-    let id: Int
+    let id: String
     let username: String
     let firstName: String?
     let lastName: String?
@@ -435,12 +435,11 @@ extension Event {
             return self.participants
         }
         
-        let currentUserIdInt = Int(currentUserId)
         
         if joined {
             // User joined - add them to participants if not already there
             let alreadyExists = self.participants.contains { participant in
-                return participant.id == currentUserIdInt
+                return participant.id == currentUserId
             }
             
             if !alreadyExists {
@@ -454,7 +453,7 @@ extension Event {
         } else {
             // User left - remove them from participants
             let filteredParticipants = self.participants.filter { participant in
-                return participant.id != currentUserIdInt
+                return participant.id != currentUserId
             }
             print("✅ Removed current user from participants list")
             return filteredParticipants
@@ -466,10 +465,9 @@ extension Event {
     /// Create a placeholder participant for current user
     private func createCurrentUserParticipant(userId: String) -> ParticipantDto {
         let username = UserDefaults.standard.string(forKey: "username") ?? "You"
-        let userIdInt = Int(userId) ?? 0
         
         return ParticipantDto(
-            id: userIdInt,
+            id: userId,
             username: username,
             firstName: username,
             lastName: nil,

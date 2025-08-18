@@ -1,5 +1,4 @@
-
-// BuddyBuilder/Features/Events/Views/EventCard.swift - FIXED LAYOUT VERSION
+// BuddyBuilder/Features/Events/Views/EventCard.swift - COMPLETE FINAL FIXED VERSION
 
 import SwiftUI
 import Combine
@@ -79,6 +78,18 @@ struct EventCard: View {
             mainCardContent
                 .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : cardCornerRadius))
                 .offset(x: dragOffset.width)
+                .onTapGesture {
+                    print("🔥 EventCard onTapGesture triggered - isMyEvent: \(isMyEvent), showingMyEventActions: \(showingMyEventActions)")
+                    // Handle swipe menu close for My Events
+                    if isMyEvent && showingMyEventActions {
+                        print("🔄 Closing swipe menu")
+                        resetSwipe()
+                    } else {
+                        print("🚀 Calling onTap callback")
+                        // Call navigation callback
+                        onTap?()
+                    }
+                }
                 .gesture(
                     isMyEvent ? swipeGesture : nil
                 )
@@ -88,20 +99,13 @@ struct EventCard: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
         }
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
-        .onTapGesture {
-            // UPDATED: Only handle swipe menu close, NavigationLink handles navigation
-            if showingMyEventActions {
-                resetSwipe()
-            }
-            // onTap callback removed since NavigationLink handles navigation
-        }
         .onAppear {
             updateLocalState()
         }
-        .onChange(of: event.isParticipant) { newValue in
+        .onChange(of: event.isParticipant) { _, newValue in
             updateLocalState()
         }
-        .onChange(of: event.currentParticipants) { newValue in
+        .onChange(of: event.currentParticipants) { _, newValue in
             updateLocalState()
         }
     }
@@ -456,16 +460,23 @@ struct EventCard: View {
         }
     }
     
-    // MARK: - Join/Leave Button
+    // MARK: - FIXED: Join/Leave Button with Proper API Calls
     private var joinLeaveButton: some View {
         Button(action: {
+            print("🎯 EventCard: Join/Leave button tapped")
+            print("   Current isParticipant: \(isParticipant)")
+            print("   Event isParticipant: \(event.isParticipant)")
+            
             withAnimation(.easeInOut(duration: 0.2)) {
                 isJoining = true
             }
             
-            if event.isParticipant {
+            // Use local state for decision
+            if isParticipant {
+                print("🚪 EventCard: Calling leaveEventAPI")
                 leaveEventAPI()
             } else {
+                print("🚪 EventCard: Calling joinEventAPI")
                 joinEventAPI()
             }
         }) {
@@ -475,11 +486,11 @@ struct EventCard: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.6)
                 } else {
-                    Image(systemName: event.isParticipant ? "minus.circle" : "plus.circle")
+                    Image(systemName: isParticipant ? "minus.circle" : "plus.circle")
                         .font(.system(size: 12, weight: .medium))
                 }
                 
-                Text(event.isParticipant ?
+                Text(isParticipant ?
                      "events.leave".localized(using: localizationManager) :
                      "events.join".localized(using: localizationManager))
                 .font(.system(size: 12, weight: .medium))
@@ -489,7 +500,7 @@ struct EventCard: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(event.isParticipant ? Color.red : Color.primaryOrange)
+                    .fill(isParticipant ? Color.red : Color.primaryOrange)
             )
         }
         .disabled(isJoining)
@@ -561,13 +572,103 @@ struct EventCard: View {
         }
     }
     
-    // MARK: - API Calls (keeping existing implementation)
+    // MARK: - FIXED: API Calls Implementation (Struct Safe)
     private func joinEventAPI() {
-        // Your existing join implementation
+        print("🚀 EventCard: Starting joinEventAPI for event \(event.id)")
+        
+        eventsService.joinEventWithAutoRefresh(eventId: event.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    Task { @MainActor in
+                        self.isJoining = false
+                    }
+                    
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ EventCard: Join failed: \(error.localizedDescription)")
+                        // Reset local state on error
+                        Task { @MainActor in
+                            self.updateLocalState()
+                        }
+                    case .finished:
+                        print("✅ EventCard: Join API completed")
+                        break
+                    }
+                },
+                receiveValue: { success in
+                    print("📥 EventCard: Join API response - Success: \(success)")
+                    
+                    if success {
+                        // Update local state immediately for instant UI feedback
+                        Task { @MainActor in
+                            self.isParticipant = true
+                            self.currentParticipants += 1
+                            
+                            print("✅ EventCard: Local state updated - isParticipant: true, participants: \(self.currentParticipants)")
+                            
+                            // Notify parent to refresh data
+                            self.onJoin()
+                        }
+                    } else {
+                        print("❌ EventCard: Join failed but no error thrown")
+                        // Reset local state
+                        Task { @MainActor in
+                            self.updateLocalState()
+                        }
+                    }
+                }
+            )
+            .store(in: &cancellables)
     }
     
     private func leaveEventAPI() {
-        // Your existing leave implementation
+        print("🚀 EventCard: Starting leaveEventAPI for event \(event.id)")
+        
+        eventsService.leaveEventWithAutoRefresh(eventId: event.id)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { completion in
+                    Task { @MainActor in
+                        self.isJoining = false
+                    }
+                    
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ EventCard: Leave failed: \(error.localizedDescription)")
+                        // Reset local state on error
+                        Task { @MainActor in
+                            self.updateLocalState()
+                        }
+                    case .finished:
+                        print("✅ EventCard: Leave API completed")
+                        break
+                    }
+                },
+                receiveValue: { success in
+                    print("📥 EventCard: Leave API response - Success: \(success)")
+                    
+                    if success {
+                        // Update local state immediately for instant UI feedback
+                        Task { @MainActor in
+                            self.isParticipant = false
+                            self.currentParticipants = max(0, self.currentParticipants - 1)
+                            
+                            print("✅ EventCard: Local state updated - isParticipant: false, participants: \(self.currentParticipants)")
+                            
+                            // Notify parent to refresh data
+                            self.onLeave()
+                        }
+                    } else {
+                        print("❌ EventCard: Leave failed but no error thrown")
+                        // Reset local state
+                        Task { @MainActor in
+                            self.updateLocalState()
+                        }
+                    }
+                }
+            )
+            .store(in: &cancellables)
     }
     
     // MARK: - Swipe Actions (keeping existing implementation)
@@ -638,7 +739,7 @@ struct EventCard: View {
     }
 }
 
-// MARK: - Factory Methods (keeping existing implementation)
+// MARK: - Factory Methods
 extension EventCard {
     
     // MARK: - All Events Factory Method
@@ -647,19 +748,19 @@ extension EventCard {
         onJoin: @escaping () -> Void,
         onLeave: @escaping () -> Void,
         onToggleFavorite: @escaping () -> Void,
-        onTap: @escaping () -> Void // ✅ Navigation callback eklendi
+        onTap: @escaping () -> Void
     ) -> EventCard {
         return EventCard(
             event: event,
             onJoin: onJoin,
             onLeave: onLeave,
             isMyEvent: false,
-            onShare: nil,         // All Events'ta kullanılmaz
-            onDelete: nil,        // All Events'ta kullanılmaz
-            onEdit: nil,          // All Events'ta kullanılmaz
-            onDeactivate: nil,    // All Events'ta kullanılmaz
+            onShare: nil,
+            onDelete: nil,
+            onEdit: nil,
+            onDeactivate: nil,
             onToggleFavorite: onToggleFavorite,
-            onTap: onTap          // ✅ Navigation callback
+            onTap: onTap
         )
     }
     
@@ -671,24 +772,24 @@ extension EventCard {
         onEdit: @escaping () -> Void,
         onDeactivate: @escaping () -> Void,
         onToggleFavorite: @escaping () -> Void,
-        onTap: @escaping () -> Void // ✅ Navigation callback eklendi
+        onTap: @escaping () -> Void
     ) -> EventCard {
         return EventCard(
             event: event,
-            onJoin: {},           // My Events'ta kullanılmaz (empty closure)
-            onLeave: {},          // My Events'ta kullanılmaz (empty closure)
-            isMyEvent: true,      // ✅ My Events marker
+            onJoin: {},
+            onLeave: {},
+            isMyEvent: true,
             onShare: onShare,
             onDelete: onDelete,
             onEdit: onEdit,
             onDeactivate: onDeactivate,
             onToggleFavorite: onToggleFavorite,
-            onTap: onTap          // ✅ Navigation callback
+            onTap: onTap
         )
     }
 }
 
-// MARK: - Event Card Skeleton (Unchanged)
+// MARK: - Event Card Skeleton
 struct EventCardSkeleton: View {
     @State private var isAnimating = false
     
@@ -769,7 +870,7 @@ struct EventCardSkeleton: View {
     }
 }
 
-// MARK: - Shimmer Effect Extension (Unchanged)
+// MARK: - Shimmer Effect Extension
 extension View {
     func shimmer(isAnimating: Bool) -> some View {
         self

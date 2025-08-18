@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/ViewModels/CachedEventsViewModel.swift - PAGINATION FIX
+// BuddyBuilder/Features/Events/ViewModels/CachedEventsViewModel.swift - COMPLETE FIXED VERSION
 
 import Foundation
 import Combine
@@ -226,7 +226,7 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
     }
     
-    // 🔴 FIXED: changeTab method with debug logging
+    // MARK: - Tab Management
     func changeTab(to newTab: EventTab) {
         print("🔄 CachedEventsViewModel.changeTab called with: \(newTab.rawValue)")
         print("📊 Current selectedTab: \(selectedTab.rawValue)")
@@ -311,22 +311,35 @@ class CachedEventsViewModel: EventsFilterProtocol {
         hasNewDataAvailable = false
     }
     
+    // MARK: - FIXED: Join/Leave Events with Proper Cache Management
     func joinEvent(_ event: Event) {
-        guard case .idle = uiLoadingState else { return }
+        guard case .idle = uiLoadingState else {
+            print("⚠️ CachedViewModel: UI is loading, skipping join")
+            return
+        }
+        
+        print("🚀 CachedViewModel: Starting joinEvent for \(event.id)")
         
         eventsService.joinEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    print("📋 CachedViewModel: Join completion received")
+                    
                     if case .failure(let error) = completion {
+                        print("❌ CachedViewModel: Join failed: \(error.localizedDescription)")
                         self?.handleError(error)
                     }
                 },
                 receiveValue: { [weak self] success in
+                    print("📥 CachedViewModel: Join response - Success: \(success)")
+                    
                     if success {
-                        self?.updateEventParticipation(eventId: event.id, isParticipant: true)
-                        // Cache'i güncelle
-                        self?.invalidateCache()
+                        print("✅ CachedViewModel: Join successful, invalidating cache and refreshing...")
+                        // Invalidate cache and refresh
+                        self?.refreshAfterParticipationChange(eventId: event.id, joined: true)
+                    } else {
+                        print("❌ CachedViewModel: Join failed")
                     }
                 }
             )
@@ -334,28 +347,54 @@ class CachedEventsViewModel: EventsFilterProtocol {
     }
     
     func leaveEvent(_ event: Event) {
-        guard case .idle = uiLoadingState else { return }
+        guard case .idle = uiLoadingState else {
+            print("⚠️ CachedViewModel: UI is loading, skipping leave")
+            return
+        }
+        
+        print("🚀 CachedViewModel: Starting leaveEvent for \(event.id)")
         
         eventsService.leaveEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    print("📋 CachedViewModel: Leave completion received")
+                    
                     if case .failure(let error) = completion {
+                        print("❌ CachedViewModel: Leave failed: \(error.localizedDescription)")
                         self?.handleError(error)
                     }
                 },
                 receiveValue: { [weak self] success in
+                    print("📥 CachedViewModel: Leave response - Success: \(success)")
+                    
                     if success {
-                        self?.updateEventParticipation(eventId: event.id, isParticipant: false)
-                        // Cache'i güncelle
-                        self?.invalidateCache()
+                        print("✅ CachedViewModel: Leave successful, invalidating cache and refreshing...")
+                        // Invalidate cache and refresh
+                        self?.refreshAfterParticipationChange(eventId: event.id, joined: false)
+                    } else {
+                        print("❌ CachedViewModel: Leave failed")
                     }
                 }
             )
             .store(in: &cancellables)
     }
     
-    // MARK: - FIXED: Load More Events with Proper Debug
+    // MARK: - NEW: Refresh After Participation Change
+    private func refreshAfterParticipationChange(eventId: Int, joined: Bool) {
+        print("🔄 CachedViewModel: Refreshing after participation change - Event: \(eventId), Joined: \(joined)")
+        
+        // Invalidate cache immediately
+        invalidateCache()
+        
+        // Refresh from API to get latest state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            print("🔄 CachedViewModel: Performing delayed refresh to sync with server")
+            self?.loadEvents(strategy: .apiFirst, resetPagination: false)
+        }
+    }
+    
+    // MARK: - Load More Events
     func loadMoreEvents() {
         guard canLoadMore,
               case .idle = uiLoadingState else {
@@ -445,7 +484,7 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
     }
     
-    // MARK: - FIXED: Handle Events Response with Detailed Debug
+    // MARK: - Handle Events Response
     private func handleEventsResponse(_ response: EventsResponse, resetPagination: Bool) {
         print("📥 ========== HANDLING CACHED EVENTS RESPONSE ==========")
         print("📥 API Response Details:")
@@ -489,13 +528,6 @@ class CachedEventsViewModel: EventsFilterProtocol {
         }
         
         print("📥 ===============================================")
-    }
-    
-    private func updateEventParticipation(eventId: Int, isParticipant: Bool) {
-        // Event listesini güncelle ve yeni veri çek
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.loadEvents(strategy: .apiFirst)
-        }
     }
     
     private func handleError(_ error: Error) {

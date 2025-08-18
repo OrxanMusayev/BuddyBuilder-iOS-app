@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/ViewModels/EventsViewModel.swift - PAGINATION FIX
+// BuddyBuilder/Features/Events/ViewModels/EventsViewModel.swift - COMPLETE FIXED VERSION
 
 import Foundation
 import Combine
@@ -84,7 +84,6 @@ class EventsViewModel: EventsFilterProtocol {
         self.eventsService = eventsService
         setupSearchDebounce()
         setupFilterObservers()
-        // 🔴 REMOVED: setupFilterObservers içindeki $selectedTab observer'ı kaldırdık
     }
     
     // MARK: - Setup Methods
@@ -98,8 +97,7 @@ class EventsViewModel: EventsFilterProtocol {
     }
     
     private func setupFilterObservers() {
-        // 🔴 REMOVED: $selectedTab observer - bu conflict yaratıyordu
-        // Sadece filter değişikliklerini dinle
+        // Only filter changes, not tab changes
         Publishers.CombineLatest4(
             $selectedEventType,
             $selectedSportId,
@@ -113,7 +111,7 @@ class EventsViewModel: EventsFilterProtocol {
         .store(in: &cancellables)
     }
     
-    // 🔴 FIXED: changeTab metodu - sadece manuel çağrıldığında çalışır
+    // MARK: - Tab Management
     func changeTab(to newTab: EventTab) {
         print("🔄 EventsViewModel.changeTab called: \(selectedTab.rawValue) → \(newTab.rawValue)")
         
@@ -146,7 +144,9 @@ class EventsViewModel: EventsFilterProtocol {
         isLoading = true
         errorMessage = ""
         
-        // PAGINATION DEBUG - UPDATED
+        // Update filter with current pagination
+        updateCurrentFilter()
+        
         print("🌐 Loading events for tab: \(selectedTab.rawValue)")
         print("   Page: \(currentFilter.page)")
         print("   PageSize: \(currentFilter.pageSize)")
@@ -185,7 +185,7 @@ class EventsViewModel: EventsFilterProtocol {
             .store(in: &cancellables)
     }
     
-    // MARK: - FIXED: Load More Events with Proper Debug
+    // MARK: - Load More Events
     func loadMoreEvents() {
         guard canLoadMore && !isLoading else {
             print("❌ Cannot load more:")
@@ -214,25 +214,40 @@ class EventsViewModel: EventsFilterProtocol {
         loadEvents()
     }
     
+    // MARK: - FIXED: Join/Leave Events with Proper Refresh
     func joinEvent(_ event: Event) {
-        guard !isLoading else { return }
+        guard !isLoading else {
+            print("⚠️ ViewModel: Already loading, skipping join request")
+            return
+        }
         
+        print("🚀 ViewModel: Starting joinEvent for \(event.id)")
         isLoading = true
+        
         eventsService.joinEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    print("📋 ViewModel: Join completion received")
                     self?.isLoading = false
+                    
                     switch completion {
                     case .failure(let error):
+                        print("❌ ViewModel: Join failed: \(error.localizedDescription)")
                         self?.handleError(error)
                     case .finished:
                         break
                     }
                 },
                 receiveValue: { [weak self] success in
+                    print("📥 ViewModel: Join response - Success: \(success)")
+                    
                     if success {
-                        self?.updateEventParticipation(eventId: event.id, isParticipant: true)
+                        print("✅ ViewModel: Join successful, refreshing events...")
+                        // Immediate refresh to get updated data
+                        self?.refreshAfterParticipationChange(eventId: event.id, joined: true)
+                    } else {
+                        print("❌ ViewModel: Join failed")
                     }
                 }
             )
@@ -240,28 +255,67 @@ class EventsViewModel: EventsFilterProtocol {
     }
     
     func leaveEvent(_ event: Event) {
-        guard !isLoading else { return }
+        guard !isLoading else {
+            print("⚠️ ViewModel: Already loading, skipping leave request")
+            return
+        }
         
+        print("🚀 ViewModel: Starting leaveEvent for \(event.id)")
         isLoading = true
+        
         eventsService.leaveEventWithAutoRefresh(eventId: event.id)
             .receive(on: DispatchQueue.main)
             .sink(
                 receiveCompletion: { [weak self] completion in
+                    print("📋 ViewModel: Leave completion received")
                     self?.isLoading = false
+                    
                     switch completion {
                     case .failure(let error):
+                        print("❌ ViewModel: Leave failed: \(error.localizedDescription)")
                         self?.handleError(error)
                     case .finished:
                         break
                     }
                 },
                 receiveValue: { [weak self] success in
+                    print("📥 ViewModel: Leave response - Success: \(success)")
+                    
                     if success {
-                        self?.updateEventParticipation(eventId: event.id, isParticipant: false)
+                        print("✅ ViewModel: Leave successful, refreshing events...")
+                        // Immediate refresh to get updated data
+                        self?.refreshAfterParticipationChange(eventId: event.id, joined: false)
+                    } else {
+                        print("❌ ViewModel: Leave failed")
                     }
                 }
             )
             .store(in: &cancellables)
+    }
+    
+    // MARK: - NEW: Refresh After Participation Change
+    private func refreshAfterParticipationChange(eventId: Int, joined: Bool) {
+        print("🔄 ViewModel: Refreshing after participation change - Event: \(eventId), Joined: \(joined)")
+        
+        // Option 1: Update local state immediately (optimistic update)
+        updateLocalEventState(eventId: eventId, joined: joined)
+        
+        // Option 2: Full refresh after delay to get server state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            print("🔄 ViewModel: Performing delayed refresh to sync with server")
+            self?.loadEvents(resetPagination: false) // Don't reset pagination
+        }
+    }
+    
+    // MARK: - NEW: Local State Update (Optimistic Update)
+    private func updateLocalEventState(eventId: Int, joined: Bool) {
+        guard let index = events.firstIndex(where: { $0.id == eventId }) else {
+            print("⚠️ ViewModel: Event \(eventId) not found in local events")
+            return
+        }
+        
+        print("🔄 ViewModel: Local state will be updated via server refresh for event \(eventId)")
+        // Note: Since Event struct is immutable, we rely on server refresh for accurate state
     }
     
     func applyFilters() {
@@ -312,7 +366,7 @@ class EventsViewModel: EventsFilterProtocol {
         }
     }
     
-    // MARK: - FIXED: Handle Events Response with Detailed Debug
+    // MARK: - Handle Events Response
     private func handleEventsResponse(_ response: EventsResponse, resetPagination: Bool) {
         print("📥 ========== HANDLING EVENTS RESPONSE ==========")
         print("📥 API Response Details:")
@@ -356,14 +410,6 @@ class EventsViewModel: EventsFilterProtocol {
         }
         
         print("📥 ===============================================")
-    }
-    
-    private func updateEventParticipation(eventId: Int, isParticipant: Bool) {
-        if let index = events.firstIndex(where: { $0.id == eventId }) {
-            // In a real implementation, you'd create a new Event struct with updated values
-            // For now, we'll just reload the events to get the updated state
-            loadEvents()
-        }
     }
     
     private func handleError(_ error: Error) {

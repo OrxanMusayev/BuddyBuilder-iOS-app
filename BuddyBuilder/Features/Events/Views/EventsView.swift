@@ -23,9 +23,8 @@ struct EventsView: View {
        @State private var showingFilters = false
        @State private var showingActionSheet = false
        @State private var selectedEventForAction: Event?
-       
-       // ADDED: Programmatic navigation
-       @State private var navigationPath = NavigationPath()
+       @State private var selectedEventForDetail: Event?
+       @State private var showingEventDetail = false
        
        // MARK: - Smooth Swipe State
        @GestureState private var dragState = DragState.inactive
@@ -65,9 +64,20 @@ struct EventsView: View {
             }
             .navigationBarHidden(true)
         }
+        .onChange(of: showingEventDetail) { _, newValue in
+            print("🔄 showingEventDetail changed to: \(newValue)")
+            print("🔄 selectedEventForDetail: \(selectedEventForDetail?.name ?? "nil")")
+        }
         .sheet(isPresented: $showingFilters) {
             GenericEventsFilterView(viewModel: eventsViewModel)
                 .environmentObject(localizationManager)
+        }
+        .fullScreenCover(isPresented: $showingEventDetail) {
+            if let event = selectedEventForDetail {
+                EventDetailView(event: event)
+                    .environmentObject(localizationManager)
+                    .ignoresSafeArea(.all) // Tüm safe area'yı ignore et
+            }
         }
         .onAppear {
             if eventsViewModel.events.isEmpty {
@@ -244,7 +254,7 @@ struct EventsView: View {
                     emptyStateView
                 } else {
                     ForEach(eventsViewModel.filteredEvents) { event in
-                        // UPDATED: EventCard with onTap navigation
+                        // UPDATED: EventCard with programmatic navigation
                         if selectedTab == .all {
                             EventCard.forAllEvents(
                                 event: event,
@@ -258,8 +268,10 @@ struct EventsView: View {
                                     handleToggleFavorite(event)
                                 },
                                 onTap: {
-                                    // ADDED: Programmatic navigation
-                                    navigationPath.append(event)
+                                    print("📱 All Events onTap called for event: \(event.name)")
+                                    selectedEventForDetail = event
+                                    showingEventDetail = true
+                                    print("📱 showingEventDetail set to: \(showingEventDetail)")
                                 }
                             )
                             .environmentObject(localizationManager)
@@ -286,8 +298,10 @@ struct EventsView: View {
                                     handleToggleFavorite(event)
                                 },
                                 onTap: {
-                                    // ADDED: Programmatic navigation
-                                    navigationPath.append(event)
+                                    print("📱 My Events onTap called for event: \(event.name)")
+                                    selectedEventForDetail = event
+                                    showingEventDetail = true
+                                    print("📱 showingEventDetail set to: \(showingEventDetail)")
                                 }
                             )
                             .environmentObject(localizationManager)

@@ -19,8 +19,8 @@ struct EventDetailView: View {
         GeometryReader { geometry in
             ZStack {
                 // Background
-                Color.formBackground
-                    .ignoresSafeArea()
+                Color.dynamicBackground
+                    .ignoresSafeArea(.all)
                 
                 // Main Content
                 ScrollView {
@@ -43,6 +43,7 @@ struct EventDetailView: View {
                 floatingActionButton
             }
         }
+        .ignoresSafeArea(.all) // Tüm safe area'yı ignore et
         .navigationBarHidden(true)
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(event: event)
@@ -83,110 +84,109 @@ struct EventDetailView: View {
                 )
             )
             
-            // Event Type and Status Badges
-            VStack {
-                HStack {
-                    eventTypeBadge
-                    Spacer()
-                    participationStatusBadge
-                }
-                .padding(.top, 60) // Account for status bar
-                .padding(.horizontal, 20)
+            // Event Title and Basic Info (centered)
+            VStack(alignment: .center, spacing: 8) {
+                Text(event.name)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                 
-                Spacer()
-                
-                // Event Title and Basic Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(event.name)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.leading)
-                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                    
-                    HStack(spacing: 16) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
+                HStack(spacing: 16) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
                             
                             Text(event.formattedEventDate)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                        }
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "location")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
                         
-                        HStack(spacing: 4) {
-                            Image(systemName: "location")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                            
-                            Text(event.location)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.9))
-                                .lineLimit(1)
-                        }
+                        Text(event.location)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(1)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+            .padding(.top, 40) // Yukarıdan biraz boşluk
         }
         .frame(height: headerHeight)
     }
     
     // MARK: - Floating Header
     private var floatingHeader: some View {
-        VStack {
-            HStack {
-                // Back Button
-                Button(action: {
-                    dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Circle()
-                                .fill(Color.black.opacity(scrollOffset > 100 ? 0.8 : 0.3))
-                        )
+        VStack(spacing: 0) {
+            // Top header with back/share buttons and badges
+            VStack(spacing: 16) {
+                // Back and Share buttons
+                HStack {
+                    // Back Button
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(Color.black.opacity(0.6))
+                            )
+                    }
+                    
+                    Spacer()
+                    
+                    // Title (visible when scrolled)
+                    if scrollOffset > 150 {
+                        Text(event.name)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .transition(.opacity)
+                    }
+                    
+                    Spacer()
+                    
+                    // Share Button
+                    Button(action: {
+                        showShareSheet = true
+                    }) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(Color.black.opacity(0.6))
+                            )
+                    }
                 }
                 
-                Spacer()
-                
-                // Title (visible when scrolled)
-                if scrollOffset > 150 {
-                    Text(event.name)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .transition(.opacity)
-                }
-                
-                Spacer()
-                
-                // Share Button
-                Button(action: {
-                    showShareSheet = true
-                }) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .background(
-                            Circle()
-                                .fill(Color.black.opacity(scrollOffset > 100 ? 0.8 : 0.3))
-                        )
+                // Event Type and Join badges
+                HStack {
+                    eventTypeBadge
+                    Spacer()
+                    participationStatusBadge
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 50) // Status bar height
+            .padding(.top, 60) // Status bar + spacing
             
             Spacer()
         }
         .background(
             Rectangle()
-                .fill(Color.primaryOrange.opacity(scrollOffset > 200 ? 0.95 : 0))
+                .fill(Color.clear) // Şeffaf arka plan
                 .ignoresSafeArea(edges: .top)
         )
         .animation(.easeInOut(duration: 0.2), value: scrollOffset)
@@ -216,7 +216,7 @@ struct EventDetailView: View {
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .background(
-            Color.formBackground
+            Color.dynamicBackground
                 .clipShape(
                     RoundedRectangle(cornerRadius: 24)
                         .offset(y: -24)
@@ -235,14 +235,14 @@ struct EventDetailView: View {
                 
                 Text("events.participants".localized(using: localizationManager))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    .fill(Color.cardBackground)
+                    .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
             )
             
             // Available Spots
@@ -253,14 +253,14 @@ struct EventDetailView: View {
                 
                 Text("events.spots_left".localized(using: localizationManager))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    .fill(Color.cardBackground)
+                    .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
             )
             
             // Entry Fee
@@ -277,14 +277,14 @@ struct EventDetailView: View {
                 
                 Text("events.entry_fee".localized(using: localizationManager))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                    .fill(Color.cardBackground)
+                    .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
             )
         }
     }
@@ -294,19 +294,19 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("events.description".localized(using: localizationManager))
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
             
             Text(event.description)
                 .font(.system(size: 16, weight: .regular))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(.secondaryText)
                 .lineSpacing(4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .fill(Color.cardBackground)
+                .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
         )
     }
     
@@ -315,7 +315,7 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("events.details".localized(using: localizationManager))
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
             
             VStack(spacing: 12) {
                 DetailRow(
@@ -355,8 +355,8 @@ struct EventDetailView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .fill(Color.cardBackground)
+                .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
         )
     }
     
@@ -366,13 +366,13 @@ struct EventDetailView: View {
             HStack {
                 Text("events.participants".localized(using: localizationManager))
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                 
                 Spacer()
                 
                 Text("\(event.currentParticipants)/\(event.maxParticipants)")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
             
             // Participants Grid
@@ -384,17 +384,17 @@ struct EventDetailView: View {
                 if event.participants.count > 8 {
                     VStack(spacing: 4) {
                         Circle()
-                            .fill(Color.textSecondary.opacity(0.2))
+                            .fill(Color.secondaryText.opacity(0.2))
                             .frame(width: 60, height: 60)
                             .overlay(
                                 Text("+\(event.participants.count - 8)")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.textSecondary)
+                                    .foregroundColor(.secondaryText)
                             )
                         
                         Text("More")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(.secondaryText)
                     }
                 }
             }
@@ -403,8 +403,8 @@ struct EventDetailView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .fill(Color.cardBackground)
+                .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
         )
     }
     
@@ -413,7 +413,7 @@ struct EventDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("events.location".localized(using: localizationManager))
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
             
             HStack(spacing: 12) {
                 Image(systemName: "location.fill")
@@ -428,26 +428,26 @@ struct EventDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(event.location)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(.primaryText)
                     
                     Text("Tap to open in Maps")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(.secondaryText)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .fill(Color.cardBackground)
+                .shadow(color: Color.dynamicShadow, radius: 4, x: 0, y: 2)
         )
         .onTapGesture {
             // TODO: Open in Maps
@@ -486,7 +486,7 @@ struct EventDetailView: View {
                         .background(
                             Capsule()
                                 .fill(event.isParticipant ? Color.red : Color.primaryOrange)
-                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                                .shadow(color: Color.dynamicShadow.opacity(0.3), radius: 8, x: 0, y: 4)
                         )
                     }
                     .disabled(isJoining)
@@ -563,11 +563,11 @@ struct DetailRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                 
                 Text(value)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
             }
             
             Spacer()
@@ -598,7 +598,7 @@ struct ParticipantCard: View {
             
             Text(participant.displayName)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.textPrimary)
+                .foregroundColor(.primaryText)
                 .lineLimit(1)
                 .multilineTextAlignment(.center)
         }

@@ -10,15 +10,28 @@ struct EventDetailView: View {
     @EnvironmentObject var eventsViewModel: EventsViewModel // Add ViewModel
     @State private var showShareSheet = false
     @State private var scrollOffset: CGFloat = 0
+    @State private var localEvent: Event // Local copy to handle updates
     
     // Convenience init for cases where we only have an Event value
     init(event: Event) {
         self._event = .constant(event)
+        self._localEvent = State(initialValue: event)
     }
     
     // Primary init for binding cases
     init(event: Binding<Event>) {
         self._event = event
+        self._localEvent = State(initialValue: event.wrappedValue)
+    }
+    
+    // MARK: - Computed Properties
+    private var currentEvent: Event {
+        // Try to get the most up-to-date event from ViewModel
+        if let updatedEvent = eventsViewModel.events.first(where: { $0.id == localEvent.id }) {
+            return updatedEvent
+        }
+        // Fallback to local event
+        return localEvent
     }
     
     // MARK: - Constants
@@ -27,7 +40,7 @@ struct EventDetailView: View {
     
     // MARK: - Computed Properties
     private var isOwnerEvent: Bool {
-        return event.isOwner
+        return currentEvent.isOwner
     }
     
     var body: some View {
@@ -64,11 +77,28 @@ struct EventDetailView: View {
         .ignoresSafeArea(.all) // Tüm safe area'yı ignore et
         .navigationBarHidden(true)
         .sheet(isPresented: $showShareSheet) {
-            ShareSheet(event: event)
+            ShareSheet(event: currentEvent)
         }
         .onAppear {
             // Setup any initial state here if needed
-            print("🎯 EventDetailView appeared for event: \(event.id)")
+            print("🎯 EventDetailView appeared for event: \(currentEvent.id)")
+            // Update local event when view appears
+            localEvent = event
+        }
+        .onReceive(eventsViewModel.$events) { updatedEvents in
+            // Update localEvent when the events array changes
+            if let updatedEvent = updatedEvents.first(where: { $0.id == localEvent.id }) {
+                print("🔄 EventDetailView: Updating local event for \(localEvent.id)")
+                print("   Old isParticipant: \(localEvent.isParticipant), New isParticipant: \(updatedEvent.isParticipant)")
+                print("   Old participants: \(localEvent.currentParticipants), New participants: \(updatedEvent.currentParticipants)")
+                
+                localEvent = updatedEvent
+                
+                // Also update the binding if it's not a constant binding
+                DispatchQueue.main.async {
+                    event = updatedEvent
+                }
+            }
         }
     }
     
@@ -76,7 +106,7 @@ struct EventDetailView: View {
     private var heroImageSection: some View {
         ZStack {
             // Event Image
-            AsyncImage(url: URL(string: event.imageUrl ?? defaultImageUrl)) { image in
+            AsyncImage(url: URL(string: currentEvent.imageUrl ?? defaultImageUrl)) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -123,7 +153,7 @@ struct EventDetailView: View {
                 Spacer()
                 Spacer() // Ekstra spacer ekle ki title daha aşağıda kalsın
                 VStack(alignment: .center, spacing: 8) {
-                    Text(event.name)
+                    Text(currentEvent.name)
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
@@ -548,7 +578,7 @@ struct EventDetailView: View {
                 Spacer()
                 
                 // Always show button for non-owners (they can either join or leave)
-                if !event.isOwner {
+                if !currentEvent.isOwner {
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             handleJoinLeaveAction()
@@ -576,9 +606,10 @@ struct EventDetailView: View {
                                 .shadow(color: Color.dynamicShadow.opacity(0.3), radius: 8, x: 0, y: 4)
                         )
                     }
-                    .disabled(eventsViewModel.isLoading || (!event.canJoin && !event.isParticipant))
+                    .disabled(eventsViewModel.isLoading || (!currentEvent.canJoin && !currentEvent.isParticipant))
                     .scaleEffect(eventsViewModel.isLoading ? 0.95 : 1.0)
                     .animation(.easeInOut(duration: 0.1), value: eventsViewModel.isLoading)
+                    .id("join-leave-\(currentEvent.id)-\(currentEvent.isParticipant)")
                 }
             }
             .padding(.horizontal, 20)
@@ -601,7 +632,7 @@ struct EventDetailView: View {
     
     private var participationStatusBadge: some View {
         Group {
-            if event.isParticipant {
+            if currentEvent.isParticipant {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 12, weight: .semibold))
@@ -636,9 +667,9 @@ struct EventDetailView: View {
     // MARK: - Join/Leave Action Handler
     private func handleJoinLeaveAction() {
         print("🎯 EventDetailView: Join/Leave button tapped")
-        print("   Current event isParticipant: \(event.isParticipant)")
-        print("   Current event canJoin: \(event.canJoin)")
-        print("   Current participants: \(event.currentParticipants)")
+        print("   Current event isParticipant: \(currentEvent.isParticipant)")
+        print("   Current event canJoin: \(currentEvent.canJoin)")
+        print("   Current participants: \(currentEvent.currentParticipants)")
         
         // Check if eventsViewModel is available and not loading
         guard !eventsViewModel.isLoading else {
@@ -646,24 +677,31 @@ struct EventDetailView: View {
             return
         }
         
-        if event.isParticipant {
-            print("🚪 EventDetailView: Leaving event \(event.id)")
-            eventsViewModel.leaveEvent(event)
+        if currentEvent.isParticipant {
+            print("🚪 EventDetailView: Leaving event \(currentEvent.id)")
+            eventsViewModel.leaveEvent(currentEvent)
         } else {
-            print("🚪 EventDetailView: Joining event \(event.id)")
-            eventsViewModel.joinEvent(event)
+            print("🚪 EventDetailView: Joining event \(currentEvent.id)")
+            eventsViewModel.joinEvent(currentEvent)
+        }
+        
+        // Force update local event immediately for instant UI feedback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [self] in
+            if let updatedEvent = eventsViewModel.events.first(where: { $0.id == localEvent.id }) {
+                localEvent = updatedEvent
+            }
         }
     }
     
     // MARK: - Button Helper Methods
     private func getButtonText() -> String {
         if eventsViewModel.isLoading {
-            return event.isParticipant ? "Leaving..." : "Joining..."
+            return currentEvent.isParticipant ? "Leaving..." : "Joining..."
         }
         
-        if event.isParticipant {
+        if currentEvent.isParticipant {
             return "Leave Event"
-        } else if event.canJoin {
+        } else if currentEvent.canJoin {
             return "Join Event"
         } else {
             return "Event Full"
@@ -675,9 +713,9 @@ struct EventDetailView: View {
             return "circle.dotted"
         }
         
-        if event.isParticipant {
+        if currentEvent.isParticipant {
             return "minus.circle.fill"
-        } else if event.canJoin {
+        } else if currentEvent.canJoin {
             return "plus.circle.fill"
         } else {
             return "exclamationmark.circle.fill"
@@ -685,10 +723,10 @@ struct EventDetailView: View {
     }
     
     private func getButtonColor() -> Color {
-        if !event.canJoin && !event.isParticipant {
+        if !currentEvent.canJoin && !currentEvent.isParticipant {
             return Color.gray
         }
-        return event.isParticipant ? Color.red : Color.primaryOrange
+        return currentEvent.isParticipant ? Color.red : Color.primaryOrange
     }
 }
 

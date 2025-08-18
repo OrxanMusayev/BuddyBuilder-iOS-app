@@ -15,6 +15,11 @@ struct EventDetailView: View {
     private let headerHeight: CGFloat = 300
     private let imageHeight: CGFloat = 250
     
+    // MARK: - Computed Properties
+    private var isOwnerEvent: Bool {
+        return event.isOwner
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -23,7 +28,7 @@ struct EventDetailView: View {
                     .ignoresSafeArea(.all)
                 
                 // Main Content
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
                         // Hero Image Section
                         heroImageSection
@@ -32,6 +37,7 @@ struct EventDetailView: View {
                         eventDetailsContent
                     }
                 }
+                .padding(.top, 80) // Azaltıldı: 120 -> 80
                 .onScrollOffsetChanged { offset in
                     scrollOffset = offset
                 }
@@ -39,8 +45,10 @@ struct EventDetailView: View {
                 // Floating Header
                 floatingHeader
                 
-                // Floating Action Button
-                floatingActionButton
+                // Floating Action Button (sadece join/leave için)
+                if !isOwnerEvent {
+                    floatingActionButton
+                }
             }
         }
         .ignoresSafeArea(.all) // Tüm safe area'yı ignore et
@@ -52,7 +60,7 @@ struct EventDetailView: View {
     
     // MARK: - Hero Image Section
     private var heroImageSection: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             // Event Image
             AsyncImage(url: URL(string: event.imageUrl ?? defaultImageUrl)) { image in
                 image
@@ -73,7 +81,7 @@ struct EventDetailView: View {
                             .foregroundColor(.primaryOrange.opacity(0.6))
                     )
             }
-            .frame(height: imageHeight)
+            .frame(height: imageHeight) // Normale döndür
             .clipped()
             .overlay(
                 // Gradient overlay
@@ -84,43 +92,57 @@ struct EventDetailView: View {
                 )
             )
             
-            // Event Title and Basic Info (centered)
-            VStack(alignment: .center, spacing: 8) {
-                Text(event.name)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                
-                HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                            
-                            Text(event.formattedEventDate)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                    }
+            // Badges (üst köşeler - image içinde)
+            VStack {
+                HStack {
+                    eventTypeBadge
+                    Spacer()
+                    participationStatusBadge
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 40) // Azaltıldı: 40 -> 30
+            
+            // Event Title and Basic Info (centered at bottom)
+            VStack {
+                Spacer()
+                VStack(alignment: .center, spacing: 8) {
+                    Text(event.name)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                     
-                    HStack(spacing: 4) {
-                        Image(systemName: "location")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
+                    VStack(spacing: 12) { // Artırıldı: 8 -> 12
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                                
+                                Text(event.formattedEventDate)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                        }
                         
-                        Text(event.location)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white.opacity(0.9))
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Image(systemName: "location")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                            
+                            Text(event.location)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                                .lineLimit(4)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40) // Artırıldı: 20 -> 30
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            .padding(.top, 40) // Yukarıdan biraz boşluk
         }
-        .frame(height: headerHeight)
+        .frame(height: headerHeight + 20) // Height artırıldı
     }
     
     // MARK: - Floating Header
@@ -135,22 +157,18 @@ struct EventDetailView: View {
                         dismiss()
                     }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                Circle()
-                                    .fill(Color.black.opacity(0.6))
-                            )
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primaryText)
+                            .frame(width: 32, height: 32)
                     }
                     
                     Spacer()
                     
                     // Title (visible when scrolled)
-                    if scrollOffset > 150 {
+                    if scrollOffset > 150 { // Normale döndür
                         Text(event.name)
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primaryText)
                             .lineLimit(1)
                             .transition(.opacity)
                     }
@@ -162,25 +180,14 @@ struct EventDetailView: View {
                         showShareSheet = true
                     }) {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                Circle()
-                                    .fill(Color.black.opacity(0.6))
-                            )
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primaryText)
+                            .frame(width: 32, height: 32)
                     }
-                }
-                
-                // Event Type and Join badges
-                HStack {
-                    eventTypeBadge
-                    Spacer()
-                    participationStatusBadge
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 60) // Status bar + spacing
+            .padding(.top, 50) // Azaltıldı: 60 -> 50
             
             Spacer()
         }
@@ -210,8 +217,11 @@ struct EventDetailView: View {
             // Location Details (if available)
             locationSection
             
-            // Bottom Spacer for FAB
-            Color.clear.frame(height: 100)
+            // Action Buttons Section
+            actionButtonsSection
+            
+            // Bottom Spacer
+            Color.clear.frame(height: 40)
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -454,7 +464,60 @@ struct EventDetailView: View {
         }
     }
     
-    // MARK: - Floating Action Button
+    // MARK: - Action Buttons Section
+    private var actionButtonsSection: some View {
+        VStack(spacing: 20) {
+            if isOwnerEvent {
+                // Owner için Edit/Delete butonları
+                HStack(spacing: 12) {
+                    // Delete Button
+                    Button(action: {
+                        // TODO: Handle delete action
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            
+                            Text("events.delete".localized(using: localizationManager))
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(Color.red)
+                                .shadow(color: Color.dynamicShadow.opacity(0.2), radius: 4, x: 0, y: 2)
+                        )
+                    }
+                    
+                    // Edit Button
+                    Button(action: {
+                        // TODO: Handle edit action
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            
+                            Text("events.edit".localized(using: localizationManager))
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(Color.primaryOrange)
+                                .shadow(color: Color.dynamicShadow.opacity(0.2), radius: 4, x: 0, y: 2)
+                        )
+                    }
+                }
+                .padding(.top, 24)
+            }
+        }
+    }
+    
+    // MARK: - Floating Action Button (Sadece Join/Leave için)
     private var floatingActionButton: some View {
         VStack {
             Spacer()

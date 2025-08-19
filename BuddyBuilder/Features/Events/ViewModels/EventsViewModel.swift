@@ -32,6 +32,10 @@ class EventsViewModel: EventsFilterProtocol {
     @Published var searchText: String = ""
     @Published var showFilters = false
     
+    // Alert state for API errors
+    @Published var showAPIErrorAlert = false
+    @Published var apiErrorMessage = ""
+    
     // Filter properties
     @Published var currentFilter = EventFilter()
     @Published var selectedEventType: EventType?
@@ -257,14 +261,8 @@ class EventsViewModel: EventsFilterProtocol {
                     switch completion {
                     case .failure(let error):
                         print("❌ ViewModel: Join failed: \(error.localizedDescription)")
-                        // Show error toast for join failure
-                        DispatchQueue.main.async {
-                            ToastManager.shared.show(
-                                message: LocalizationManager.shared.translate("events.join_failed", defaultValue: "Failed to join the event. Please try again."),
-                                type: .error,
-                                duration: 3.0
-                            )
-                        }
+                        // Show error message based on error type
+                        self?.handleJoinLeaveError(error, isJoin: true)
                         self?.handleError(error)
                     case .finished:
                         break
@@ -293,7 +291,7 @@ class EventsViewModel: EventsFilterProtocol {
                         }
                     } else {
                         print("❌ ViewModel: Join failed")
-                        // Show error toast
+                        // Show error toast with generic message for false response
                         DispatchQueue.main.async {
                             ToastManager.shared.show(
                                 message: LocalizationManager.shared.translate("events.join_failed", defaultValue: "Failed to join the event. Please try again."),
@@ -334,14 +332,8 @@ class EventsViewModel: EventsFilterProtocol {
                     switch completion {
                     case .failure(let error):
                         print("❌ ViewModel: Leave failed: \(error.localizedDescription)")
-                        // Show error toast for leave failure
-                        DispatchQueue.main.async {
-                            ToastManager.shared.show(
-                                message: LocalizationManager.shared.translate("events.leave_failed", defaultValue: "Failed to leave the event. Please try again."),
-                                type: .error,
-                                duration: 3.0
-                            )
-                        }
+                        // Show error message based on error type
+                        self?.handleJoinLeaveError(error, isJoin: false)
                         self?.handleError(error)
                     case .finished:
                         break
@@ -370,7 +362,7 @@ class EventsViewModel: EventsFilterProtocol {
                         }
                     } else {
                         print("❌ ViewModel: Leave failed")
-                        // Show error toast
+                        // Show error toast with generic message for false response
                         DispatchQueue.main.async {
                             ToastManager.shared.show(
                                 message: LocalizationManager.shared.translate("events.leave_failed", defaultValue: "Failed to leave the event. Please try again."),
@@ -554,5 +546,53 @@ class EventsViewModel: EventsFilterProtocol {
         errorMessage = error.localizedDescription
         showError = true
         print("❌ Events Error: \(error.localizedDescription)")
+    }
+    
+    // MARK: - API Error Message Extraction
+    private func extractAPIErrorMessage(from error: Error) -> String {
+        // First check for NetworkError with API message
+        if let networkError = error as? NetworkError,
+           case .apiError(let message, _) = networkError {
+            print("📋 Extracted NetworkError API message: \(message)")
+            return message
+        }
+        
+        // Then check for APIError
+        if let apiError = error as? APIError {
+            print("📋 Extracted APIError message: \(apiError.message)")
+            return apiError.message
+        }
+        
+        // Fallback to localized description
+        print("📋 Using error localized description: \(error.localizedDescription)")
+        return error.localizedDescription
+    }
+    
+    // MARK: - Join/Leave Error Handling
+    private func handleJoinLeaveError(_ error: Error, isJoin: Bool) {
+        // Check if this is an API error with specific message
+        let isAPIError = (error as? NetworkError).map { 
+            if case .apiError = $0 { return true } else { return false }
+        } ?? false || error is APIError
+        
+        if isAPIError {
+            // Show alert for API errors
+            let message = extractAPIErrorMessage(from: error)
+            DispatchQueue.main.async { [weak self] in
+                self?.apiErrorMessage = message
+                self?.showAPIErrorAlert = true
+            }
+        } else {
+            // Show toast for other errors (network, etc.)
+            let defaultMessage = isJoin ? "Failed to join the event. Please try again." : "Failed to leave the event. Please try again."
+            
+            DispatchQueue.main.async {
+                ToastManager.shared.show(
+                    message: defaultMessage,
+                    type: .error,
+                    duration: 3.0
+                )
+            }
+        }
     }
 }

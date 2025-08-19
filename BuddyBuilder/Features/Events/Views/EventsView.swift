@@ -88,6 +88,12 @@ struct EventsView: View {
                 eventsViewModel.loadEvents()
             }
         }
+        .customAlert(
+            isPresented: $eventsViewModel.showAPIErrorAlert,
+            title: "events.rejectedRequest.title".localized(using: localizationManager),
+            message: eventsViewModel.apiErrorMessage,
+            buttonText: "common.ok".localized(using: localizationManager)
+        )
     }
     
     // MARK: - Direct tab setting

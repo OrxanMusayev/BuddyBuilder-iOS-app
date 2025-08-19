@@ -259,7 +259,16 @@ class NetworkManager: ObservableObject {
                 throw NetworkError.unauthorized
             } else if httpResponse.statusCode >= 400 {
                 print("🔴 Server error \(httpResponse.statusCode) in raw data request!")
-                throw NetworkError.serverError(httpResponse.statusCode)
+                
+                // Try to extract API error message from response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = json["message"] as? String {
+                    print("📋 Extracted API error message: \(message)")
+                    throw NetworkError.apiError(message, httpResponse.statusCode)
+                } else {
+                    // Fallback to generic server error
+                    throw NetworkError.serverError(httpResponse.statusCode)
+                }
             }
         }
         
@@ -308,7 +317,17 @@ class NetworkManager: ObservableObject {
                 print("🔴 401 UNAUTHORIZED!")
                 throw NetworkError.unauthorized
             } else if httpResponse.statusCode >= 400 {
-                throw NetworkError.serverError(httpResponse.statusCode)
+                print("🔴 Server error \(httpResponse.statusCode)!")
+                
+                // Try to extract API error message from response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let message = json["message"] as? String {
+                    print("📋 Extracted API error message: \(message)")
+                    throw NetworkError.apiError(message, httpResponse.statusCode)
+                } else {
+                    // Fallback to generic server error
+                    throw NetworkError.serverError(httpResponse.statusCode)
+                }
             }
         }
         
@@ -415,6 +434,7 @@ enum NetworkError: Error, LocalizedError {
     case decodingError
     case unauthorized
     case serverError(Int)
+    case apiError(String, Int) // New case for API errors with message
     
     var errorDescription: String? {
         switch self {
@@ -428,6 +448,8 @@ enum NetworkError: Error, LocalizedError {
             return "Unauthorized - Please login again"
         case .serverError(let code):
             return "Server error with code: \(code)"
+        case .apiError(let message, let code):
+            return message // Return the API message directly
         }
     }
 }

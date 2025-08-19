@@ -257,6 +257,14 @@ class EventsViewModel: EventsFilterProtocol {
                     switch completion {
                     case .failure(let error):
                         print("❌ ViewModel: Join failed: \(error.localizedDescription)")
+                        // Show error toast for join failure
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.join_failed", defaultValue: "Failed to join the event. Please try again."),
+                                type: .error,
+                                duration: 3.0
+                            )
+                        }
                         self?.handleError(error)
                     case .finished:
                         break
@@ -269,6 +277,15 @@ class EventsViewModel: EventsFilterProtocol {
                         print("✅ ViewModel: Join successful, performing optimistic update...")
                         self?.performOptimisticUpdate(eventId: event.id, joined: true)
                         
+                        // Show success toast
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.join_success", defaultValue: "Successfully joined the event!"),
+                                type: .success,
+                                duration: 3.0
+                            )
+                        }
+                        
                         // Schedule data refresh to sync with server
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             print("🔄 ViewModel: Performing sync refresh after join")
@@ -276,6 +293,14 @@ class EventsViewModel: EventsFilterProtocol {
                         }
                     } else {
                         print("❌ ViewModel: Join failed")
+                        // Show error toast
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.join_failed", defaultValue: "Failed to join the event. Please try again."),
+                                type: .error,
+                                duration: 3.0
+                            )
+                        }
                     }
                 }
             )
@@ -309,6 +334,14 @@ class EventsViewModel: EventsFilterProtocol {
                     switch completion {
                     case .failure(let error):
                         print("❌ ViewModel: Leave failed: \(error.localizedDescription)")
+                        // Show error toast for leave failure
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.leave_failed", defaultValue: "Failed to leave the event. Please try again."),
+                                type: .error,
+                                duration: 3.0
+                            )
+                        }
                         self?.handleError(error)
                     case .finished:
                         break
@@ -321,6 +354,15 @@ class EventsViewModel: EventsFilterProtocol {
                         print("✅ ViewModel: Leave successful, performing optimistic update...")
                         self?.performOptimisticUpdate(eventId: event.id, joined: false)
                         
+                        // Show success toast
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.leave_success", defaultValue: "Successfully left the event!"),
+                                type: .success,
+                                duration: 3.0
+                            )
+                        }
+                        
                         // Schedule data refresh to sync with server
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             print("🔄 ViewModel: Performing sync refresh after leave")
@@ -328,6 +370,14 @@ class EventsViewModel: EventsFilterProtocol {
                         }
                     } else {
                         print("❌ ViewModel: Leave failed")
+                        // Show error toast
+                        DispatchQueue.main.async {
+                            ToastManager.shared.show(
+                                message: LocalizationManager.shared.translate("events.leave_failed", defaultValue: "Failed to leave the event. Please try again."),
+                                type: .error,
+                                duration: 3.0
+                            )
+                        }
                     }
                 }
             )

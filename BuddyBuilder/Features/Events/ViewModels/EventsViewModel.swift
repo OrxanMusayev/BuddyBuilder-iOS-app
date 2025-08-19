@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/ViewModels/EventsViewModel.swift - COMPLETE FIXED VERSION
+// BuddyBuilder/Features/Events/ViewModels/EventsViewModel.swift - FIXED INITIAL STATE VERSION
 
 import Foundation
 import Combine
@@ -42,7 +42,7 @@ class EventsViewModel: EventsFilterProtocol {
     @Published var showAvailableOnly: Bool = false
     @Published var showOpenRegistrationOnly: Bool = false
     
-    // Pagination - FIXED
+    // Pagination
     @Published var currentPage = 1
     @Published var totalPages = 1
     @Published var canLoadMore = false
@@ -97,7 +97,6 @@ class EventsViewModel: EventsFilterProtocol {
     }
     
     private func setupFilterObservers() {
-        // Only filter changes, not tab changes
         Publishers.CombineLatest4(
             $selectedEventType,
             $selectedSportId,
@@ -115,17 +114,14 @@ class EventsViewModel: EventsFilterProtocol {
     func changeTab(to newTab: EventTab) {
         print("🔄 EventsViewModel.changeTab called: \(selectedTab.rawValue) → \(newTab.rawValue)")
         
-        // Only change if different
         guard selectedTab != newTab else {
             print("⚠️ Tab is the same, skipping change")
             return
         }
         
-        // Update selected tab
         selectedTab = newTab
         print("✅ selectedTab updated to: \(selectedTab.rawValue)")
         
-        // Reset and load
         resetPagination()
         loadEvents()
     }
@@ -144,7 +140,6 @@ class EventsViewModel: EventsFilterProtocol {
         isLoading = true
         errorMessage = ""
         
-        // Update filter with current pagination
         updateCurrentFilter()
         
         print("🌐 Loading events for tab: \(selectedTab.rawValue)")
@@ -179,6 +174,22 @@ class EventsViewModel: EventsFilterProtocol {
                 },
                 receiveValue: { [weak self] response in
                     print("📥 Received \(response.events.count) events for tab: \(self?.selectedTab.rawValue ?? "unknown")")
+                    
+                    // FIXED: Log detailed event state information
+                    for (index, event) in response.events.enumerated() {
+                        print("📋 Event \(index + 1): \(event.name)")
+                        print("   ID: \(event.id)")
+                        print("   isParticipant: \(event.isParticipant)")
+                        print("   canJoin: \(event.canJoin)")
+                        print("   currentParticipants: \(event.currentParticipants)")
+                        print("   maxParticipants: \(event.maxParticipants)")
+                        
+                        // FIXED: Validate data consistency
+                        if event.isParticipant && event.canJoin {
+                            print("⚠️ WARNING: Event \(event.id) has inconsistent state - both isParticipant and canJoin are true")
+                        }
+                    }
+                    
                     self?.handleEventsResponse(response, resetPagination: resetPagination)
                 }
             )
@@ -214,14 +225,26 @@ class EventsViewModel: EventsFilterProtocol {
         loadEvents()
     }
     
-    // MARK: - FIXED: Join/Leave Events with Proper Refresh
+    // MARK: - FIXED: Join/Leave Events with Better State Validation
     func joinEvent(_ event: Event) {
         guard !isLoading else {
             print("⚠️ ViewModel: Already loading, skipping join request")
             return
         }
         
+        // FIXED: Pre-validate state
         print("🚀 ViewModel: Starting joinEvent for \(event.id)")
+        print("   Current event.isParticipant: \(event.isParticipant)")
+        print("   Current event.canJoin: \(event.canJoin)")
+        
+        if event.isParticipant {
+            print("⚠️ WARNING: Trying to join event where user is already participant")
+        }
+        
+        if !event.canJoin {
+            print("⚠️ WARNING: Trying to join event where canJoin is false")
+        }
+        
         isLoading = true
         
         eventsService.joinEventWithAutoRefresh(eventId: event.id)
@@ -243,9 +266,14 @@ class EventsViewModel: EventsFilterProtocol {
                     print("📥 ViewModel: Join response - Success: \(success)")
                     
                     if success {
-                        print("✅ ViewModel: Join successful, refreshing events...")
-                        // Immediate refresh to get updated data
-                        self?.refreshAfterParticipationChange(eventId: event.id, joined: true)
+                        print("✅ ViewModel: Join successful, performing optimistic update...")
+                        self?.performOptimisticUpdate(eventId: event.id, joined: true)
+                        
+                        // Schedule data refresh to sync with server
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            print("🔄 ViewModel: Performing sync refresh after join")
+                            self?.loadEvents(resetPagination: false)
+                        }
                     } else {
                         print("❌ ViewModel: Join failed")
                     }
@@ -260,7 +288,15 @@ class EventsViewModel: EventsFilterProtocol {
             return
         }
         
+        // FIXED: Pre-validate state
         print("🚀 ViewModel: Starting leaveEvent for \(event.id)")
+        print("   Current event.isParticipant: \(event.isParticipant)")
+        print("   Current event.canJoin: \(event.canJoin)")
+        
+        if !event.isParticipant {
+            print("⚠️ WARNING: Trying to leave event where user is not participant")
+        }
+        
         isLoading = true
         
         eventsService.leaveEventWithAutoRefresh(eventId: event.id)
@@ -282,9 +318,14 @@ class EventsViewModel: EventsFilterProtocol {
                     print("📥 ViewModel: Leave response - Success: \(success)")
                     
                     if success {
-                        print("✅ ViewModel: Leave successful, refreshing events...")
-                        // Immediate refresh to get updated data
-                        self?.refreshAfterParticipationChange(eventId: event.id, joined: false)
+                        print("✅ ViewModel: Leave successful, performing optimistic update...")
+                        self?.performOptimisticUpdate(eventId: event.id, joined: false)
+                        
+                        // Schedule data refresh to sync with server
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            print("🔄 ViewModel: Performing sync refresh after leave")
+                            self?.loadEvents(resetPagination: false)
+                        }
                     } else {
                         print("❌ ViewModel: Leave failed")
                     }
@@ -293,63 +334,43 @@ class EventsViewModel: EventsFilterProtocol {
             .store(in: &cancellables)
     }
     
-    // MARK: - NEW: Refresh After Participation Change
-    private func refreshAfterParticipationChange(eventId: Int, joined: Bool) {
-        print("🔄 ViewModel: Refreshing after participation change - Event: \(eventId), Joined: \(joined)")
-        
-        // Option 1: Update local state immediately (optimistic update)
-        updateLocalEventState(eventId: eventId, joined: joined)
-        
-        // Option 2: Quick refresh to sync with server for accurate participant list  
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            print("🔄 ViewModel: Performing sync refresh to get updated participant list from server")
-            self?.loadEvents(resetPagination: false) // Don't reset pagination
-        }
-        
-        // Option 3: Notify UI components that need to refresh
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.objectWillChange.send()
-        }
-    }
-    
-    // MARK: - NEW: Local State Update (Optimistic Update)
-    private func updateLocalEventState(eventId: Int, joined: Bool) {
+    // MARK: - FIXED: Optimistic Update with Better State Management
+    private func performOptimisticUpdate(eventId: Int, joined: Bool) {
         guard let index = events.firstIndex(where: { $0.id == eventId }) else {
-            print("⚠️ ViewModel: Event \(eventId) not found in local events")
+            print("⚠️ ViewModel: Event \(eventId) not found for optimistic update")
             return
         }
         
         print("🔄 ViewModel: Performing optimistic update for event \(eventId)")
         
         let currentEvent = events[index]
-        let newCurrentParticipants = joined ? 
-            currentEvent.currentParticipants + 1 : 
-            max(0, currentEvent.currentParticipants - 1)
-        
-        print("   📊 Before update:")
+        print("   Before update:")
         print("      isParticipant: \(currentEvent.isParticipant)")
         print("      canJoin: \(currentEvent.canJoin)")
         print("      currentParticipants: \(currentEvent.currentParticipants)")
-        print("      participants count: \(currentEvent.participants.count)")
         
-        // Create updated event with new participation status
+        // Calculate new participant count
+        let newCurrentParticipants = joined ?
+            currentEvent.currentParticipants + 1 :
+            max(0, currentEvent.currentParticipants - 1)
+        
+        // Create updated event with proper state
         let updatedEvent = currentEvent.withUpdatedParticipation(
             isParticipant: joined,
             currentParticipants: newCurrentParticipants
         )
         
-        print("   📊 After update:")
+        print("   After update:")
         print("      isParticipant: \(updatedEvent.isParticipant)")
         print("      canJoin: \(updatedEvent.canJoin)")
         print("      currentParticipants: \(updatedEvent.currentParticipants)")
-        print("      participants count: \(updatedEvent.participants.count)")
         
         // Update the event in the array
         events[index] = updatedEvent
         
         print("   ✅ Optimistic update completed")
         
-        // Force UI update by triggering objectWillChange
+        // Force UI update
         DispatchQueue.main.async { [weak self] in
             self?.objectWillChange.send()
         }
@@ -403,7 +424,7 @@ class EventsViewModel: EventsFilterProtocol {
         }
     }
     
-    // MARK: - Handle Events Response
+    // MARK: - FIXED: Handle Events Response with State Validation
     private func handleEventsResponse(_ response: EventsResponse, resetPagination: Bool) {
         print("📥 ========== HANDLING EVENTS RESPONSE ==========")
         print("📥 API Response Details:")
@@ -419,16 +440,21 @@ class EventsViewModel: EventsFilterProtocol {
         print("   - Total pages: \(totalPages)")
         print("   - Can load more: \(canLoadMore)")
         
+        // FIXED: Store events with validation
+        let validatedEvents = response.events.map { event in
+            validateEventState(event)
+        }
+        
         if resetPagination {
-            events = response.events
+            events = validatedEvents
             print("   ✅ Events RESET to \(events.count) items")
         } else {
             let oldCount = events.count
-            events.append(contentsOf: response.events)
-            print("   ✅ Events APPENDED: \(oldCount) + \(response.events.count) = \(events.count)")
+            events.append(contentsOf: validatedEvents)
+            print("   ✅ Events APPENDED: \(oldCount) + \(validatedEvents.count) = \(events.count)")
         }
         
-        // PAGINATION FIX: API response değerlerini kullan
+        // Update pagination info
         currentPage = response.page
         totalPages = response.totalPages
         canLoadMore = currentPage < totalPages
@@ -439,7 +465,6 @@ class EventsViewModel: EventsFilterProtocol {
         print("   - Final total pages: \(totalPages)")
         print("   - Final can load more: \(canLoadMore)")
         
-        // PAGINATION LOGIC CHECK
         if canLoadMore {
             print("✅ PAGINATION: Load More will be SHOWN (page \(currentPage) of \(totalPages))")
         } else {
@@ -447,6 +472,32 @@ class EventsViewModel: EventsFilterProtocol {
         }
         
         print("📥 ===============================================")
+        
+        // FIXED: Force UI update after state validation
+        DispatchQueue.main.async { [weak self] in
+            self?.objectWillChange.send()
+        }
+    }
+    
+    // MARK: - FIXED: Event State Validation
+    private func validateEventState(_ event: Event) -> Event {
+        print("🔍 Validating event state for: \(event.name) (ID: \(event.id))")
+        print("   Original state: isParticipant=\(event.isParticipant), canJoin=\(event.canJoin)")
+        
+        // FIXED: Log potential issues
+        if event.isParticipant && event.canJoin {
+            print("⚠️ INCONSISTENT STATE: Event \(event.id) has both isParticipant=true and canJoin=true")
+            print("   This should not happen - user cannot join an event they're already in")
+        }
+        
+        if !event.isParticipant && !event.canJoin && event.currentParticipants < event.maxParticipants {
+            print("⚠️ POTENTIAL ISSUE: Event \(event.id) has available spots but canJoin=false")
+            print("   currentParticipants: \(event.currentParticipants), maxParticipants: \(event.maxParticipants)")
+        }
+        
+        // Return the event as-is for now (server should provide correct state)
+        print("   Final state: isParticipant=\(event.isParticipant), canJoin=\(event.canJoin)")
+        return event
     }
     
     private func handleError(_ error: Error) {

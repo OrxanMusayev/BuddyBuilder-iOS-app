@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Events/Views/EventCard.swift - COMPLETE FINAL FIXED VERSION
+// BuddyBuilder/Features/Events/Views/EventCard.swift - SIMPLIFIED WORKING VERSION
 
 import SwiftUI
 import Combine
@@ -24,10 +24,6 @@ struct EventCard: View {
     @State private var dragOffset: CGSize = .zero
     @State private var isFavorite = false
     
-    // FIXED: Local state to track participation status
-    @State private var isParticipant: Bool
-    @State private var currentParticipants: Int
-    
     // API Service and Combine
     private let eventsService = CompleteEventsService()
     @State private var cancellables = Set<AnyCancellable>()
@@ -35,7 +31,7 @@ struct EventCard: View {
     // Swipe threshold
     private let swipeThreshold: CGFloat = 60
     
-    // FIXED: Layout constants to prevent shifting
+    // Layout constants
     private let imageHeight: CGFloat = 120
     private let cardCornerRadius: CGFloat = 16
     
@@ -61,10 +57,6 @@ struct EventCard: View {
         self.onDeactivate = onDeactivate
         self.onToggleFavorite = onToggleFavorite
         self.onTap = onTap
-        
-        // Initialize local state from event
-        self._isParticipant = State(initialValue: event.isParticipant)
-        self._currentParticipants = State(initialValue: event.currentParticipants)
     }
     
     var body: some View {
@@ -74,19 +66,14 @@ struct EventCard: View {
                 myEventSwipeBackground
             }
             
-            // FIXED: Main Card Content with stable layout
+            // Main Card Content
             mainCardContent
                 .clipShape(RoundedRectangle(cornerRadius: (isMyEvent && showingMyEventActions) ? 0 : cardCornerRadius))
                 .offset(x: dragOffset.width)
                 .onTapGesture {
-                    print("🔥 EventCard onTapGesture triggered - isMyEvent: \(isMyEvent), showingMyEventActions: \(showingMyEventActions)")
-                    // Handle swipe menu close for My Events
                     if isMyEvent && showingMyEventActions {
-                        print("🔄 Closing swipe menu")
                         resetSwipe()
                     } else {
-                        print("🚀 Calling onTap callback")
-                        // Call navigation callback
                         onTap?()
                     }
                 }
@@ -99,24 +86,15 @@ struct EventCard: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
         }
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
-        .onAppear {
-            updateLocalState()
-        }
-        .onChange(of: event.isParticipant) { _, newValue in
-            updateLocalState()
-        }
-        .onChange(of: event.currentParticipants) { _, newValue in
-            updateLocalState()
-        }
     }
     
-    // MARK: - FIXED: Main Card Content with Stable Layout
+    // MARK: - Main Card Content
     private var mainCardContent: some View {
         VStack(spacing: 0) {
-            // FIXED: Event Image Section with Fixed Height
+            // Event Image Section
             eventImageSection
-                .frame(height: imageHeight) // Fixed height prevents shifting
-                .clipped() // Prevent overflow
+                .frame(height: imageHeight)
+                .clipped()
             
             // Event Details Section
             eventDetailsSection
@@ -134,10 +112,9 @@ struct EventCard: View {
         )
     }
     
-    // MARK: - FIXED: Event Image Section with Stable Layout
+    // MARK: - Event Image Section
     private var eventImageSection: some View {
         ZStack {
-            // FIXED: Image with stable layout
             Group {
                 let imageUrlString = event.imageUrl ?? defaultImageUrl(for: event.sport.name)
                 
@@ -148,10 +125,8 @@ struct EventCard: View {
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                     case .failure(_):
-                        // Fallback image
                         placeholderImage
                     case .empty:
-                        // Loading state
                         placeholderImage
                             .overlay(
                                 ProgressView()
@@ -163,11 +138,11 @@ struct EventCard: View {
                     }
                 }
             }
-            .frame(height: imageHeight) // Fixed height
-            .frame(maxWidth: .infinity) // Full width
-            .clipped() // Prevent overflow
+            .frame(height: imageHeight)
+            .frame(maxWidth: .infinity)
+            .clipped()
             
-            // FIXED: Overlay with badges - positioned absolutely
+            // Overlay with badges
             VStack {
                 HStack {
                     eventTypeBadge
@@ -182,10 +157,10 @@ struct EventCard: View {
                 Spacer()
             }
         }
-        .frame(height: imageHeight) // Ensure container has fixed height
+        .frame(height: imageHeight)
     }
     
-    // MARK: - FIXED: Placeholder Image
+    // MARK: - Placeholder Image
     private var placeholderImage: some View {
         Rectangle()
             .fill(
@@ -221,7 +196,7 @@ struct EventCard: View {
         )
     }
     
-    // MARK: - Favorite Button (Only for All Events)
+    // MARK: - Favorite Button
     private var favoriteButton: some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
@@ -232,7 +207,7 @@ struct EventCard: View {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
                 .font(.system(size: 20, weight: .medium))
                 .foregroundColor(isFavorite ? .primaryOrange : .white)
-                .frame(width: 32, height: 32) // Fixed frame
+                .frame(width: 32, height: 32)
                 .background(
                     Circle()
                         .fill(Color.clear)
@@ -242,7 +217,7 @@ struct EventCard: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isFavorite)
     }
     
-    // MARK: - FIXED: Event Details Section with Consistent Spacing
+    // MARK: - Event Details Section
     private var eventDetailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Title and Participation Status
@@ -261,21 +236,21 @@ struct EventCard: View {
             daysUntilSection
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading) // Consistent alignment
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // MARK: - FIXED: Title Section
+    // MARK: - Title Section
     private var eventTitleSection: some View {
         HStack {
             Text(event.name)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.primaryText)
                 .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true) // Prevent text jumping
+                .fixedSize(horizontal: false, vertical: true)
             
             Spacer()
             
-            if isParticipant {
+            if event.isParticipant {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.green)
@@ -291,7 +266,7 @@ struct EventCard: View {
                 Image(systemName: "calendar")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.secondaryText)
-                    .frame(width: 12) // Fixed width for icon
+                    .frame(width: 12)
                 
                 Text(event.formattedEventDate)
                     .font(.system(size: 14, weight: .medium))
@@ -303,7 +278,7 @@ struct EventCard: View {
                 Image(systemName: "location")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.textSecondary)
-                    .frame(width: 12) // Fixed width for icon
+                    .frame(width: 12)
                 
                 Text(event.location)
                     .font(.system(size: 12, weight: .medium))
@@ -323,7 +298,7 @@ struct EventCard: View {
                     Image(systemName: "dollarsign.circle")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.textSecondary)
-                        .frame(width: 12) // Fixed width for icon
+                        .frame(width: 12)
                     
                     Text("$\(String(format: "%.0f", event.entryFee))")
                         .font(.system(size: 14, weight: .semibold))
@@ -334,7 +309,7 @@ struct EventCard: View {
                     Image(systemName: "gift.circle")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.green)
-                        .frame(width: 12) // Fixed width for icon
+                        .frame(width: 12)
                     
                     Text("events.free".localized(using: localizationManager))
                         .font(.system(size: 14, weight: .semibold))
@@ -347,15 +322,15 @@ struct EventCard: View {
     // MARK: - Participants and Action Section
     private var participantsAndActionSection: some View {
         HStack {
-            // Participant Avatars
-            participantAvatarsSection
+            // TEMPORARILY HIDDEN: Participant Avatars (commented out)
+            // participantAvatarsSection
             
             participantInfoSection
             
             Spacer()
             
             // Join/Leave Button (sadece My Events değilse)
-            if !isMyEvent && (event.canJoin || isParticipant) {
+            if !isMyEvent && (event.canJoin || event.isParticipant) {
                 joinLeaveButton
             }
             
@@ -364,58 +339,16 @@ struct EventCard: View {
         }
     }
     
-    // MARK: - Participant Avatars
-    private var participantAvatarsSection: some View {
-        HStack(spacing: -8) {
-            ForEach(event.participants.prefix(3), id: \.id) { participant in
-                AsyncImage(url: URL(string: participant.profileImageUrl ?? "")) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle()
-                        .fill(Color.primaryOrange.opacity(0.3))
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 8, weight: .medium))
-                                .foregroundColor(.primaryOrange)
-                        )
-                }
-                .frame(width: 24, height: 24)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color.white, lineWidth: 2)
-                )
-            }
-            
-            if event.currentParticipants > 3 {
-                Circle()
-                    .fill(Color.textSecondary.opacity(0.2))
-                    .frame(width: 24, height: 24)
-                    .overlay(
-                        Text("+\(event.currentParticipants - 3)")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundColor(.textSecondary)
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(Color.white, lineWidth: 2)
-                    )
-            }
-        }
-    }
-    
     // MARK: - Participant Info
     private var participantInfoSection: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("events.participants.count".localized(using: localizationManager)
-                 .replacingOccurrences(of: "{current}", with: "\(currentParticipants)")
+                 .replacingOccurrences(of: "{current}", with: "\(event.currentParticipants)")
                  .replacingOccurrences(of: "{max}", with: "\(event.maxParticipants)"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.textSecondary)
             
-            let availableSpots = max(0, event.maxParticipants - currentParticipants)
+            let availableSpots = max(0, event.maxParticipants - event.currentParticipants)
             if availableSpots > 0 {
                 Text("events.spots.left".localized(using: localizationManager)
                      .replacingOccurrences(of: "{count}", with: "\(availableSpots)"))
@@ -450,7 +383,7 @@ struct EventCard: View {
                     Image(systemName: "clock")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.textSecondary)
-                        .frame(width: 12) // Fixed width for icon
+                        .frame(width: 12)
                     
                     Text(daysUntilText)
                         .font(.system(size: 12, weight: .medium))
@@ -460,24 +393,28 @@ struct EventCard: View {
         }
     }
     
-    // MARK: - FIXED: Join/Leave Button with Proper API Calls
+    // MARK: - SIMPLIFIED: Join/Leave Button - Let ViewModel Handle State
     private var joinLeaveButton: some View {
         Button(action: {
-            print("🎯 EventCard: Join/Leave button tapped")
-            print("   Current isParticipant: \(isParticipant)")
+            print("🎯 EventCard: Join/Leave button tapped for event \(event.id)")
             print("   Event isParticipant: \(event.isParticipant)")
             
             withAnimation(.easeInOut(duration: 0.2)) {
                 isJoining = true
             }
             
-            // Use local state for decision
-            if isParticipant {
-                print("🚪 EventCard: Calling leaveEventAPI")
-                leaveEventAPI()
+            // SIMPLIFIED: Direct parent callback, let ViewModel handle everything
+            if event.isParticipant {
+                print("🚪 EventCard: Calling onLeave")
+                onLeave()
             } else {
-                print("🚪 EventCard: Calling joinEventAPI")
-                joinEventAPI()
+                print("🚪 EventCard: Calling onJoin")
+                onJoin()
+            }
+            
+            // Reset loading state after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                isJoining = false
             }
         }) {
             HStack(spacing: 4) {
@@ -486,11 +423,11 @@ struct EventCard: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.6)
                 } else {
-                    Image(systemName: isParticipant ? "minus.circle" : "plus.circle")
+                    Image(systemName: event.isParticipant ? "minus.circle" : "plus.circle")
                         .font(.system(size: 12, weight: .medium))
                 }
                 
-                Text(isParticipant ?
+                Text(event.isParticipant ?
                      "events.leave".localized(using: localizationManager) :
                      "events.join".localized(using: localizationManager))
                 .font(.system(size: 12, weight: .medium))
@@ -500,7 +437,7 @@ struct EventCard: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(isParticipant ? Color.red : Color.primaryOrange)
+                    .fill(event.isParticipant ? Color.red : Color.primaryOrange)
             )
         }
         .disabled(isJoining)
@@ -508,13 +445,6 @@ struct EventCard: View {
     }
     
     // MARK: - Helper Methods
-    private func updateLocalState() {
-        DispatchQueue.main.async {
-            isParticipant = event.isParticipant
-            currentParticipants = event.currentParticipants
-        }
-    }
-    
     private var daysUntilText: String {
         switch event.daysUntilEvent {
         case 0:
@@ -570,105 +500,6 @@ struct EventCard: View {
         default:
             return "calendar"
         }
-    }
-    
-    // MARK: - FIXED: API Calls Implementation (Struct Safe)
-    private func joinEventAPI() {
-        print("🚀 EventCard: Starting joinEventAPI for event \(event.id)")
-        
-        eventsService.joinEventWithAutoRefresh(eventId: event.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { completion in
-                    Task { @MainActor in
-                        self.isJoining = false
-                    }
-                    
-                    switch completion {
-                    case .failure(let error):
-                        print("❌ EventCard: Join failed: \(error.localizedDescription)")
-                        // Reset local state on error
-                        Task { @MainActor in
-                            self.updateLocalState()
-                        }
-                    case .finished:
-                        print("✅ EventCard: Join API completed")
-                        break
-                    }
-                },
-                receiveValue: { success in
-                    print("📥 EventCard: Join API response - Success: \(success)")
-                    
-                    if success {
-                        // Update local state immediately for instant UI feedback
-                        Task { @MainActor in
-                            self.isParticipant = true
-                            self.currentParticipants += 1
-                            
-                            print("✅ EventCard: Local state updated - isParticipant: true, participants: \(self.currentParticipants)")
-                            
-                            // Notify parent to refresh data
-                            self.onJoin()
-                        }
-                    } else {
-                        print("❌ EventCard: Join failed but no error thrown")
-                        // Reset local state
-                        Task { @MainActor in
-                            self.updateLocalState()
-                        }
-                    }
-                }
-            )
-            .store(in: &cancellables)
-    }
-    
-    private func leaveEventAPI() {
-        print("🚀 EventCard: Starting leaveEventAPI for event \(event.id)")
-        
-        eventsService.leaveEventWithAutoRefresh(eventId: event.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { completion in
-                    Task { @MainActor in
-                        self.isJoining = false
-                    }
-                    
-                    switch completion {
-                    case .failure(let error):
-                        print("❌ EventCard: Leave failed: \(error.localizedDescription)")
-                        // Reset local state on error
-                        Task { @MainActor in
-                            self.updateLocalState()
-                        }
-                    case .finished:
-                        print("✅ EventCard: Leave API completed")
-                        break
-                    }
-                },
-                receiveValue: { success in
-                    print("📥 EventCard: Leave API response - Success: \(success)")
-                    
-                    if success {
-                        // Update local state immediately for instant UI feedback
-                        Task { @MainActor in
-                            self.isParticipant = false
-                            self.currentParticipants = max(0, self.currentParticipants - 1)
-                            
-                            print("✅ EventCard: Local state updated - isParticipant: false, participants: \(self.currentParticipants)")
-                            
-                            // Notify parent to refresh data
-                            self.onLeave()
-                        }
-                    } else {
-                        print("❌ EventCard: Leave failed but no error thrown")
-                        // Reset local state
-                        Task { @MainActor in
-                            self.updateLocalState()
-                        }
-                    }
-                }
-            )
-            .store(in: &cancellables)
     }
     
     // MARK: - Swipe Actions (keeping existing implementation)
@@ -830,15 +661,6 @@ struct EventCardSkeleton: View {
                 }
                 
                 HStack {
-                    HStack(spacing: -8) {
-                        ForEach(0..<3, id: \.self) { _ in
-                            Circle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: 24, height: 24)
-                                .shimmer(isAnimating: isAnimating)
-                        }
-                    }
-                    
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
                         .frame(width: 80, height: 12)

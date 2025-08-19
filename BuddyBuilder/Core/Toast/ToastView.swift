@@ -14,16 +14,6 @@ struct EnhancedToastView: View {
             Spacer()
             
             HStack(spacing: 12) {
-                // Icon
-                Image(systemName: toast.type.iconName)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(toast.type.textColor)
-                    .frame(width: 28, height: 28)
-                    .background(
-                        Circle()
-                            .fill(toast.type.textColor.opacity(0.15))
-                    )
-                
                 // Message
                 Text(localizedMessage)
                     .font(.system(size: 16, weight: .medium))
@@ -45,7 +35,22 @@ struct EnhancedToastView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            .background(.ultraThinMaterial)
+            .background(
+                ZStack(alignment: .bottomLeading) {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial)   // ✅ Artık bir View
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    
+                    Rectangle()
+                        .fill(toast.type.textColor)
+                        .frame(height: 3)
+                        .scaleEffect(x: progress, y: 1, anchor: .leading)
+                        .animation(.linear(duration: displayDuration), value: progress)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 3)
+                }
+
+            )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
             .offset(x: dragOffset)
@@ -62,18 +67,8 @@ struct EnhancedToastView: View {
                         }
                     }
             )
-            .overlay(
-                // Progress bar
-                Rectangle()
-                    .fill(toast.type.textColor)
-                    .frame(height: 3)
-                    .scaleEffect(x: progress, y: 1, anchor: .leading)
-                    .animation(.linear(duration: displayDuration), value: progress),
-                alignment: .bottom
-            )
             .padding(.horizontal, 24)
             .padding(.bottom, 40) // floating above bottom
-            
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .onAppear {

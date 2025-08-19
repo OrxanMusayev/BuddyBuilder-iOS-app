@@ -1,6 +1,7 @@
 // BuddyBuilder/Features/Events/Views/CachedEventsView.swift - COMPLETE UPDATED VERSION
 
 import SwiftUI
+import Foundation
 
 struct CachedEventsView: View {
     @StateObject private var viewModel = CachedEventsViewModel()
@@ -669,12 +670,47 @@ struct CachedEventsView: View {
     // MARK: - Helper Methods
     private func handleViewAppear() {
         if viewModel.events.isEmpty {
-            viewModel.loadEvents(strategy: .cacheFirst)
+            // İlk yüklemede: önce cache'den göster, sonra API'yi çağır
+            Task {
+                // Token kontrolü yap
+                let tokenAvailable = await TokenManager.shared.waitForTokenAvailability(timeout: 1.0)
+                
+                await MainActor.run {
+                    if tokenAvailable {
+                        // Token hazır, normal cache-first stratejisini kullan
+                        viewModel.loadEvents(strategy: .cacheFirst)
+                    } else {
+                        // Token henüz hazır değil, önce cache-only sonra API
+                        print("⚠️ Token not ready, loading cache-only first")
+                        viewModel.loadEvents(strategy: .cacheOnly)
+                        
+                        // Arka planda token hazır olduğunda API çağrısı yap
+                        Task {
+                            let tokenReady = await TokenManager.shared.waitForTokenAvailability(timeout: 3.0)
+                            if tokenReady {
+                                await MainActor.run {
+                                    print("✅ Token ready, refreshing from API")
+                                    viewModel.loadEvents(strategy: .apiFirst)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     
     @MainActor
     private func performManualRefresh() async {
+        // Token kontrolü yap ve gerekirse bekle
+        let tokenAvailable = await TokenManager.shared.waitForTokenAvailability(timeout: 3.0)
+        
+        if !tokenAvailable {
+            print("⚠️ Pull to refresh: Token not available after waiting")
+            return
+        }
+        
+        print("✅ Pull to refresh: Token is available, performing refresh")
         viewModel.refreshEventsManually()
         
         // Wait for completion

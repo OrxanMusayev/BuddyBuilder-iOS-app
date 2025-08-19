@@ -1,5 +1,3 @@
-// BuddyBuilder/Features/Events/Views/EventCard.swift - SIMPLIFIED WORKING VERSION
-
 import SwiftUI
 import Combine
 
@@ -20,6 +18,7 @@ struct EventCard: View {
     
     @EnvironmentObject var localizationManager: LocalizationManager
     @State private var isJoining = false
+    @State private var isCooldown = false
     @State private var showingMyEventActions = false
     @State private var dragOffset: CGSize = .zero
     @State private var isFavorite = false
@@ -60,7 +59,8 @@ struct EventCard: View {
     }
     
     var body: some View {
-        ZStack {
+        print("🎯 EventCard.body recomputed for event \(event.id) - isParticipant: \(event.isParticipant)")
+        return ZStack {
             // Swipe Action Background (My Events için)
             if isMyEvent && showingMyEventActions {
                 myEventSwipeBackground
@@ -396,11 +396,18 @@ struct EventCard: View {
     // MARK: - SIMPLIFIED: Join/Leave Button - Let ViewModel Handle State
     private var joinLeaveButton: some View {
         Button(action: {
+            // Check if we're in cooldown period
+            guard !isCooldown && !isJoining else {
+                print("⏰ EventCard: Button is in cooldown or processing, ignoring tap")
+                return
+            }
+            
             print("🎯 EventCard: Join/Leave button tapped for event \(event.id)")
             print("   Event isParticipant: \(event.isParticipant)")
             
             withAnimation(.easeInOut(duration: 0.2)) {
                 isJoining = true
+                isCooldown = true
             }
             
             // SIMPLIFIED: Direct parent callback, let ViewModel handle everything
@@ -415,6 +422,12 @@ struct EventCard: View {
             // Reset loading state after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 isJoining = false
+            }
+            
+            // Reset cooldown after a short delay (1.5 seconds total)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                isCooldown = false
+                print("⏰ EventCard: Cooldown period ended for event \(event.id)")
             }
         }) {
             HStack(spacing: 4) {
@@ -440,8 +453,8 @@ struct EventCard: View {
                     .fill(event.isParticipant ? Color.red : Color.primaryOrange)
             )
         }
-        .disabled(isJoining)
-        .opacity(isJoining ? 0.7 : 1.0)
+        .disabled(isJoining || isCooldown)
+        .opacity((isJoining || isCooldown) ? 0.7 : 1.0)
     }
     
     // MARK: - Helper Methods

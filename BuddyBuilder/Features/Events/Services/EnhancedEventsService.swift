@@ -89,15 +89,18 @@ class EnhancedEventsService: EnhancedEventsServiceProtocol {
     ) -> AnyPublisher<EventsResponse, Error> {
         
         loadStateSubject.send(.refreshingManual)
+        print("🔄 Manual refresh started for \(type.rawValue)")
         
         return fetchFromAPI(filter: filter, type: type)
             .handleEvents(
                 receiveOutput: { [weak self] response in
+                    print("✅ Manual refresh API completed - \(response.events.count) events")
                     self?.cacheService.saveEvents(response, for: type)
                     self?.loadStateSubject.send(.loaded(fromCache: false))
                 },
                 receiveCompletion: { [weak self] completion in
                     if case .failure(let error) = completion {
+                        print("❌ Manual refresh failed: \(error)")
                         self?.loadStateSubject.send(.error(error))
                     }
                 }
@@ -121,6 +124,9 @@ class EnhancedEventsService: EnhancedEventsServiceProtocol {
         type: EventsCacheEntry.EventsCacheType
     ) -> AnyPublisher<(EventsResponse, Bool), Error> {
         
+        // Token kontrolü yap
+        let tokenAvailable = TokenManager.shared.accessToken != nil && !TokenManager.shared.accessToken!.isEmpty
+        
         // Önce cache'i kontrol et
         if let cachedEntry = cacheService.getCachedEvents(for: type),
            !cachedEntry.isExpired {
@@ -128,33 +134,55 @@ class EnhancedEventsService: EnhancedEventsServiceProtocol {
             print("🎯 Cache hit - returning cached data for \(type.rawValue)")
             loadStateSubject.send(.loaded(fromCache: true))
             
-            // Cache'den veri döndür ve arka planda refresh yap
+            // Cache'den veri döndür ve token varsa arka planda refresh yap
             return Just((cachedEntry.data, true))
                 .setFailureType(to: Error.self)
                 .handleEvents(receiveOutput: { _ in
-                    // Arka planda refresh yap
-                    self.backgroundRefresh(filter: filter, type: type)
+                    // Sadece token varsa arka planda refresh yap
+                    if tokenAvailable {
+                        self.backgroundRefresh(filter: filter, type: type)
+                    } else {
+                        print("⚠️ Token not available, skipping background refresh")
+                    }
                 })
                 .eraseToAnyPublisher()
         } else {
-            // Cache boş veya expired - API'den çek
-            print("🌐 Cache miss or expired - fetching from API for \(type.rawValue)")
-            loadStateSubject.send(.loadingFromAPI)
-            
-            return fetchFromAPI(filter: filter, type: type)
-                .handleEvents(
-                    receiveOutput: { [weak self] response in
-                        self?.cacheService.saveEvents(response, for: type)
-                        self?.loadStateSubject.send(.loaded(fromCache: false))
-                    },
-                    receiveCompletion: { [weak self] completion in
-                        if case .failure(let error) = completion {
-                            self?.loadStateSubject.send(.error(error))
+            // Cache boş veya expired
+            if tokenAvailable {
+                // Token var - API'den çek
+                print("🌐 Cache miss or expired - fetching from API for \(type.rawValue)")
+                loadStateSubject.send(.loadingFromAPI)
+                
+                return fetchFromAPI(filter: filter, type: type)
+                    .handleEvents(
+                        receiveOutput: { [weak self] response in
+                            self?.cacheService.saveEvents(response, for: type)
+                            self?.loadStateSubject.send(.loaded(fromCache: false))
+                        },
+                        receiveCompletion: { [weak self] completion in
+                            if case .failure(let error) = completion {
+                                self?.loadStateSubject.send(.error(error))
+                            }
                         }
-                    }
+                    )
+                    .map { ($0, false) }
+                    .eraseToAnyPublisher()
+            } else {
+                // Token yok - boş veri döndür
+                print("⚠️ No token available and no cache, returning empty data for \(type.rawValue)")
+                let emptyResponse = EventsResponse(
+                    events: [],
+                    totalCount: 0,
+                    page: 1,
+                    pageSize: 10,
+                    totalPages: 0
                 )
-                .map { ($0, false) }
-                .eraseToAnyPublisher()
+                loadStateSubject.send(.loaded(fromCache: false))
+                
+                return Just((emptyResponse, false))
+                    .setFailureType(to: Error.self)
+                    .eraseToAnyPublisher()
+            }
         }
     }
     

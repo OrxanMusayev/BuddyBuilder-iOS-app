@@ -209,6 +209,24 @@ class TokenManager: ObservableObject {
         UserDefaults.standard.synchronize()
         print("🧹 All tokens and user data cleared and synchronized")
     }
+    
+    // MARK: - Token Availability Check
+    public func waitForTokenAvailability(timeout: TimeInterval = 2.0) async -> Bool {
+        let startTime = Date()
+        
+        while Date().timeIntervalSince(startTime) < timeout {
+            if let token = self.accessToken, !token.isEmpty {
+                print("✅ Token is available: \(token.prefix(20))...")
+                return true
+            }
+            
+            print("⏳ Waiting for token to become available...")
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+        }
+        
+        print("⚠️ Token not available after \(timeout) seconds timeout")
+        return false
+    }
 }
 
 // MARK: - Authentication Error Handler

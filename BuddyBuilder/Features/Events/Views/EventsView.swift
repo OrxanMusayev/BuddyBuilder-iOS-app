@@ -255,7 +255,7 @@ struct EventsView: View {
                 } else if eventsViewModel.filteredEvents.isEmpty {
                     emptyStateView
                 } else {
-                    ForEach(eventsViewModel.filteredEvents) { event in
+                    ForEach(eventsViewModel.filteredEvents, id: \.id) { event in
                         // UPDATED: EventCard with programmatic navigation
                         if selectedTab == .all {
                             EventCard.forAllEvents(
@@ -276,6 +276,7 @@ struct EventsView: View {
                                     print("📱 showingEventDetail set to: \(showingEventDetail)")
                                 }
                             )
+                            .id("\(event.id)-\(event.isParticipant)-\(event.currentParticipants)")
                             .environmentObject(localizationManager)
                         } else {
                             EventCard.forMyEvents(
@@ -306,6 +307,7 @@ struct EventsView: View {
                                     print("📱 showingEventDetail set to: \(showingEventDetail)")
                                 }
                             )
+                            .id("\(event.id)-\(event.isParticipant)-\(event.currentParticipants)")
                             .environmentObject(localizationManager)
                         }
                     }

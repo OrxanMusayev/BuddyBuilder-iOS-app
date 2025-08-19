@@ -22,6 +22,14 @@ class NetworkManager: ObservableObject {
         return Future<T, Error> { promise in
             Task {
                 do {
+                    // DÜZELTME: Token'ın hazır olmasını bekle (daha uzun timeout)
+                    let tokenAvailable = await TokenManager.shared.waitForTokenAvailability(timeout: 3.0)
+                    if !tokenAvailable {
+                        print("⚠️ Token not available after 3 seconds, proceeding without authentication")
+                    } else {
+                        print("✅ Token available for API request")
+                    }
+                    
                     // DÜZELTME: Her seferinde fresh token al
                     let currentToken = TokenManager.shared.accessToken
                     print("🔵 Current token for request: \(currentToken?.prefix(20) ?? "nil")...")
@@ -30,6 +38,9 @@ class NetworkManager: ObservableObject {
                     var finalHeaders = headers ?? [:]
                     if let token = currentToken {
                         finalHeaders["Authorization"] = "Bearer \(token)"
+                        print("🔐 Authorization header added")
+                    } else {
+                        print("⚠️ No token available, making request without authorization")
                     }
                     
                     // Dil header'ını ekle

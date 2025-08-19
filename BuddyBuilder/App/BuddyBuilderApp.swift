@@ -116,10 +116,19 @@ struct BuddyBuilderApp: App {
            !savedToken.isEmpty {
             print("🔐 Found saved auth token: \(savedToken.prefix(10))...")
             
+            // DÜZELTME: TokenManager'a da token'ı set et
+            TokenManager.shared.accessToken = savedToken
+            
+            // Refresh token'ı da set et
+            if let savedRefreshToken = UserDefaults.standard.string(forKey: "refresh_token") {
+                TokenManager.shared.refreshToken = savedRefreshToken
+                print("🔐 Also restored refresh token")
+            }
+            
             // Here you would typically validate the token with your backend
             // For now, we'll just mark as authenticated if token exists
             authViewModel.isAuthenticated = true
-            print("✅ User automatically authenticated")
+            print("✅ User automatically authenticated with TokenManager setup")
         } else {
             print("❌ No saved auth token found")
             authViewModel.isAuthenticated = false

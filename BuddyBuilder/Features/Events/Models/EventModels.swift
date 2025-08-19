@@ -3,7 +3,7 @@
 import Foundation
 
 // MARK: - Event Model - Updated for API Compatibility
-struct Event: Codable, Identifiable {
+struct Event: Codable, Identifiable, Equatable {
     let id: Int
     let name: String
     let description: String

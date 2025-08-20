@@ -210,6 +210,7 @@ struct ProfileView: View {
     @State private var navigateToMySports = false
     @State private var navigateToProfileDetails = false
     @State private var navigateToSettings = false
+    @State private var profileTabResetTrigger = false
     
     var body: some View {
         NavigationStack {
@@ -264,6 +265,16 @@ struct ProfileView: View {
             .navigationDestination(isPresented: $navigateToSettings) {
                 SettingsView()
                     .environmentObject(localizationManager)
+            }
+            .id(profileTabResetTrigger) // NavigationStack'i reset etmek için
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .profileTabSelected)) { _ in
+            // Profile tab seçildiğinde navigation stack'i reset et
+            withAnimation(.easeInOut(duration: 0.3)) {
+                navigateToMySports = false
+                navigateToProfileDetails = false
+                navigateToSettings = false
+                profileTabResetTrigger.toggle()
             }
         }
         .photosPicker(isPresented: $profileViewModel.showImagePicker, selection: $selectedPhoto, matching: .images)
@@ -881,6 +892,11 @@ struct ProfileMenuDivider: View {
             .padding(.leading, 72)
             .background(Color.dynamicBorder.opacity(0.3)) // ✅ Updated
     }
+}
+
+// MARK: - NotificationCenter Extensions
+extension Notification.Name {
+    static let profileTabSelected = Notification.Name("profileTabSelected")
 }
 
 // MARK: - Preview

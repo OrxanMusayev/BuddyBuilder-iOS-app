@@ -14,6 +14,10 @@ struct CustomTabBar: View {
                     isSelected: selectedTab == tab
                 ) {
                     withAnimation(.easeInOut(duration: 0.3)) {
+                        // Profile tab'a tıklandığında notification gönder
+                        if tab == .profile {
+                            NotificationCenter.default.post(name: .profileTabSelected, object: nil)
+                        }
                         selectedTab = tab
                     }
                 }

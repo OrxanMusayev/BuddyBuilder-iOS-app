@@ -410,7 +410,7 @@ struct CleanMySportCard: View {
         }
         .frame(height: 140)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 6)
+        .shadow(color: .dynamicShadow, radius: 12, x: 0, y: 6)
         .opacity(isUpdating ? 0.7 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isUpdating)
         // 🔴 FIX: No alerts at card level - all managed by parent view
@@ -419,9 +419,9 @@ struct CleanMySportCard: View {
     private var backgroundOverlay: some View {
         LinearGradient(
             colors: [
-                Color.black.opacity(0.6),
-                Color.black.opacity(0.3),
-                Color.black.opacity(0.7)
+                Color.dynamicShadow.opacity(0.6),
+                Color.dynamicShadow.opacity(0.3),
+                Color.dynamicShadow.opacity(0.7)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -464,14 +464,15 @@ struct CleanMySportCard: View {
         HStack(alignment: .bottom) {
             experienceLevelSection
             Spacer()
-            userCountBadge
+            // User count badge gizlendi
+            // userCountBadge
         }
     }
     
     private var experienceLevelSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Experience Level")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.white.opacity(0.8))
             
             Button(action: {
@@ -486,26 +487,26 @@ struct CleanMySportCard: View {
     }
     
     private var experienceLevelContent: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             experienceDots
             Text(userSport.experienceLevelName)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
             Image(systemName: "chevron.down")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.8))
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: 22).fill(Color.white.opacity(0.2)))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 18).fill(Color.white.opacity(0.2)))
     }
     
     private var experienceDots: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             ForEach(1...4, id: \.self) { level in
                 Circle()
                     .fill(level <= userSport.experienceLevel ? Color.white : Color.white.opacity(0.3))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 8, height: 8)
             }
         }
     }

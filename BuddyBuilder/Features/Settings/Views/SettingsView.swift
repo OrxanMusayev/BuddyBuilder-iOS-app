@@ -39,18 +39,14 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background
-                LoginBackgroundView()
+            VStack(spacing: 0) {
+                // Custom Header
+                customHeader
                 
-                VStack(spacing: 0) {
-                    // Custom Header
-                    customHeader
-                    
-                    // Settings Content
-                    settingsContent
-                }
+                // Settings Content
+                settingsContent
             }
+            .background(Color.dynamicBackground)
             .navigationDestination(isPresented: $navigateToAccount) {
                 AccountSettingsView()
                     .environmentObject(localizationManager)
@@ -101,7 +97,7 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground)
     }
     
     // MARK: - Settings Content
@@ -132,9 +128,9 @@ struct SettingsView: View {
                 }
             }
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
     }
     
     // MARK: - App Info Section
@@ -179,9 +175,9 @@ struct SettingsView: View {
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
     }
     
     // MARK: - Settings Menu Items Configuration
@@ -209,6 +205,8 @@ struct SettingsView: View {
                     navigateToLanguageRegion = true
                 }
             ),
+            // Notifications menüsü geçici olarak gizlendi
+            /*
             SettingsMenuItem(
                 id: "notifications",
                 title: "settings.menu.notifications".localized(using: localizationManager),
@@ -220,6 +218,7 @@ struct SettingsView: View {
                     navigateToNotifications = true
                 }
             ),
+            */
             SettingsMenuItem(
                 id: "support",
                 title: "settings.menu.support".localized(using: localizationManager),

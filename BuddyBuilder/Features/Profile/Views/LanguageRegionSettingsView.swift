@@ -38,18 +38,14 @@ struct LanguageRegionSettingsView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background
-                LoginBackgroundView()
+            VStack(spacing: 0) {
+                // Custom Header
+                customHeader
                 
-                VStack(spacing: 0) {
-                    // Custom Header
-                    customHeader
-                    
-                    // Language Region Content
-                    languageRegionContent
-                }
+                // Language Region Content
+                languageRegionContent
             }
+            .background(Color.dynamicBackground)
             .navigationDestination(isPresented: $navigateToChangeLanguage) {
                 // TODO: ChangeLanguageView() - Will be created next
                 Text("Change Language View")
@@ -98,7 +94,7 @@ struct LanguageRegionSettingsView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground)
     }
     
     // MARK: - Language Region Content
@@ -126,9 +122,9 @@ struct LanguageRegionSettingsView: View {
                 }
             }
         }
-        .background(Color.white)
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: .dynamicShadow, radius: 10, x: 0, y: 4)
     }
     
     // MARK: - Language Region Menu Items Configuration
@@ -170,7 +166,7 @@ struct LangRegionMenuItemView: View {
                 // Outline (içi boş) siyah iconlar
                 Image(systemName: getOutlineIcon(item.customIcon))
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.black)
+                    .foregroundColor(.textPrimary)
                     .frame(width: 24, height: 24)
                 
                 // Content

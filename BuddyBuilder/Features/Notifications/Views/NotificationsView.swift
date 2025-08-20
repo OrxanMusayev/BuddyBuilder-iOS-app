@@ -1013,20 +1013,6 @@ struct NotificationRow: View {
                                     .foregroundColor(notification.type.color)
                             }
                         }
-                        
-                        // Unread indicator
-                        if !notification.isRead {
-                            VStack {
-                                HStack {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 12, height: 12)
-                                        .offset(x: 8, y: -8)
-                                    Spacer()
-                                }
-                                Spacer()
-                            }
-                        }
                     }
                     
                     // Notification Content
@@ -1052,6 +1038,13 @@ struct NotificationRow: View {
                                     .foregroundColor(.textSecondary.opacity(0.8))
                                 
                                 Spacer()
+                                
+                                // Unread indicator - positioned at the right side
+                                if !notification.isRead {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 10, height: 10)
+                                }
                             }
                         }
                         

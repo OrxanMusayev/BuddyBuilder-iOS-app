@@ -221,15 +221,12 @@ struct AddSportView: View {
     let onSportsAdded: (Bool) -> Void
     
     var body: some View {
-        ZStack {
-            LoginBackgroundView()
-            
-            VStack(spacing: 0) {
-                customHeader
-                searchSection
-                sportsListSection
-            }
+        VStack(spacing: 0) {
+            customHeader
+            searchSection
+            sportsListSection
         }
+        .background(Color.dynamicBackground)
         .navigationBarHidden(true)
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") { }
@@ -284,7 +281,7 @@ struct AddSportView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground)
     }
     
     private var backButton: some View {
@@ -330,7 +327,7 @@ struct AddSportView: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(viewModel.canSave ? Color.primaryOrange : Color.gray)
+                    .fill(viewModel.canSave ? Color.primaryOrange : Color.textSecondary)
             )
             .shadow(color: viewModel.canSave ? .primaryOrange.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
         }
@@ -341,35 +338,36 @@ struct AddSportView: View {
     
     // MARK: - Search Section
     private var searchSection: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                
-                TextField("Search sports...", text: $viewModel.searchText)
-                    .font(.system(size: 16))
-                    .foregroundColor(.textPrimary)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                
-                if !viewModel.searchText.isEmpty {
-                    Button(action: { viewModel.searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.textSecondary)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color(.systemGray2))
+                    
+                    TextField("Search sports...", text: $viewModel.searchText)
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(.label))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    
+                    if !viewModel.searchText.isEmpty {
+                        Button(action: { viewModel.searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Color(.systemGray2))
+                        }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray5))
+                .clipShape(RoundedRectangle(cornerRadius: 25))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 25))
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Color.cardBackground)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
-        .background(Color.white.opacity(0.95))
     }
     
     // MARK: - Sports List Section
@@ -491,7 +489,7 @@ struct SportRowCard: View {
         .scaleEffect(isSelected ? 1.02 : 1.0)
         .opacity(isDisabled ? 0.7 : 1.0)
         .shadow(
-            color: isDisabled ? .black.opacity(0.02) : (isSelected ? .primaryOrange.opacity(0.15) : .black.opacity(0.05)),
+            color: isDisabled ? .dynamicShadow.opacity(0.3) : (isSelected ? .primaryOrange.opacity(0.15) : .dynamicShadow),
             radius: isDisabled ? 2 : (isSelected ? 8 : 4),
             x: 0,
             y: isDisabled ? 1 : (isSelected ? 4 : 2)
@@ -535,7 +533,7 @@ struct SportRowCard: View {
             defaultSportBackground
             ZStack {
                 Circle()
-                    .fill(Color.black.opacity(0.3))
+                    .fill(Color.dynamicShadow.opacity(0.6))
                     .frame(width: 30, height: 30)
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -570,9 +568,9 @@ struct SportRowCard: View {
     private var backgroundOverlay: some View {
         LinearGradient(
             colors: [
-                Color.black.opacity(isDisabled ? 0.75 : 0.5),
-                Color.black.opacity(isDisabled ? 0.6 : 0.3),
-                Color.black.opacity(isDisabled ? 0.8 : 0.6)
+                Color.dynamicShadow.opacity(isDisabled ? 0.75 : 0.5),
+                Color.dynamicShadow.opacity(isDisabled ? 0.6 : 0.3),
+                Color.dynamicShadow.opacity(isDisabled ? 0.8 : 0.6)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

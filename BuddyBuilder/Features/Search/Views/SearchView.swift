@@ -8,14 +8,12 @@ enum SectionType {
     case popularUsers
     case newJoiners
     case activeUsers
-    case topTrainers
     
     var title: String {
         switch self {
         case .popularUsers: return "Popular Users Today"
         case .newJoiners: return "New Joiners Near You"
         case .activeUsers: return "Active Now"
-        case .topTrainers: return "Top Trainers Near You"
         }
     }
     
@@ -24,7 +22,6 @@ enum SectionType {
         case .popularUsers: return "flame.fill"
         case .newJoiners: return "person.badge.plus.fill"
         case .activeUsers: return "circle.fill"
-        case .topTrainers: return "person.crop.circle.badge.checkmark.fill"
         }
     }
 }
@@ -71,9 +68,12 @@ class SearchViewModel: ObservableObject {
     
     // MARK: - NAVIGATION: Navigate to User Profile
     func navigateToUserProfile(_ userId: String) {
-        selectedUserId = userId
-        showUserProfile = true
-        print("🚀 Navigating to user profile: \(userId)")
+        // Reset any scroll positions and states before navigation
+        DispatchQueue.main.async { [weak self] in
+            self?.selectedUserId = userId
+            self?.showUserProfile = true
+            print("🚀 Navigating to user profile: \(userId)")
+        }
     }
     
     // MARK: - ALWAYS LOAD FROM API (NO CACHE CHECKS)
@@ -269,7 +269,7 @@ class SearchViewModel: ObservableObject {
                 page: page,
                 pageSize: 20
             )
-        case .activeUsers, .topTrainers:
+        case .activeUsers:
             isSectionLoading = false
             return
         }
@@ -419,7 +419,7 @@ struct SearchView: View {
                     searchSuggestionsOverlay
                 }
             }
-            .navigationDestination(isPresented: $viewModel.showUserProfile) {
+            .fullScreenCover(isPresented: $viewModel.showUserProfile) {
                 if let userId = viewModel.selectedUserId {
                     UserProfileView(userId: userId)
                         .environmentObject(localizationManager)
@@ -441,7 +441,6 @@ struct SearchView: View {
                 SectionDetailView(
                     section: section,
                     users: viewModel.getUsersForSection(section),
-                    trainers: viewModel.getTrainersForSection(section),
                     hasMorePages: viewModel.sectionHasMorePages,
                     isLoading: !viewModel.isSectionDetailReady,  // YENİ: Görsel yükleme dahil
                     onDismiss: {
@@ -454,7 +453,11 @@ struct SearchView: View {
                         viewModel.refreshCurrentSection()
                     },
                     onUserSelected: { userId in
-                        viewModel.navigateToUserProfile(userId)
+                        // First close the section detail, then navigate to user profile
+                        viewModel.hideSectionDetail()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            viewModel.navigateToUserProfile(userId)
+                        }
                     }
                 )
                 .environmentObject(localizationManager)

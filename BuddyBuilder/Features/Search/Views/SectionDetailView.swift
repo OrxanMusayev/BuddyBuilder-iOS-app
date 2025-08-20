@@ -4,7 +4,6 @@ import SwiftUI
 struct SectionDetailView: View {
     let section: SectionType
     let users: [SearchUser]
-    let trainers: [SearchTrainer]
     let hasMorePages: Bool
     let isLoading: Bool
     let onDismiss: () -> Void
@@ -12,6 +11,19 @@ struct SectionDetailView: View {
     let onRefresh: () -> Void  // YENİ: Refresh callback
     let onUserSelected: (String) -> Void
     @EnvironmentObject var localizationManager: LocalizationManager
+    @State private var searchText: String = ""
+    
+    // Filtered data based on search text
+    private var filteredUsers: [SearchUser] {
+        if searchText.isEmpty {
+            return users
+        } else {
+            return users.filter { user in
+                (user.fullName?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                user.username.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -23,42 +35,75 @@ struct SectionDetailView: View {
                 // Header
                 headerView
                 
+                // Search Bar - Inline
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(Color(.systemGray2))
+                            
+                            TextField("Search in \(section.title.lowercased())...", text: $searchText)
+                                .font(.system(size: 16))
+                                .foregroundColor(Color(.label))
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                            
+                            if !searchText.isEmpty {
+                                Button(action: { searchText = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(Color(.systemGray2))
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemGray5))
+                        .clipShape(RoundedRectangle(cornerRadius: 25))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(Color(.systemBackground))
+                }
+                
                 // Content
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
-                        if isLoading && users.isEmpty && trainers.isEmpty {
+                        if isLoading && users.isEmpty {
                             // Show skeleton cards while loading
                             ForEach(0..<6, id: \.self) { _ in
-                                if section == .topTrainers {
-                                    SkeletonDetailTrainerCard()
-                                } else {
-                                    SkeletonDetailUserCard()
-                                }
+                                SkeletonDetailUserCard()
                             }
                         } else {
-                            if section == .topTrainers {
-                                ForEach(trainers) { trainer in
-                                    DetailTrainerCard(
-                                        trainer: trainer,
-                                        onCardTap: {
-                                            onUserSelected(trainer.id)
-                                        }
-                                    )
+                            ForEach(filteredUsers) { user in
+                                DetailUserCard(
+                                    user: user,
+                                    section: section,
+                                    onCardTap: {
+                                        onUserSelected(user.id)
+                                    }
+                                )
+                            }
+                            
+                            // No results message
+                            if !searchText.isEmpty && filteredUsers.isEmpty && !isLoading {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 40, weight: .light))
+                                        .foregroundColor(.gray)
+                                    
+                                    Text("No results found for '\(searchText)'")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
                                 }
-                            } else {
-                                ForEach(users) { user in
-                                    DetailUserCard(
-                                        user: user,
-                                        section: section,
-                                        onCardTap: {
-                                            onUserSelected(user.id)
-                                        }
-                                    )
-                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
                             }
                             
                             // Load more indicator
-                            if hasMorePages {
+                            if hasMorePages && searchText.isEmpty {
                                 loadMoreSection
                                     .onAppear {
                                         onLoadMore()
@@ -117,11 +162,7 @@ struct SectionDetailView: View {
             if isLoading {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 2), spacing: 16) {
                     ForEach(0..<4, id: \.self) { _ in
-                        if section == .topTrainers {
-                            SkeletonDetailTrainerCard()
-                        } else {
-                            SkeletonDetailUserCard()
-                        }
+                        SkeletonDetailUserCard()
                     }
                 }
             }
@@ -260,7 +301,6 @@ struct DetailUserCard: View {
         case .popularUsers: return Color.primaryOrange
         case .newJoiners: return Color.primaryOrange
         case .activeUsers: return Color.blue
-        case .topTrainers: return Color.purple
         }
     }
     
@@ -269,7 +309,6 @@ struct DetailUserCard: View {
         case .popularUsers: return "plus.circle.fill"
         case .newJoiners: return "plus.circle.fill"
         case .activeUsers: return "message.circle.fill"
-        case .topTrainers: return "person.fill"
         }
     }
     
@@ -278,141 +317,11 @@ struct DetailUserCard: View {
         case .popularUsers: return "Match"
         case .newJoiners: return "Match"
         case .activeUsers: return "Message"
-        case .topTrainers: return "Contact"
         }
     }
 }
 
-// MARK: - Detail Trainer Card - UPDATED WITH DELEGATION
-struct DetailTrainerCard: View {
-    let trainer: SearchTrainer
-    let onCardTap: () -> Void // Delegate to parent
-    @State private var isPressed = false
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                SearchAsyncImage(
-                    url: trainer.profileImageUrl,
-                    placeholder: "person.crop.circle.badge.checkmark.fill"
-                )
-                .frame(width: 90, height: 90)
-                .clipShape(Circle())
-                
-                // Verified badge
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.blue)
-                            .offset(x: 5, y: 5)
-                    }
-                }
-            }
-            
-            // Trainer Info - Fixed Heights
-            VStack(spacing: 6) {
-                Text(trainer.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.textPrimary)
-                    .lineLimit(1)
-                    .frame(height: 18) // Fixed height
-                
-                Text(trainer.specialty)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.purple)
-                    .lineLimit(1)
-                    .frame(height: 16) // Fixed height
-                
-                Text(trainer.gym)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(height: 28) // Fixed height for 2 lines
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.yellow)
-                    
-                    Text(trainer.formattedRating)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.textPrimary)
-                    
-                    Text("(\(trainer.experience))")
-                        .font(.system(size: 10))
-                        .foregroundColor(.textSecondary)
-                }
-                .frame(height: 28) // Fixed height
-            }
-            
-            Spacer() // Push buttons to bottom
-            
-            // Action Buttons - Fixed Heights
-            VStack(spacing: 8) {
-                Button(action: {
-                    print("View events for \(trainer.name)")
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "calendar.circle")
-                            .font(.system(size: 12))
-                        Text("Events")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundColor(.purple)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 32) // Fixed button height
-                    .background(Color.clear)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.purple, lineWidth: 1.5)
-                    )
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260) // Same as user cards
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    Color(.systemGray4),
-                    lineWidth: 1
-                )
-        )
-        .shadow(
-            color: Color.black.opacity(isPressed ? 0.05 : 0.08),
-            radius: isPressed ? 8 : 10,
-            x: 0,
-            y: isPressed ? 3 : 5
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
-        .onTapGesture {
-            // NAVIGATION: Delegate to parent
-            onCardTap()
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation {
-                        isPressed = true
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation {
-                        isPressed = false
-                    }
-                }
-        )
-    }
-}
-
-// MARK: - Skeleton Detail Card Components (unchanged)
+// MARK: - Skeleton Detail User Card
 struct SkeletonDetailUserCard: View {
     @State private var isAnimating = false
     
@@ -499,103 +408,6 @@ struct SkeletonDetailUserCard: View {
             withAnimation(Animation.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                 isAnimating = true
             }
-        }
-    }
-}
-
-struct SkeletonDetailTrainerCard: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            // Profile Image Skeleton with badge
-            ZStack {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 90, height: 90)
-                    .shimmer(isAnimating: isAnimating)
-                    .clipShape(Circle())
-                
-                // Badge skeleton
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 16, height: 16)
-                            .offset(x: 5, y: 5)
-                    }
-                }
-            }
-            
-            // Trainer Info Skeleton
-            VStack(spacing: 6) {
-                // Name skeleton
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 80, height: 14)
-                
-                // Specialty skeleton
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.gray.opacity(0.15))
-                    .frame(width: 70, height: 12)
-                
-                // Gym skeleton (2 lines)
-                VStack(spacing: 3) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(width: 90, height: 10)
-                    
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(width: 60, height: 10)
-                }
-                
-                // Rating skeleton
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: 12, height: 12)
-                    
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.15))
-                        .frame(width: 30, height: 12)
-                    
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 40, height: 10)
-                }
-            }
-            
-            Spacer()
-            
-            // Button skeleton
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.gray.opacity(0.1))
-                .frame(height: 32)
-        }
-        .frame(maxWidth: .infinity, minHeight: 260, maxHeight: 260)
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    Color(.systemGray4),
-                    lineWidth: 1
-                )
-        )
-        .shadow(
-            color: Color.black.opacity(0.08),
-            radius: 10,
-            x: 0,
-            y: 5
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-        .onAppear {
-            isAnimating = true
         }
     }
 }

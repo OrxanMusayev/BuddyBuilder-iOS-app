@@ -16,25 +16,26 @@ struct UserProfileView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background - DARK MODE UYUMLU
-                Color.dynamicBackground
-                    .ignoresSafeArea(.all)
-                
-                VStack(spacing: 0) {
-                    // Custom Header - DARK MODE UYUMLU
-                    customHeader
-                    
-                    // Content
-                    if viewModel.isLoadingProfile && viewModel.profileDetails == nil {
-                        loadingView
-                    } else if viewModel.profileDetails != nil {
-                        profileContentView
-                    } else {
-                        errorStateView
-                    }
-                }
+        ZStack(alignment: .top) {
+            // Background - DARK MODE UYUMLU
+            Color.dynamicBackground
+                .ignoresSafeArea(.all)
+            
+            // Content with ScrollView
+            if viewModel.isLoadingProfile && viewModel.profileDetails == nil {
+                loadingView
+                    .padding(.top, 60) // Header yüksekliği kadar padding
+            } else if viewModel.profileDetails != nil {
+                profileContentView
+                    .padding(.top, 60) // Header yüksekliği kadar padding
+            } else {
+                errorStateView
+                    .padding(.top, 60) // Header yüksekliği kadar padding
             }
+            
+            // Fixed Header - Always on top
+            customHeader
+        }
         }
         .navigationBarHidden(true)
         .alert("Error", isPresented: $viewModel.showError) {
@@ -79,41 +80,34 @@ struct UserProfileView: View {
         }
     }
     
-    // MARK: - Custom Header - DARK MODE UYUMLU
+    // MARK: - Custom Header - FIXED AND STABLE
     private var customHeader: some View {
-        HStack {
-            // Back button
-            Button(action: { dismiss() }) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.primaryOrange)
-                    .frame(width: 44, height: 44)
-                    .background(Color.clear)
+        ZStack {
+            // Background
+            Color.dynamicBackground
+                .shadow(color: .black.opacity(0.05), radius: 1, x: 0, y: 1)
+            
+            // Back button (sol taraf)
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primaryOrange)
+                        .frame(width: 44, height: 44)
+                        .background(Color.clear)
+                }
+                Spacer()
             }
+            .padding(.horizontal, 20)
             
-            Spacer()
-            
-            // Title
+            // Title (ortada)
             Text("user.profile.title".localized(using: localizationManager))
                 .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(.primaryText) // DARK MODE UYUMLU
-            
-            Spacer()
-            
-            // More options button
-            Button(action: {
-                viewModel.showReportOptions = true
-            }) {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondaryText) // DARK MODE UYUMLU
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-            }
+                .foregroundColor(.primaryText)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(Color.cardBackground.opacity(0.95)) // DARK MODE UYUMLU
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
     }
     
     // MARK: - Loading View - YENİ SKELETON CARD İLE
@@ -158,7 +152,7 @@ struct UserProfileView: View {
     // MARK: - Profile Content View
     private var profileContentView: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 16) {
                 // Profile Header Section
                 profileHeaderSection
                 
@@ -177,8 +171,9 @@ struct UserProfileView: View {
                 Spacer(minLength: 100)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 12)
         }
+        .scrollIndicators(.hidden)
         .refreshable {
             viewModel.refresh()
         }
@@ -186,20 +181,20 @@ struct UserProfileView: View {
     
     // MARK: - Profile Header Section - SearchView UserCard ile AYNI STIL
     private var profileHeaderSection: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 12) {
             // Profile Image - SearchView UserCard ile birebir aynı
             ZStack {
                 SearchAsyncImage(
                     url: viewModel.profileDetails?.profileImageUrl,
                     placeholder: "person.crop.circle.fill"
                 )
-                .frame(width: 120, height: 120)
+                .frame(width: 100, height: 100)
                 .clipShape(Circle())
                 
                 // Eğer kullanıcı yeniyse NEW badge (SearchView'daki gibi)
                 // Bu kısım isteğe bağlı - profil sayfasında genellikle badge olmaz
             }
-            .frame(height: 130) // SearchView'daki UserCard ile aynı frame logic
+            .frame(height: 100) // SearchView'daki UserCard ile aynı frame logic
             
             // User Info
             VStack(spacing: 8) {
@@ -515,8 +510,9 @@ struct UserProfileSkeleton: View {
                 // Profile image skeleton
                 Circle()
                     .fill(Color.gray.opacity(0.2))
-                    .frame(width: 120, height: 120)
+                    .frame(width: 100, height: 100)
                     .shimmer(isAnimating: isAnimating)
+                    .clipShape(Circle())
                 
                 // Name and username skeleton
                 VStack(spacing: 8) {
@@ -548,6 +544,7 @@ struct UserProfileSkeleton: View {
                             .fill(Color.gray.opacity(0.2))
                             .frame(width: 30, height: 30)
                             .shimmer(isAnimating: isAnimating)
+                            .clipShape(Circle())
                         
                         Rectangle()
                             .fill(Color.gray.opacity(0.2))
@@ -600,6 +597,7 @@ struct UserProfileSkeleton: View {
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(width: 18, height: 18)
                                 .shimmer(isAnimating: isAnimating)
+                                .clipShape(Circle())
                             
                             Rectangle()
                                 .fill(Color.gray.opacity(0.2))
@@ -618,6 +616,7 @@ struct UserProfileSkeleton: View {
                                         .fill(Color.gray.opacity(0.2))
                                         .frame(width: 16, height: 16)
                                         .shimmer(isAnimating: isAnimating)
+                                        .clipShape(Circle())
                                     
                                     Rectangle()
                                         .fill(Color.gray.opacity(0.2))

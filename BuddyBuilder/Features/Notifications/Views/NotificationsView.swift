@@ -710,27 +710,23 @@ struct NotificationsView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                // Background
-                LoginBackgroundView()
+            VStack(spacing: 0) {
+                // Custom Header
+                customHeader
                 
-                VStack(spacing: 0) {
-                    // Custom Header
-                    customHeader
-                    
-                    // Filter Tabs
-                    filterTabsSection
-                    
-                    // Content
-                    if viewModel.isLoading && viewModel.notifications.isEmpty {
-                        loadingView
-                    } else if viewModel.filteredNotifications.isEmpty {
-                        emptyStateView
-                    } else {
-                        notificationsList
-                    }
+                // Filter Tabs
+                filterTabsSection
+                
+                // Content
+                if viewModel.isLoading && viewModel.notifications.isEmpty {
+                    loadingView
+                } else if viewModel.filteredNotifications.isEmpty {
+                    emptyStateView
+                } else {
+                    notificationsList
                 }
             }
+            .background(Color.dynamicBackground)
         }
         .navigationBarHidden(true)
         .alert("notifications.mark_all.title".localized(using: localizationManager), isPresented: $showingMarkAllAlert) {
@@ -753,7 +749,7 @@ struct NotificationsView: View {
     
     // MARK: - Custom Header
     private var customHeader: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             HStack {
                 // Title
                 Text("nav.notifications".localized(using: localizationManager))
@@ -764,40 +760,34 @@ struct NotificationsView: View {
                 
                 // Unread count badge
                 if viewModel.hasUnreadNotifications {
-                    ZStack {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 24, height: 24)
+                    HStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 20, height: 20)
+                            
+                            Text("\(viewModel.unreadCount)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.hasUnreadNotifications)
                         
-                        Text("\(viewModel.unreadCount)")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                        // Mark All Read Button
+                        Button(action: {
+                            showingMarkAllAlert = true
+                        }) {
+                            Text("Mark All")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.primaryOrange)
+                        }
                     }
-                    .transition(.scale.combined(with: .opacity))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.hasUnreadNotifications)
-                }
-                
-                // Mark All Read Button
-                if viewModel.hasUnreadNotifications {
-                    Button(action: {
-                        showingMarkAllAlert = true
-                    }) {
-                        Text("Mark All Read")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primaryOrange)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.primaryOrange.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .transition(.scale.combined(with: .opacity))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: viewModel.hasUnreadNotifications)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(Color.white.opacity(0.95))
+        .background(Color.cardBackground)
     }
     
     // MARK: - Filter Tabs Section
@@ -820,10 +810,7 @@ struct NotificationsView: View {
                 .padding(.horizontal, 20)
             }
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.95))
-            
-            Divider()
-                .background(Color.formBorder.opacity(0.3))
+            .background(Color.cardBackground)
         }
     }
     
@@ -932,7 +919,7 @@ struct NotificationsView: View {
                     if notification.id != viewModel.filteredNotifications.last?.id {
                         Divider()
                             .padding(.leading, 88)
-                            .background(Color.formBorder.opacity(0.2))
+                            .foregroundColor(.cardBackground.opacity(0.5))
                     }
                 }
                 
@@ -944,7 +931,7 @@ struct NotificationsView: View {
                         }
                 }
             }
-            .background(Color.white)
+            .background(Color.cardBackground)
         }
         .refreshable {
             viewModel.loadNotifications(refresh: true)
@@ -970,10 +957,10 @@ struct FilterTabButton: View {
                     ZStack {
                         Circle()
                             .fill(isSelected ? .white : .red)
-                            .frame(width: 18, height: 18)
+                            .frame(width: 16, height: 16)
                         
                         Text("\(count)")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundColor(isSelected ? .primaryOrange : .white)
                     }
                 }
@@ -982,11 +969,11 @@ struct FilterTabButton: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(isSelected ? Color.primaryOrange : Color.clear)
+                    .fill(isSelected ? Color.primaryOrange : Color.cardBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? Color.clear : Color.formBorder.opacity(0.5), lineWidth: 1)
+                    .stroke(isSelected ? Color.clear : Color.textSecondary.opacity(0.3), lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -1048,12 +1035,12 @@ struct NotificationRow: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(notification.title)
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.primaryText)
+                                    .foregroundColor(.textPrimary)
                                     .lineLimit(1)
                                 
                                 Text(notification.message)
                                     .font(.system(size: 14))
-                                    .foregroundColor(.secondaryText)
+                                    .foregroundColor(.textSecondary)
                                     .lineLimit(3)
                             }
                             
@@ -1062,7 +1049,7 @@ struct NotificationRow: View {
                             VStack {
                                 Text(notification.timeAgo)
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.tertiaryText)
+                                    .foregroundColor(.textSecondary.opacity(0.8))
                                 
                                 Spacer()
                             }
@@ -1077,7 +1064,7 @@ struct NotificationRow: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(notification.isRead ? Color.white : Color.primaryOrange.opacity(0.03))
+            .background(notification.isRead ? Color.cardBackground : Color.primaryOrange.opacity(0.05))
         }
         .buttonStyle(PlainButtonStyle())
         .contextMenu {
@@ -1156,7 +1143,7 @@ struct NotificationRow: View {
         case (.secondary, .filled):
             return .white
         case (.secondary, _):
-            return .gray
+            return .textSecondary
         case (.destructive, .filled):
             return .white
         case (.destructive, _):
@@ -1169,7 +1156,7 @@ struct NotificationRow: View {
         case (.primary, .filled):
             return .primaryOrange
         case (.secondary, .filled):
-            return .gray
+            return .textSecondary
         case (.destructive, .filled):
             return .red
         case (_, .text):
@@ -1186,7 +1173,7 @@ struct NotificationRow: View {
         case .primary:
             return .primaryOrange
         case .secondary:
-            return .gray
+            return .textSecondary
         case .destructive:
             return .red
         }
@@ -1214,7 +1201,7 @@ struct LoadMoreNotificationsView: View {
             Spacer()
         }
         .padding(.vertical, 20)
-        .background(Color.white)
+        .background(Color.cardBackground)
     }
 }
 

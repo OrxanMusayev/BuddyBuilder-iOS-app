@@ -1,4 +1,4 @@
-// BuddyBuilder/Features/Messages/Views/MessagesView.swift - MODERN VERSION
+// BuddyBuilder/Features/Messages/Views/MessagesView.swift - DARK MODE UYUMLU
 
 import SwiftUI
 import Combine
@@ -97,17 +97,6 @@ class MockMessagesService: MessagesServiceProtocol {
             unreadCount: 2,
             isOnline: true,
             chatType: .direct
-        ),
-        ChatRoom(
-            id: 2,
-            participantName: "Weekend Warriors",
-            participantUsername: "weekend_warriors",
-            participantProfileImageUrl: "https://via.placeholder.com/150x150/4CAF50/FFFFFF?text=WW",
-            lastMessage: "Who's bringing the water bottles?",
-            lastMessageDate: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1800)),
-            unreadCount: 0,
-            isOnline: false,
-            chatType: .group
         ),
         ChatRoom(
             id: 3,
@@ -279,8 +268,9 @@ struct MessagesView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background - same as UserProfile
-                LoginBackgroundView()
+                // Background - DARK MODE UYUMLU
+                Color.dynamicBackground
+                    .ignoresSafeArea(.all)
                 
                 VStack(spacing: 0) {
                     // Modern Header
@@ -332,15 +322,15 @@ struct MessagesView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.primaryOrange)
                         .frame(width: 40, height: 40)
-                        .background(Color.white)
+                        .background(Color.cardBackground)
                         .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .shadow(color: .dynamicShadow, radius: 4, x: 0, y: 2)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 20)
-            .background(Color.white.opacity(0.95))
+            .background(Color.dynamicBackground.opacity(0.95))
         }
     }
     
@@ -380,35 +370,37 @@ struct MessagesView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Modern Search Bar
+    // MARK: - Modern Search Bar - SearchView Style
     private var modernSearchBar: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                HStack(spacing: 12) {
+            HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.textSecondary)
+                        .foregroundColor(Color(.systemGray2))
                     
                     TextField("Search conversations...", text: $viewModel.searchText)
                         .font(.system(size: 16))
-                        .foregroundColor(.textPrimary)
+                        .foregroundColor(Color(.label))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     
                     if !viewModel.searchText.isEmpty {
                         Button(action: { viewModel.searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 16))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(Color(.systemGray2))
                         }
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.vertical, 12)
+                .background(Color(.systemGray5))
+                .clipShape(RoundedRectangle(cornerRadius: 25))
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
-            .background(Color.clear)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(Color(.systemBackground))
         }
     }
     
@@ -470,9 +462,9 @@ struct MessagesView: View {
                 // Bottom padding
                 Spacer(minLength: 20)
             }
-            .background(Color.white)
+            .background(Color.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
+            .shadow(color: .dynamicShadow, radius: 8, x: 0, y: 2)
             .padding(.horizontal, 16)
             .padding(.top, 8)
         }
@@ -504,7 +496,7 @@ struct CleanModernChatRow: View {
                         Circle()
                             .fill(Color.green)
                             .frame(width: 14, height: 14)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .overlay(Circle().stroke(Color.cardBackground, lineWidth: 2))
                             .offset(x: 18, y: 18)
                     }
                     

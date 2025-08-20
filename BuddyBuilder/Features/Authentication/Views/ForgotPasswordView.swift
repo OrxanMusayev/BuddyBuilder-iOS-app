@@ -244,7 +244,7 @@ struct ForgotPasswordView: View {
                 
                 Text(loadingMessage)
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(.primaryText)
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 32)
@@ -307,7 +307,7 @@ struct ForgotPasswordView: View {
                 // Message
                 Text(viewModel.errorMessage)
                     .font(.system(size: 16))
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(nil)
                     .padding(.horizontal, 24)
